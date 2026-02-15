@@ -120,4 +120,69 @@ describe('TicketsPageComponent', () => {
     const placeholder = fixture.nativeElement.querySelector('.detail-placeholder');
     expect(placeholder).toBeFalsy();
   });
+
+  // Story 1.6: creating signal and creation form integration
+  it('should start with creating = false', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    expect(component.creating()).toBeFalse();
+  });
+
+  it('should set creating to true on onNewTicket()', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    component.onNewTicket();
+    expect(component.creating()).toBeTrue();
+  });
+
+  it('should show ticket-create when creating is true', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    component.creating.set(true);
+    fixture.detectChanges();
+
+    const createForm = fixture.nativeElement.querySelector('app-ticket-create');
+    expect(createForm).toBeTruthy();
+    const placeholder = fixture.nativeElement.querySelector('.detail-placeholder');
+    expect(placeholder).toBeFalsy();
+  });
+
+  it('should set creating to false on onCreated()', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    component.creating.set(true);
+    component.onCreated();
+    expect(component.creating()).toBeFalse();
+  });
+
+  it('should set creating to false on onCancelled()', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    component.creating.set(true);
+    component.onCancelled();
+    expect(component.creating()).toBeFalse();
+  });
+
+  // AC #1: Ctrl+N keyboard shortcut
+  it('should set creating to true on Ctrl+N', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    const event = new KeyboardEvent('keydown', { key: 'n', ctrlKey: true });
+    Object.defineProperty(event, 'preventDefault', { value: jasmine.createSpy('preventDefault') });
+    component.onCtrlN(event);
+
+    expect(component.creating()).toBeTrue();
+    expect(event.preventDefault).toHaveBeenCalled();
+  });
 });

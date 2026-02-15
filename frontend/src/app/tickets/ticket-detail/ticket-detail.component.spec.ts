@@ -3,6 +3,8 @@ import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+import { MatDialog } from '@angular/material/dialog';
+import { of } from 'rxjs';
 import { TicketDetailComponent } from './ticket-detail.component';
 import { TicketService } from '../ticket.service';
 import { Ticket } from '../ticket.model';
@@ -370,5 +372,66 @@ describe('TicketDetailComponent', () => {
     const spy = spyOn(ticketService, 'updateTicketField');
     component.onFieldChanged('title', 'test');
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  // AC #6: Delete button visible with red/warn text, tertiary style
+  it('should render a Delete button in the detail panel', () => {
+    selectTicket(MOCK_BUG);
+    const deleteBtn = fixture.nativeElement.querySelector('.detail-delete button');
+    expect(deleteBtn).toBeTruthy();
+    expect(deleteBtn.textContent.trim()).toBe('Delete');
+  });
+
+  // AC #6: Clicking Delete opens MatDialog confirmation
+  it('should open a confirmation dialog on onDelete()', () => {
+    selectTicket(MOCK_BUG);
+    const dialog = TestBed.inject(MatDialog);
+    const dialogRefMock = { afterClosed: () => of(false) };
+    const openSpy = spyOn(dialog, 'open').and.returnValue(dialogRefMock as any);
+
+    component.onDelete();
+
+    expect(openSpy).toHaveBeenCalledWith(
+      jasmine.any(Function),
+      jasmine.objectContaining({ data: { ticketId: 'SS-1' } })
+    );
+  });
+
+  // AC #7: Confirm delete removes ticket, navigates to /tickets
+  it('should call deleteTicket and navigate on dialog confirm', () => {
+    selectTicket(MOCK_BUG);
+    const dialog = TestBed.inject(MatDialog);
+    const dialogRefMock = { afterClosed: () => of(true) };
+    spyOn(dialog, 'open').and.returnValue(dialogRefMock as any);
+    const deleteSpy = spyOn(ticketService, 'deleteTicket');
+    const navigateSpy = spyOn(router, 'navigate');
+
+    component.onDelete();
+
+    expect(deleteSpy).toHaveBeenCalledWith('SS-1');
+    expect(navigateSpy).toHaveBeenCalledWith(['/tickets']);
+  });
+
+  // AC #8: Cancel/Escape dismisses dialog without deleting
+  it('should not call deleteTicket on dialog cancel', () => {
+    selectTicket(MOCK_BUG);
+    const dialog = TestBed.inject(MatDialog);
+    const dialogRefMock = { afterClosed: () => of(false) };
+    spyOn(dialog, 'open').and.returnValue(dialogRefMock as any);
+    const deleteSpy = spyOn(ticketService, 'deleteTicket');
+
+    component.onDelete();
+
+    expect(deleteSpy).not.toHaveBeenCalled();
+  });
+
+  it('should not open dialog when no ticket is selected', () => {
+    fixture.detectChanges();
+    const dialog = TestBed.inject(MatDialog);
+    const openSpy = spyOn(dialog, 'open');
+
+    component.onDelete();
+
+    expect(openSpy).not.toHaveBeenCalled();
   });
 });

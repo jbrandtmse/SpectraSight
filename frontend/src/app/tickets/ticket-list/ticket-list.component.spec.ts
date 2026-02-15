@@ -208,4 +208,28 @@ describe('TicketListComponent', () => {
     const list = fixture.nativeElement.querySelector('.ticket-list');
     expect(list.getAttribute('tabindex')).toBe('0');
   });
+
+  // Story 1.6: newTicketRequested output
+  it('should emit newTicketRequested on onNewTicket()', () => {
+    let emitted = false;
+    component.newTicketRequested.subscribe(() => emitted = true);
+    fixture.detectChanges();
+    flushTickets();
+    fixture.detectChanges();
+
+    component.onNewTicket();
+    expect(emitted).toBeTrue();
+  });
+
+  it('should emit newTicketRequested when empty state New Ticket button is clicked', () => {
+    let emitted = false;
+    component.newTicketRequested.subscribe(() => emitted = true);
+    fixture.detectChanges();
+    flushTickets([]);
+    fixture.detectChanges();
+
+    const newBtn = fixture.nativeElement.querySelector('.empty-state button');
+    newBtn.click();
+    expect(emitted).toBeTrue();
+  });
 });

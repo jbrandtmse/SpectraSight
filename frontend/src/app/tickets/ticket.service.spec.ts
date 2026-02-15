@@ -188,4 +188,92 @@ describe('TicketService', () => {
     const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
     req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
   });
+
+  // createTicket tests
+  it('should POST to /api/tickets and prepend new ticket to ticketsSignal', () => {
+    // Load initial tickets
+    service.loadTickets();
+    const loadReq = httpMock.expectOne(r => r.url.includes('/api/tickets') && r.method === 'GET');
+    loadReq.flush({ data: MOCK_TICKETS, total: 3, page: 1, pageSize: 100, totalPages: 1 });
+
+    const createdTicket: Ticket = {
+      id: 'SS-10', type: 'bug', title: 'New bug', status: 'Open',
+      priority: 'High', createdAt: '2026-02-15T00:00:00Z', updatedAt: '2026-02-15T00:00:00Z',
+    };
+
+    let result: Ticket | null = null;
+    service.createTicket({ type: 'bug', title: 'New bug' }).subscribe(t => result = t);
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets') && r.method === 'POST');
+    expect(req.request.body).toEqual({ type: 'bug', title: 'New bug' });
+    req.flush({ data: createdTicket } as ApiResponse<Ticket>);
+
+    expect(result).toBeTruthy();
+    expect(result!.id).toBe('SS-10');
+    expect(service.tickets()[0].id).toBe('SS-10');
+    expect(service.tickets().length).toBe(4);
+    expect(service.selectedTicketId()).toBe('SS-10');
+  });
+
+  it('should show snackbar on successful create', () => {
+    const snackSpy = spyOn(snackBar, 'open');
+    service.createTicket({ type: 'task', title: 'Test' }).subscribe();
+
+    const req = httpMock.expectOne(r => r.method === 'POST');
+    req.flush({ data: { ...MOCK_TICKETS[0], id: 'SS-99', type: 'task', title: 'Test' } });
+
+    expect(snackSpy).toHaveBeenCalledWith('Ticket SS-99 created', '', { duration: 3000 });
+  });
+
+  // deleteTicket tests
+  it('should DELETE ticket and remove from ticketsSignal', () => {
+    service.loadTickets();
+    const loadReq = httpMock.expectOne(r => r.url.includes('/api/tickets') && r.method === 'GET');
+    loadReq.flush({ data: MOCK_TICKETS, total: 3, page: 1, pageSize: 100, totalPages: 1 });
+
+    service.selectTicket('1');
+    expect(service.selectedTicketId()).toBe('1');
+
+    service.deleteTicket('1');
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets/1') && r.method === 'DELETE');
+    req.flush(null, { status: 204, statusText: 'No Content' });
+
+    expect(service.tickets().length).toBe(2);
+    expect(service.tickets().find(t => t.id === '1')).toBeUndefined();
+    expect(service.selectedTicketId()).toBeNull();
+  });
+
+  it('should show snackbar on successful delete', () => {
+    service.loadTickets();
+    const loadReq = httpMock.expectOne(r => r.url.includes('/api/tickets') && r.method === 'GET');
+    loadReq.flush({ data: MOCK_TICKETS, total: 3, page: 1, pageSize: 100, totalPages: 1 });
+
+    const snackSpy = spyOn(snackBar, 'open');
+    service.deleteTicket('2');
+
+    const req = httpMock.expectOne(r => r.method === 'DELETE');
+    req.flush(null, { status: 204, statusText: 'No Content' });
+
+    expect(snackSpy).toHaveBeenCalledWith('Ticket deleted', '', { duration: 3000 });
+  });
+
+  it('should show error snackbar on delete failure', () => {
+    service.loadTickets();
+    const loadReq = httpMock.expectOne(r => r.url.includes('/api/tickets') && r.method === 'GET');
+    loadReq.flush({ data: MOCK_TICKETS, total: 3, page: 1, pageSize: 100, totalPages: 1 });
+
+    const snackSpy = spyOn(snackBar, 'open');
+    service.deleteTicket('1');
+
+    const req = httpMock.expectOne(r => r.method === 'DELETE');
+    req.flush(
+      { error: { code: 'NOT_FOUND', message: 'Ticket not found', status: 404 } },
+      { status: 404, statusText: 'Not Found' }
+    );
+
+    expect(snackSpy).toHaveBeenCalledWith('Ticket not found', 'Dismiss', jasmine.objectContaining({ duration: 0 }));
+    // Tickets should NOT have been modified on error
+    expect(service.tickets().length).toBe(3);
+  });
 });

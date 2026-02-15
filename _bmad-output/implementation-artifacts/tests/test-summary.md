@@ -275,6 +275,83 @@
 
 ---
 
+## Story 1.6: Ticket Creation & Deletion
+
+**Date:** 2026-02-15
+**Test Framework:** Karma + Jasmine (Angular CLI default)
+**Test Files:** 2 new spec files, 4 expanded
+
+## Generated Tests
+
+### Ticket Create Component (new)
+
+- [x] `ticket-create.component.spec.ts` - TicketCreateComponent: creation, form controls (title/type/status/priority/assignee/description), title required validation, type required validation, status defaults to "Open", header rendering, title input rendering, type select rendering, Create/Cancel buttons rendering, Create button disabled when invalid, Create button enabled when valid, validation error on empty title submit, no HTTP POST when invalid, successful creation (POST + navigate + created emit), submitting set to false on error, cancel emits cancelled, close button emits cancelled, optional fields excluded when empty, optional fields included when filled (20 tests)
+
+### Confirm Delete Dialog Component (new)
+
+- [x] `confirm-delete-dialog.component.spec.ts` - ConfirmDeleteDialogComponent: creation, ticket ID in dialog content, "Delete ticket?" title, Cancel/Delete action buttons, data injection (5 tests)
+
+### Ticket Detail Component (expanded for delete -- AC #6, #7, #8)
+
+- [x] `ticket-detail.component.spec.ts` (expanded) - Added: Delete button rendering (warn color, tertiary), onDelete opens MatDialog with ticket data, confirm delete calls deleteTicket + navigates, cancel does not call deleteTicket, no dialog when no ticket selected (5 new tests)
+
+### Tickets Page Component (expanded for creation flow -- AC #1)
+
+- [x] `tickets-page.component.spec.ts` (expanded) - Added: creating starts false, onNewTicket sets creating true, show ticket-create when creating, onCreated sets creating false, onCancelled sets creating false, Ctrl+N sets creating true (6 new tests)
+
+### Ticket List Component (expanded for new ticket output)
+
+- [x] `ticket-list.component.spec.ts` (expanded) - Added: onNewTicket emits newTicketRequested, empty state New Ticket button emits newTicketRequested (2 new tests)
+
+### Ticket Service (expanded for create/delete methods -- AC #3, #7)
+
+- [x] `ticket.service.spec.ts` (expanded) - Added: createTicket POST + prepend to signal + select + snackbar, snackbar on create success, deleteTicket DELETE + remove from signal + clear selection, snackbar on delete success, error snackbar on delete failure (5 new tests)
+
+## Coverage
+
+### By Acceptance Criteria
+
+| AC | Test Coverage | Tests |
+|----|---------------|-------|
+| 1. New Ticket button + Ctrl+N opens creation form | Ctrl+N handler, creating signal, form rendering | tickets-page.component.spec (creating/Ctrl+N tests), ticket-list.component.spec (newTicketRequested) |
+| 2. Creation form shows optional fields (status defaults to "Open") | Form controls, status default, optional fields rendering | ticket-create.component.spec (form controls, status default, optional fields section) |
+| 3. Valid submit creates ticket, adds to list, selects, shows snackbar | POST request, signal prepend, navigation, snackbar | ticket-create.component.spec (successful creation), ticket.service.spec (createTicket) |
+| 4. Creation under 3 seconds | No blocking operations, simple POST + signal update | N/A -- performance, verified by code review |
+| 5. Empty title shows "Title is required" | Form validation, markAllAsTouched, mat-error | ticket-create.component.spec (validation error, no submit when invalid) |
+| 6. Delete button opens confirmation dialog | Button rendering, MatDialog.open | ticket-detail.component.spec (delete button, onDelete opens dialog) |
+| 7. Confirm delete removes ticket, clears detail, shows snackbar | deleteTicket, signal removal, navigation | ticket-detail.component.spec (confirm delete), ticket.service.spec (deleteTicket) |
+| 8. Cancel/Escape dismisses dialog without deleting | mat-dialog-close="false", no deleteTicket call | ticket-detail.component.spec (cancel does not delete), confirm-delete-dialog.component.spec (Cancel button) |
+
+### By Component
+
+| Component | Tests | New | Coverage |
+|-----------|-------|-----|----------|
+| TicketCreateComponent | 20 | 20 | Form validation, submit, cancel, optional fields, error handling |
+| ConfirmDeleteDialogComponent | 5 | 5 | Content display, data injection, action buttons |
+| TicketDetailComponent | 41 | 5 | Delete button, dialog open/confirm/cancel (added to Story 1.5 tests) |
+| TicketsPageComponent | 13 | 6 | Creating signal, Ctrl+N, create form rendering, onCreated/onCancelled |
+| TicketListComponent | 18 | 2 | newTicketRequested output emission |
+| TicketService | 19 | 5 | createTicket, deleteTicket, snackbar notifications |
+
+### Summary Statistics
+
+- **Total new tests:** 43 (20 ticket-create + 5 confirm-delete-dialog + 5 ticket-detail + 6 tickets-page + 2 ticket-list + 5 ticket-service)
+- **Passed:** 254 (all)
+- **Failed:** 0
+- **New spec files:** 2 (ticket-create.component.spec.ts, confirm-delete-dialog.component.spec.ts)
+- **Expanded spec files:** 4 (ticket-detail.component.spec.ts, tickets-page.component.spec.ts, ticket-list.component.spec.ts, ticket.service.spec.ts)
+- **Combined project total (Stories 1.2-1.6):** 254 tests, all passing
+
+## Notes
+
+- The `fakeAsync` / `tick` pattern is used for creation tests to handle the Observable-based createTicket flow and snackbar timers.
+- Optional fields (priority, assignee, description) are conditionally excluded from the POST body when empty, verified by checking `req.request.body` does not contain the keys.
+- Status defaults to "Open" and is excluded from the request when unchanged, matching the backend's default behavior.
+- Delete confirmation uses `mat-dialog-close` directives for clean return values (`true` for confirm, `false` for cancel/Escape).
+- The `NG0205 Injector destroyed` warning continues to appear during router navigation tests but does not affect results.
+
+---
+
 ## Next Steps
 
 - Full integration tests via HTTP (curl/REST client) when CI environment is configured
