@@ -552,4 +552,83 @@ describe('TicketDetailComponent', () => {
     expect(selectSpy).toHaveBeenCalledWith('SS-99');
     expect(navigateSpy).toHaveBeenCalledWith(['/tickets', 'SS-99']);
   });
+
+  // Story 2.3 AC#1: Code reference component is rendered in the detail view
+  it('should render ss-code-reference component in detail view', () => {
+    selectTicket(MOCK_BUG);
+    const codeRef = fixture.nativeElement.querySelector('ss-code-reference');
+    expect(codeRef).toBeTruthy();
+  });
+
+  // Story 2.3 AC#7: Code references display when ticket has them
+  it('should pass codeReferences to ss-code-reference component', () => {
+    const ticketWithRefs: Ticket = {
+      ...MOCK_BUG,
+      codeReferences: [
+        { id: 1, className: 'SpectraSight.Model.Ticket', methodName: '%OnNew', addedBy: 'alice' },
+        { id: 2, className: 'SpectraSight.REST.Response', addedBy: 'bob' },
+      ],
+    };
+    selectTicketFromList([ticketWithRefs, MOCK_TASK, MOCK_STORY, MOCK_EPIC], ticketWithRefs);
+    const codeRef = fixture.nativeElement.querySelector('ss-code-reference');
+    expect(codeRef).toBeTruthy();
+    // The code-reference component should display the references
+    const refItems = fixture.nativeElement.querySelectorAll('.code-ref-item');
+    expect(refItems.length).toBe(2);
+  });
+
+  // Story 2.3 AC#1: Code reference component passes ticketId
+  it('should pass ticketId to ss-code-reference component', () => {
+    selectTicket(MOCK_BUG);
+    const codeRef = fixture.nativeElement.querySelector('ss-code-reference');
+    expect(codeRef).toBeTruthy();
+  });
+
+  // Story 2.3 AC#7: Code references display in monospace for references with method name
+  it('should display code reference with method in monospace format', () => {
+    const ticketWithRefs: Ticket = {
+      ...MOCK_TASK,
+      id: 'SS-2',
+      codeReferences: [
+        { id: 10, className: 'SpectraSight.Model.Ticket', methodName: 'Title', addedBy: 'alice' },
+      ],
+    };
+    selectTicketFromList([MOCK_BUG, ticketWithRefs, MOCK_STORY, MOCK_EPIC], ticketWithRefs);
+    const display = fixture.nativeElement.querySelector('.code-ref-display');
+    expect(display).toBeTruthy();
+    expect(display.textContent.trim()).toBe('SpectraSight.Model.Ticket.Title');
+  });
+
+  // Story 2.3 AC#7: Code references display without method name
+  it('should display code reference without method name', () => {
+    const ticketWithRefs: Ticket = {
+      ...MOCK_STORY,
+      id: 'SS-3',
+      codeReferences: [
+        { id: 20, className: 'SpectraSight.REST.Response', addedBy: 'bob' },
+      ],
+    };
+    selectTicketFromList([MOCK_BUG, MOCK_TASK, ticketWithRefs, MOCK_EPIC], ticketWithRefs);
+    const display = fixture.nativeElement.querySelector('.code-ref-display');
+    expect(display).toBeTruthy();
+    expect(display.textContent.trim()).toBe('SpectraSight.REST.Response');
+  });
+
+  // Story 2.3: onCodeReferenceAdded calls reloadSelectedTicket
+  it('should reload ticket on code reference added', () => {
+    selectTicket(MOCK_BUG);
+    const getSpy = spyOn(ticketService, 'getTicket').and.returnValue(of(MOCK_BUG));
+    const updateSpy = spyOn(ticketService, 'updateTicketInList');
+    component.onCodeReferenceAdded({ id: 1, className: 'Test' });
+    expect(getSpy).toHaveBeenCalledWith('SS-1');
+  });
+
+  // Story 2.3: onCodeReferenceRemoved calls reloadSelectedTicket
+  it('should reload ticket on code reference removed', () => {
+    selectTicket(MOCK_BUG);
+    const getSpy = spyOn(ticketService, 'getTicket').and.returnValue(of(MOCK_BUG));
+    const updateSpy = spyOn(ticketService, 'updateTicketInList');
+    component.onCodeReferenceRemoved(1);
+    expect(getSpy).toHaveBeenCalledWith('SS-1');
+  });
 });

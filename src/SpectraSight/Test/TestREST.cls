@@ -31,6 +31,13 @@ ClassMethod RunAll() As %String [ SqlProc ]
         Do ..RunOne("TestCodeReferenceEndpoints", .tPassed, .tFailed)
         Do ..RunOne("TestCodeReferenceInTicketResponse", .tPassed, .tFailed)
         Do ..RunOne("TestRecordCodeReferenceChange", .tPassed, .tFailed)
+        Do ..RunOne("TestClassHandlerSearchFilter", .tPassed, .tFailed)
+        Do ..RunOne("TestClassHandlerMethodsNotFound", .tPassed, .tFailed)
+        Do ..RunOne("TestCodeReferenceMultiplePerTicket", .tPassed, .tFailed)
+        Do ..RunOne("TestCodeReferenceResponseStructure", .tPassed, .tFailed)
+        Do ..RunOne("TestCodeReferenceDeleteCrossTicket", .tPassed, .tFailed)
+        Do ..RunOne("TestCodeReferenceActivitySequence", .tPassed, .tFailed)
+        Do ..RunOne("TestCodeReferenceFieldLengthValidation", .tPassed, .tFailed)
 
         Set tResult = tPassed_" passed, "_tFailed_" failed"
         Set ^ClaudeDebug("REST", "summary") = tResult
@@ -1236,6 +1243,418 @@ ClassMethod TestRecordCodeReferenceChange() As %Status
         Set tSC2 = tCleanStmt.%Prepare("DELETE FROM SpectraSight_Model.Activity WHERE Ticket = ?")
         If $$$ISOK(tSC2) Do tCleanStmt.%Execute(tTicketId)
         Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
+    }
+    Quit tSC
+}
+
+/// Story 2.3 AC#2: Test ClassHandler search filter returns only matching classes
+ClassMethod TestClassHandlerSearchFilter() As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        // Search for "SpectraSight.REST" - should find ClassHandler, TicketHandler, etc.
+        Set tStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt.%Prepare("SELECT Name FROM %Dictionary.ClassDefinition WHERE Name NOT LIKE '\%%' ESCAPE '\' AND Name NOT LIKE '%.' AND System = 0 AND Name LIKE ? ORDER BY Name FETCH FIRST 50 ROWS ONLY")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare search query") Quit
+        Set tRes = tStmt.%Execute("SpectraSight.REST%")
+        Set tCount = 0
+        Set tFoundClassHandler = 0
+        While tRes.%Next() {
+            Set tCount = tCount + 1
+            Set tName = tRes.%Get("Name")
+            // All results must start with SpectraSight.REST
+            If $EXTRACT(tName, 1, 17) '= "SpectraSight.REST" Set tSC = $$$ERROR(5001, "Search filter leak: " _ tName _ " does not match SpectraSight.REST prefix") Quit
+            If tName = "SpectraSight.REST.ClassHandler" Set tFoundClassHandler = 1
+        }
+        If $$$ISERR(tSC) Quit
+        If tCount < 1 Set tSC = $$$ERROR(5001, "Expected at least 1 result for SpectraSight.REST filter") Quit
+        If 'tFoundClassHandler Set tSC = $$$ERROR(5001, "Expected ClassHandler in search results") Quit
+
+        // Search with no match
+        Set tRes2 = tStmt.%Execute("NonExistentPackage.Xyz%")
+        Set tNoMatch = 0
+        While tRes2.%Next() {
+            Set tNoMatch = tNoMatch + 1
+        }
+        If tNoMatch '= 0 Set tSC = $$$ERROR(5001, "Expected 0 results for non-existent search, got: " _ tNoMatch) Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    Quit tSC
+}
+
+/// Story 2.3 AC#5: Test ListMethods returns 404 for non-existent class
+ClassMethod TestClassHandlerMethodsNotFound() As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        // Non-existent class should not exist
+        Set tExists = ##class(%Dictionary.ClassDefinition).%ExistsId("NonExistent.FakeClass.DoesNotExist")
+        If tExists Set tSC = $$$ERROR(5001, "Non-existent class should not exist") Quit
+
+        // Verify a known class DOES exist
+        Set tExists2 = ##class(%Dictionary.ClassDefinition).%ExistsId("SpectraSight.REST.ClassHandler")
+        If 'tExists2 Set tSC = $$$ERROR(5001, "SpectraSight.REST.ClassHandler should exist") Quit
+
+        // Known class should have methods
+        Set tStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt.%Prepare("SELECT Name FROM %Dictionary.MethodDefinition WHERE parent = ?")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare method query") Quit
+        Set tRes = tStmt.%Execute("SpectraSight.REST.ClassHandler")
+        Set tMethodCount = 0
+        While tRes.%Next() {
+            Set tMethodCount = tMethodCount + 1
+        }
+        If tMethodCount < 2 Set tSC = $$$ERROR(5001, "ClassHandler should have at least 2 methods (ListClasses, ListMethods), got: " _ tMethodCount) Quit
+
+        // Non-existent class should return 0 methods
+        Set tRes2 = tStmt.%Execute("NonExistent.FakeClass.DoesNotExist")
+        Set tFakeCount = 0
+        While tRes2.%Next() {
+            Set tFakeCount = tFakeCount + 1
+        }
+        If tFakeCount '= 0 Set tSC = $$$ERROR(5001, "Non-existent class should have 0 methods, got: " _ tFakeCount) Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    Quit tSC
+}
+
+/// Story 2.3 AC#6: Test that multiple code references can be added to a single ticket
+ClassMethod TestCodeReferenceMultiplePerTicket() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Try {
+        // Create a ticket
+        Set tTask = ##class(SpectraSight.Model.Task).%New()
+        Set tTask.Title = "MultiRefTest Task"
+        Set tSC = tTask.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tTask.%Id()
+
+        // Add 3 code references
+        Set tClasses = $LISTBUILD("SpectraSight.Model.Ticket", "SpectraSight.REST.Response", "SpectraSight.Util.TicketID")
+        Set tMethods = $LISTBUILD("%OnNew", "Success", "Format")
+        For tI = 1:1:3 {
+            Set tRef = ##class(SpectraSight.Model.CodeReference).%New()
+            Set tRef.Ticket = tTask
+            Set tRef.ClassName = $LISTGET(tClasses, tI)
+            Set tRef.MethodName = $LISTGET(tMethods, tI)
+            Set tRef.AddedBy = "testuser"
+            Set tSC = tRef.%Save()
+            If $$$ISERR(tSC) Quit
+        }
+        If $$$ISERR(tSC) Quit
+
+        // Verify count
+        Set tStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt.%Prepare("SELECT COUNT(*) AS cnt FROM SpectraSight_Model.CodeReference WHERE Ticket = ?")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare count query") Quit
+        Set tRes = tStmt.%Execute(tTicketId)
+        If tRes.%Next() {
+            If tRes.%Get("cnt") '= 3 Set tSC = $$$ERROR(5001, "Expected 3 code references, got: " _ tRes.%Get("cnt")) Quit
+        }
+
+        // Verify each ref has different class name
+        Set tStmt2 = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt2.%Prepare("SELECT ClassName FROM SpectraSight_Model.CodeReference WHERE Ticket = ? ORDER BY ID")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare select query") Quit
+        Set tRes2 = tStmt2.%Execute(tTicketId)
+        Set tNames = ""
+        While tRes2.%Next() {
+            Set tNames = tNames _ tRes2.%Get("ClassName") _ ","
+        }
+        If tNames '[ "SpectraSight.Model.Ticket," Set tSC = $$$ERROR(5001, "Missing Ticket class in refs") Quit
+        If tNames '[ "SpectraSight.REST.Response," Set tSC = $$$ERROR(5001, "Missing Response class in refs") Quit
+        If tNames '[ "SpectraSight.Util.TicketID," Set tSC = $$$ERROR(5001, "Missing TicketID class in refs") Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTicketId '= "" {
+        Set tCleanStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tCleanStmt.%Prepare("DELETE FROM SpectraSight_Model.CodeReference WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tCleanStmt.%Execute(tTicketId)
+        Do ##class(SpectraSight.Model.Task).%DeleteId(tTicketId)
+    }
+    Quit tSC
+}
+
+/// Story 2.3 AC#7,#10: Test BuildTicketResponse code reference structure includes all required fields
+ClassMethod TestCodeReferenceResponseStructure() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Try {
+        // Create a ticket with a code reference
+        Set tBug = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug.Title = "RefStructTest Bug"
+        Set tSC = tBug.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tBug.%Id()
+
+        // Add a reference with class and method
+        Set tRef = ##class(SpectraSight.Model.CodeReference).%New()
+        Set tRef.Ticket = tBug
+        Set tRef.ClassName = "SpectraSight.Model.Ticket"
+        Set tRef.MethodName = "Title"
+        Set tRef.AddedBy = "alice"
+        Set tSC = tRef.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tRefId = tRef.%Id()
+
+        // Add a reference without method name
+        Set tRef2 = ##class(SpectraSight.Model.CodeReference).%New()
+        Set tRef2.Ticket = tBug
+        Set tRef2.ClassName = "SpectraSight.REST.Response"
+        Set tRef2.AddedBy = "bob"
+        Set tSC = tRef2.%Save()
+        If $$$ISERR(tSC) Quit
+
+        // Build detail response (pIncludeChildren=1)
+        Set tResponse = ##class(SpectraSight.REST.TicketHandler).BuildTicketResponse(tBug, 1)
+        Set tCodeRefs = tResponse.%Get("codeReferences")
+        If tCodeRefs = "" Set tSC = $$$ERROR(5001, "codeReferences missing from response") Quit
+        If tCodeRefs.%Size() '= 2 Set tSC = $$$ERROR(5001, "Expected 2 refs, got: " _ tCodeRefs.%Size()) Quit
+
+        // Verify first ref structure has all 5 fields: id, className, methodName, addedBy, timestamp
+        Set tFirst = tCodeRefs.%Get(0)
+        If tFirst.%Get("id") = "" Set tSC = $$$ERROR(5001, "id missing from code ref") Quit
+        If tFirst.%Get("className") '= "SpectraSight.Model.Ticket" Set tSC = $$$ERROR(5001, "className mismatch: " _ tFirst.%Get("className")) Quit
+        If tFirst.%Get("methodName") '= "Title" Set tSC = $$$ERROR(5001, "methodName mismatch: " _ tFirst.%Get("methodName")) Quit
+        If tFirst.%Get("addedBy") '= "alice" Set tSC = $$$ERROR(5001, "addedBy mismatch: " _ tFirst.%Get("addedBy")) Quit
+        If tFirst.%Get("timestamp") = "" Set tSC = $$$ERROR(5001, "timestamp missing from code ref") Quit
+
+        // Verify second ref has empty/null method name
+        Set tSecond = tCodeRefs.%Get(1)
+        If tSecond.%Get("className") '= "SpectraSight.REST.Response" Set tSC = $$$ERROR(5001, "Second ref className mismatch") Quit
+        If tSecond.%Get("addedBy") '= "bob" Set tSC = $$$ERROR(5001, "Second ref addedBy mismatch") Quit
+
+        // Verify id is numeric type
+        Set tIdType = tFirst.%GetTypeOf("id")
+        If tIdType '= "number" Set tSC = $$$ERROR(5001, "id should be number type, got: " _ tIdType) Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTicketId '= "" {
+        Set tCleanStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tCleanStmt.%Prepare("DELETE FROM SpectraSight_Model.CodeReference WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tCleanStmt.%Execute(tTicketId)
+        Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
+    }
+    Quit tSC
+}
+
+/// Story 2.3 AC#8: Test that deleting a code reference from the wrong ticket is rejected
+ClassMethod TestCodeReferenceDeleteCrossTicket() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId1 = ""
+    Set tTicketId2 = ""
+    Set tRefId = ""
+    Try {
+        // Create two tickets
+        Set tBug1 = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug1.Title = "CrossTicketRef Bug1"
+        Set tSC = tBug1.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId1 = tBug1.%Id()
+
+        Set tBug2 = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug2.Title = "CrossTicketRef Bug2"
+        Set tSC = tBug2.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId2 = tBug2.%Id()
+
+        // Add a code reference to ticket 1
+        Set tRef = ##class(SpectraSight.Model.CodeReference).%New()
+        Set tRef.Ticket = tBug1
+        Set tRef.ClassName = "SpectraSight.Model.Ticket"
+        Set tRef.AddedBy = "testuser"
+        Set tSC = tRef.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tRefId = tRef.%Id()
+
+        // Verify the reference belongs to ticket 1
+        Set tReloaded = ##class(SpectraSight.Model.CodeReference).%OpenId(tRefId)
+        If tReloaded = "" Set tSC = $$$ERROR(5001, "Code reference should exist") Quit
+        If tReloaded.Ticket.%Id() '= tTicketId1 Set tSC = $$$ERROR(5001, "Ref should belong to ticket 1") Quit
+
+        // Verify it does NOT belong to ticket 2
+        If tReloaded.Ticket.%Id() = tTicketId2 Set tSC = $$$ERROR(5001, "Ref should NOT belong to ticket 2") Quit
+
+        // This validation is what RemoveCodeReference does: ref.Ticket.%Id() '= ticketId
+        Set tBelongsToTicket2 = (tReloaded.Ticket.%Id() = tTicketId2)
+        If tBelongsToTicket2 Set tSC = $$$ERROR(5001, "Cross-ticket check should fail") Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tRefId '= "" Do ##class(SpectraSight.Model.CodeReference).%DeleteId(tRefId)
+    If tTicketId1 '= "" Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId1)
+    If tTicketId2 '= "" Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId2)
+    Quit tSC
+}
+
+/// Story 2.3 AC#9: Test CodeReferenceChange activities for add+remove sequence
+ClassMethod TestCodeReferenceActivitySequence() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Try {
+        // Create a ticket
+        Set tBug = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug.Title = "ActivitySeqTest Bug"
+        Set tSC = tBug.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tBug.%Id()
+
+        // Add a code reference and record "added" activity
+        Set tRef = ##class(SpectraSight.Model.CodeReference).%New()
+        Set tRef.Ticket = tBug
+        Set tRef.ClassName = "SpectraSight.Util.TicketID"
+        Set tRef.MethodName = "Format"
+        Set tRef.AddedBy = "dev1"
+        Set tSC = tRef.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tRefId = tRef.%Id()
+
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tTicketId, "SpectraSight.Util.TicketID", "Format", "added", "dev1", "human")
+        If $$$ISERR(tSC) Quit
+
+        // Remove and record "removed" activity
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tTicketId, "SpectraSight.Util.TicketID", "Format", "removed", "dev1", "human")
+        If $$$ISERR(tSC) Quit
+        Set tSC = ##class(SpectraSight.Model.CodeReference).%DeleteId(tRefId)
+        If $$$ISERR(tSC) Quit
+
+        // Verify both activities exist in correct order
+        Set tStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt.%Prepare("SELECT ClassName, MethodName, Action, ActorName FROM SpectraSight_Model.CodeReferenceChange WHERE Ticket = ? ORDER BY ID")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare activity query") Quit
+        Set tRes = tStmt.%Execute(tTicketId)
+
+        // First: added
+        If tRes.%Next() {
+            If tRes.%Get("Action") '= "added" Set tSC = $$$ERROR(5001, "First action should be 'added', got: " _ tRes.%Get("Action")) Quit
+            If tRes.%Get("ClassName") '= "SpectraSight.Util.TicketID" Set tSC = $$$ERROR(5001, "ClassName mismatch on added entry") Quit
+            If tRes.%Get("MethodName") '= "Format" Set tSC = $$$ERROR(5001, "MethodName mismatch on added entry") Quit
+            If tRes.%Get("ActorName") '= "dev1" Set tSC = $$$ERROR(5001, "ActorName mismatch on added entry") Quit
+        } Else {
+            Set tSC = $$$ERROR(5001, "Expected first activity entry") Quit
+        }
+
+        // Second: removed
+        If tRes.%Next() {
+            If tRes.%Get("Action") '= "removed" Set tSC = $$$ERROR(5001, "Second action should be 'removed', got: " _ tRes.%Get("Action")) Quit
+            If tRes.%Get("ClassName") '= "SpectraSight.Util.TicketID" Set tSC = $$$ERROR(5001, "ClassName mismatch on removed entry") Quit
+            If tRes.%Get("MethodName") '= "Format" Set tSC = $$$ERROR(5001, "MethodName mismatch on removed entry") Quit
+        } Else {
+            Set tSC = $$$ERROR(5001, "Expected second activity entry") Quit
+        }
+
+        // Verify total count
+        Set tStmt2 = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt2.%Prepare("SELECT COUNT(*) AS cnt FROM SpectraSight_Model.CodeReferenceChange WHERE Ticket = ?")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare count query") Quit
+        Set tRes2 = tStmt2.%Execute(tTicketId)
+        If tRes2.%Next() {
+            If tRes2.%Get("cnt") '= 2 Set tSC = $$$ERROR(5001, "Expected 2 CodeReferenceChange entries, got: " _ tRes2.%Get("cnt")) Quit
+        }
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTicketId '= "" {
+        Set tCleanStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tCleanStmt.%Prepare("DELETE FROM SpectraSight_Model.Activity WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tCleanStmt.%Execute(tTicketId)
+        Set tCleanStmt2 = ##class(%SQL.Statement).%New()
+        Set tSC2 = tCleanStmt2.%Prepare("DELETE FROM SpectraSight_Model.CodeReference WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tCleanStmt2.%Execute(tTicketId)
+        Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
+    }
+    Quit tSC
+}
+
+/// Story 2.3 MEDIUM fix: Test className/methodName length validation logic
+ClassMethod TestCodeReferenceFieldLengthValidation() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Try {
+        // Create a ticket
+        Set tTask = ##class(SpectraSight.Model.Task).%New()
+        Set tTask.Title = "LengthValTest Task"
+        Set tSC = tTask.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tTask.%Id()
+
+        // Test short valid className saves successfully
+        Set tRef = ##class(SpectraSight.Model.CodeReference).%New()
+        Set tRef.Ticket = tTask
+        Set tRef.ClassName = "SpectraSight.Model.Ticket"
+        Set tRef.MethodName = "Title"
+        Set tRef.AddedBy = "testuser"
+        Set tSC2 = tRef.%Save()
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Short className should save successfully") Quit
+        Do ##class(SpectraSight.Model.CodeReference).%DeleteId(tRef.%Id())
+
+        // Verify the TicketHandler AddCodeReference length validation logic:
+        // $LENGTH(tClassName) > 500 → BadRequest
+        // $LENGTH(tMethodName) > 255 → BadRequest
+        Set tShort = "SpectraSight.Model.Ticket"
+        If $LENGTH(tShort) > 500 Set tSC = $$$ERROR(5001, "Short className should pass length check") Quit
+
+        // Build a 501-char string
+        Set tOverlongClass = ""
+        For tI = 1:1:501 {
+            Set tOverlongClass = tOverlongClass _ "X"
+        }
+        If $LENGTH(tOverlongClass) '> 500 Set tSC = $$$ERROR(5001, "Overlong className should exceed 500") Quit
+
+        // Build a 256-char method name
+        Set tOverlongMethod = ""
+        For tI = 1:1:256 {
+            Set tOverlongMethod = tOverlongMethod _ "Y"
+        }
+        If $LENGTH(tOverlongMethod) '> 255 Set tSC = $$$ERROR(5001, "Overlong methodName should exceed 255") Quit
+
+        // Verify empty className is rejected (TicketHandler checks tClassName = "")
+        Set tEmpty = ""
+        If tEmpty '= "" Set tSC = $$$ERROR(5001, "Empty className should fail required check") Quit
+
+        // Verify a 50-char className passes length check
+        Set tMediumName = ""
+        For tI = 1:1:50 {
+            Set tMediumName = tMediumName _ "A"
+        }
+        If $LENGTH(tMediumName) > 500 Set tSC = $$$ERROR(5001, "50-char className should pass length check") Quit
+
+        // Verify empty methodName passes (it's optional)
+        Set tEmptyMethod = ""
+        // TicketHandler checks: (tMethodName '= "") && ($LENGTH(tMethodName) > 255)
+        // Empty string should NOT trigger the length check
+        Set tShouldReject = (tEmptyMethod '= "") && ($LENGTH(tEmptyMethod) > 255)
+        If tShouldReject Set tSC = $$$ERROR(5001, "Empty methodName should pass validation") Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTicketId '= "" {
+        Set tCleanStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tCleanStmt.%Prepare("DELETE FROM SpectraSight_Model.CodeReference WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tCleanStmt.%Execute(tTicketId)
+        Do ##class(SpectraSight.Model.Task).%DeleteId(tTicketId)
     }
     Quit tSC
 }

@@ -221,3 +221,34 @@
 - 1 SQL bug: table name translation fixed (schema-qualified name instead of replacing all dots)
 
 **User Input Required:** None
+
+## Story 2.3: Code Reference Fields
+
+**Status:** COMPLETE
+**Commits:**
+- `0f99512` — feat(2.3): implement Code Reference Fields
+- `dae3602` — test(2.3): add automated tests for Code Reference Fields
+
+**Files Touched:**
+- `src/SpectraSight/REST/ClassHandler.cls` — New class/method introspection handler
+- `src/SpectraSight/REST/Dispatch.cls` — Added 4 new routes (classes, methods, code-references CRUD)
+- `src/SpectraSight/REST/TicketHandler.cls` — AddCodeReference, RemoveCodeReference, codeReferences in BuildTicketResponse
+- `src/SpectraSight/Util/ActivityRecorder.cls` — RecordCodeReferenceChange method
+- `src/SpectraSight/Test/TestREST.cls` — Extended with code reference endpoint tests
+- `frontend/src/app/code-references/code-reference.service.ts` — New service for class/method listing and CRUD
+- `frontend/src/app/code-references/code-reference.service.spec.ts` — Service tests
+- `frontend/src/app/code-references/code-reference-field/` — New ss-code-reference component (ts/html/scss/spec)
+- `frontend/src/app/tickets/ticket-detail/` — Integrated code reference field
+- `frontend/src/app/tickets/ticket.model.ts` — CodeReference interface
+
+**Key Design Decisions:**
+- ClassHandler queries %Dictionary.ClassDefinition/MethodDefinition for autocomplete
+- Code references as one-to-many from Ticket via existing CodeReference model
+- Activity recording (CodeReferenceChange) on add/remove, server-side only
+- ss-code-reference component with mat-autocomplete, monospace display, signals
+
+**Issues Auto-Resolved:**
+- 4 issues fixed during code review
+- 24 new QA tests added (IRIS + Angular)
+
+**User Input Required:** None

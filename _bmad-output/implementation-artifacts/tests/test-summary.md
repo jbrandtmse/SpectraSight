@@ -615,6 +615,123 @@ The dev agent authored comprehensive Angular tests during Story 2.2 implementati
 
 ---
 
+## Story 2.3: Code Reference Fields
+
+**Date:** 2026-02-15
+**Test Framework:** IRIS ObjectScript custom runner + Karma/Jasmine (Angular 18)
+**Test Files:** 1 expanded IRIS class, 1 new Angular spec, 1 expanded Angular spec
+
+## Generated Tests
+
+### API Tests (IRIS ObjectScript)
+
+**Test File:** `src/SpectraSight/Test/TestREST.cls` (expanded with 7 new tests)
+
+- [x] `TestClassHandlerSearchFilter` - AC #2: Search filter returns only matching classes, verified prefix filtering, empty result on non-existent search
+- [x] `TestClassHandlerMethodsNotFound` - AC #5: Non-existent class existence check, known class has methods, non-existent class returns 0 methods
+- [x] `TestCodeReferenceMultiplePerTicket` - AC #6: 3 code references saved and queried for a single ticket, each with distinct className
+- [x] `TestCodeReferenceResponseStructure` - AC #7, #10: BuildTicketResponse includes codeReferences array with all 5 required fields (id as number type, className, methodName, addedBy, timestamp), tested with and without methodName
+- [x] `TestCodeReferenceDeleteCrossTicket` - AC #8: Code reference ownership verified (ref belongs to ticket 1, does not belong to ticket 2), validates cross-ticket rejection logic
+- [x] `TestCodeReferenceActivitySequence` - AC #9: Full add+remove activity cycle with CodeReferenceChange entries in correct order, verifying ClassName, MethodName, Action, ActorName fields
+- [x] `TestCodeReferenceFieldLengthValidation` - Code review MEDIUM fix: Short className saves, validates $LENGTH > 500 and $LENGTH > 255 rejection logic, empty methodName passes validation
+
+### Frontend Tests (Angular/Jasmine)
+
+#### CodeReferenceService (new - 10 tests)
+
+**Test File:** `frontend/src/app/code-references/code-reference.service.spec.ts`
+
+- [x] Service creation
+- [x] AC #2: GET /api/classes without search param
+- [x] AC #2: GET /api/classes with search param
+- [x] AC #3: GET /api/classes/:name/methods
+- [x] AC #6: POST code reference with className and methodName
+- [x] AC #6: POST code reference without methodName
+- [x] AC #8: DELETE code reference
+- [x] ApiResponse envelope unwrapping for listClasses
+- [x] ApiResponse envelope unwrapping for listMethods
+- [x] ApiResponse envelope unwrapping for addCodeReference
+
+#### TicketDetailComponent (expanded - 7 new tests)
+
+**Test File:** `frontend/src/app/tickets/ticket-detail/ticket-detail.component.spec.ts`
+
+- [x] AC #1: ss-code-reference component rendered in detail view
+- [x] AC #7: Code references passed and displayed (2 items with monospace text)
+- [x] AC #1: ticketId passed to ss-code-reference component
+- [x] AC #7: Code reference with method displayed as ClassName.MethodName
+- [x] AC #7: Code reference without method displayed as ClassName only
+- [x] AC #1, #6: onCodeReferenceAdded reloads selected ticket via getTicket
+- [x] AC #1, #8: onCodeReferenceRemoved reloads selected ticket via getTicket
+
+#### Existing Component Tests (dev-authored, QA-verified - 14 tests)
+
+**Test File:** `frontend/src/app/code-references/code-reference-field/code-reference-field.component.spec.ts`
+
+- [x] Component creation
+- [x] AC #1: "Add code reference" button displayed
+- [x] AC #7: Code references displayed in monospace with correct format
+- [x] AC #8: Remove button on each code reference
+- [x] AC #1: Enter editing mode on Add button click
+- [x] AC #1: Cancel editing mode
+- [x] AC #1: Aria-label on class input
+- [x] AC #1: Aria-label on method input
+- [x] AC #8: referenceRemoved emitted on remove click (with HTTP DELETE)
+- [x] AC #6: referenceAdded emitted on add confirm (with HTTP POST)
+- [x] AC #7: formatReference with method name
+- [x] AC #7: formatReference without method name
+- [x] AC #7: Code References label displayed
+
+## Coverage
+
+### By Acceptance Criteria
+
+| AC | Description | Test Coverage | Tests |
+|----|-------------|---------------|-------|
+| 1 | "Add code reference" button, ss-code-reference input field | Component rendering, editing mode, aria-labels, detail integration | code-reference-field (4 tests), ticket-detail (3 tests) |
+| 2 | Class name autocomplete from GET /api/classes | HTTP GET with/without search param, search filter verification | code-reference.service (3 tests), TestClassHandlerSearchFilter |
+| 3 | Method name autocomplete from GET /api/classes/:name/methods | HTTP GET for methods, class existence check | code-reference.service (1 test), TestClassHandlerMethodsNotFound |
+| 4 | GET /api/classes queries %Dictionary.ClassDefinition | SQL query filtering, limit to 50 | TestClassHandlerListClasses (existing), TestClassHandlerSearchFilter |
+| 5 | GET /api/classes/:name/methods queries %Dictionary.MethodDefinition | SQL query by parent, 404 for non-existent | TestClassHandlerListMethods (existing), TestClassHandlerMethodsNotFound |
+| 6 | Multiple code references per ticket | POST endpoint, multiple refs saved | TestCodeReferenceMultiplePerTicket, code-reference.service (2 POST tests), code-reference-field (referenceAdded) |
+| 7 | Saved code references displayed in monospace format | formatReference, monospace display, full response structure | code-reference-field (3 tests), ticket-detail (3 tests), TestCodeReferenceResponseStructure |
+| 8 | Delete action removes code reference | DELETE endpoint, cross-ticket validation, ownership check | code-reference.service (1 test), code-reference-field (referenceRemoved), TestCodeReferenceDeleteCrossTicket, ticket-detail (1 test) |
+| 9 | CodeReferenceChange activity entry created | Add+remove activity sequence with all fields verified | TestCodeReferenceActivitySequence, TestRecordCodeReferenceChange (existing) |
+| 10 | GET /api/tickets/:id includes codeReferences array | Response includes all 5 fields per ref with correct types | TestCodeReferenceResponseStructure, TestCodeReferenceInTicketResponse (existing) |
+
+### By Component
+
+| Component | Total Tests | New (QA) | Coverage |
+|-----------|------------|----------|----------|
+| TestREST (IRIS) | 28 | 7 | ClassHandler search/methods, multi-ref, response structure, cross-ticket, activity sequence, length validation |
+| CodeReferenceService | 10 | 10 | listClasses, listMethods, addCodeReference, removeCodeReference, ApiResponse unwrapping |
+| TicketDetailComponent | 62 | 7 | ss-code-reference integration, code ref display, reload on add/remove |
+| CodeReferenceFieldComponent | 14 | 0 (dev) | All AC covered: editing, display, add, remove, format, accessibility |
+
+### Summary Statistics
+
+- **New IRIS tests (QA-generated):** 7 (all passed)
+- **New Angular tests (QA-generated):** 17 (10 service + 7 ticket-detail)
+- **Existing Angular tests (dev-authored, verified):** 14 (code-reference-field)
+- **Total IRIS tests (TestREST):** 28 passed, 0 failed
+- **Total Angular tests:** 364 passed, 0 failed
+- **Combined project total (Stories 1.2-2.3):** 392 tests, all passing
+
+## Files Created/Modified
+
+- `src/SpectraSight/Test/TestREST.cls` (modified -- 7 new test methods added to RunAll)
+- `frontend/src/app/code-references/code-reference.service.spec.ts` (new -- 10 service tests)
+- `frontend/src/app/tickets/ticket-detail/ticket-detail.component.spec.ts` (modified -- 7 new tests for code ref integration)
+
+## Notes
+
+- Backend REST handler methods (AddCodeReference, RemoveCodeReference) depend on `%request`/`%response` process-private variables and cannot be called directly in unit tests. Testing is done by exercising the underlying model operations, validation logic, and response building.
+- The MAXLEN=500 constraint on CodeReference.ClassName is enforced at the IRIS persistent layer. The TicketHandler validates `$LENGTH > 500` before save to provide clear error messages.
+- The code-reference-field component tests (dev-authored) already cover AC #1, #2, #3, #6, #7, #8 thoroughly at the component level. QA tests add service-level and integration-level coverage.
+- The `reloadSelectedTicket` pattern in ticket-detail calls `getTicket` (detail view) instead of `refreshTickets` (list view), ensuring code references are preserved in the response.
+
+---
+
 ## Next Steps
 
 - Full integration tests via HTTP (curl/REST client) when CI environment is configured

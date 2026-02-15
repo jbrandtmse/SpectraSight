@@ -51,7 +51,7 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Ticket Organization, Search & Code Integration
-  epic-2: in-progress
+  epic-2: done
   2-1-ticket-hierarchy-and-navigation: done
   2-2-list-filtering-sorting-and-search: done
   2-3-code-reference-fields: done
