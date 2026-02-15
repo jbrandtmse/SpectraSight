@@ -1,0 +1,32 @@
+@if (editing()) {
+  @if (type() === 'textarea') {
+    <textarea
+      #textareaRef
+      class="inline-edit-input inline-edit-textarea"
+      [(ngModel)]="editValue"
+      (blur)="save()"
+      (keydown)="onKeydown($event)"
+      [placeholder]="placeholder()"
+      rows="4">
+    </textarea>
+  } @else {
+    <input
+      #inputRef
+      class="inline-edit-input"
+      type="text"
+      [(ngModel)]="editValue"
+      (blur)="save()"
+      (keydown)="onKeydown($event)"
+      [placeholder]="placeholder()" />
+  }
+} @else {
+  <span
+    class="inline-edit-display"
+    [class]="fieldClass()"
+    role="textbox"
+    tabindex="0"
+    (click)="startEdit()"
+    (keydown.enter)="startEdit()">
+    {{ value() || placeholder() }}
+  </span>
+}

@@ -1,0 +1,15 @@
+<div class="ss-split-panel" #container>
+  <div class="ss-split-panel-list" [style.width.px]="listPanelWidth()">
+    <ng-content select="[listPanel]"></ng-content>
+  </div>
+  <div
+    class="ss-split-panel-handle"
+    role="separator"
+    aria-orientation="vertical"
+    (mousedown)="onResizeStart($event)"
+    (dblclick)="resetWidth()">
+  </div>
+  <div class="ss-split-panel-detail">
+    <ng-content select="[detailPanel]"></ng-content>
+  </div>
+</div>

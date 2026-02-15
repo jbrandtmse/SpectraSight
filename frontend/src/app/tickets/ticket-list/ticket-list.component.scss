@@ -1,0 +1,98 @@
+.ticket-list {
+  height: 100%;
+  overflow-y: auto;
+  outline: none;
+
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+// Empty state
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--ss-xl);
+  text-align: center;
+  color: var(--ss-text-secondary);
+
+  p {
+    margin-bottom: var(--ss-lg);
+  }
+}
+
+// Skeleton loading
+.skeleton-list {
+  padding: 0;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--ss-xs);
+  gap: var(--ss-sm);
+}
+
+.skeleton-element {
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    var(--ss-surface-variant, #EBEBEB) 25%,
+    var(--ss-border, #D4D4D4) 50%,
+    var(--ss-surface-variant, #EBEBEB) 75%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+.skeleton-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton-title {
+  flex: 1;
+  height: 12px;
+  max-width: 60%;
+}
+
+.skeleton-status {
+  width: 60px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+.skeleton-assignee {
+  width: 50px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+.skeleton-timestamp {
+  width: 40px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: 200px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-element {
+    animation: none;
+    background: var(--ss-surface-variant, #EBEBEB);
+  }
+}

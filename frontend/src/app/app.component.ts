@@ -1,13 +1,46 @@
-import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component, ChangeDetectionStrategy, inject, signal, OnInit } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { ToolbarComponent } from './core/app-shell/toolbar.component';
+import { SidenavComponent } from './core/app-shell/sidenav.component';
+import { AuthService } from './core/auth.service';
+import { ThemeService } from './core/theme.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterOutlet, MatSidenavModule, ToolbarComponent, SidenavComponent],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  styleUrl: './app.component.scss',
 })
-export class AppComponent {
-  title = 'spectrasight-ui';
+export class AppComponent implements OnInit {
+  private breakpointObserver = inject(BreakpointObserver);
+  private router = inject(Router);
+  authService = inject(AuthService);
+  private themeService = inject(ThemeService);
+
+  sidenavCollapsed = signal(false);
+
+  ngOnInit(): void {
+    this.breakpointObserver
+      .observe(['(max-width: 1279px)'])
+      .subscribe((result) => {
+        this.sidenavCollapsed.set(result.matches);
+      });
+  }
+
+  onToggleSidenav(): void {
+    this.sidenavCollapsed.update((val) => !val);
+  }
+
+  onToggleTheme(): void {
+    this.themeService.toggle();
+  }
+
+  onLogout(): void {
+    this.authService.logout();
+    this.router.navigate(['/login']);
+  }
 }

@@ -108,3 +108,27 @@ body {
 code, pre, .mono {
   font-family: var(--ss-font-mono);
 }
+
+// ============================================================
+// App Shell Layout Styles (Story 1.3)
+// ============================================================
+
+:root {
+  --ss-surface-variant: #EBEBEB;
+  --ss-border: #D4D4D4;
+  --ss-text-muted: #6B6B6B;
+  --ss-row-height: 36px;
+  --ss-toolbar-height: 48px;
+}
+
+.dark-theme {
+  --ss-surface-variant: #2D2D2D;
+  --ss-border: #3E3E3E;
+  --ss-text-muted: #858585;
+}
+
+// Error snackbar styling
+.ss-error-snackbar {
+  --mdc-snackbar-container-color: var(--ss-type-bug);
+  --mdc-snackbar-supporting-text-color: #fff;
+}

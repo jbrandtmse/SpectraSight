@@ -1,0 +1,30 @@
+@if (ticketService.loading()) {
+  <div class="skeleton-list">
+    @for (row of skeletonRows; track $index) {
+      <div class="skeleton-row">
+        <span class="skeleton-element skeleton-icon"></span>
+        <span class="skeleton-element skeleton-title"></span>
+        <span class="skeleton-element skeleton-status"></span>
+        <span class="skeleton-element skeleton-assignee"></span>
+        <span class="skeleton-element skeleton-timestamp"></span>
+      </div>
+    }
+  </div>
+} @else if (tickets().length === 0) {
+  <div class="empty-state">
+    <p>No tickets yet. Create your first ticket to get started.</p>
+    <button mat-flat-button color="primary" (click)="onNewTicket()">New Ticket</button>
+  </div>
+} @else {
+  <div class="ticket-list" role="listbox" aria-label="Tickets" tabindex="0" (keydown)="onKeydown($event)">
+    @for (ticket of tickets(); track ticket.id; let i = $index) {
+      <app-ticket-row
+        #rowRef
+        [ticket]="ticket"
+        [selected]="ticket.id === ticketService.selectedTicketId()"
+        [focused]="i === focusedIndex()"
+        (ticketSelected)="onTicketSelected($event)">
+      </app-ticket-row>
+    }
+  </div>
+}

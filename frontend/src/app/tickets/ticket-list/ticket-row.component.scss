@@ -1,0 +1,54 @@
+.ticket-row {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--ss-xs);
+  gap: var(--ss-sm);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background-color 100ms ease;
+
+  &:hover {
+    background-color: var(--ss-surface-variant, #EBEBEB);
+  }
+
+  &.selected {
+    background-color: var(--ss-surface-variant, #EBEBEB);
+    border-left-color: var(--ss-accent);
+    padding-left: 1px;
+  }
+
+  &.focused {
+    outline: 2px solid var(--ss-accent);
+    outline-offset: -2px;
+  }
+}
+
+.ticket-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ss-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.ticket-assignee {
+  font-size: 11px;
+  color: var(--ss-text-secondary);
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.ticket-timestamp {
+  font-size: 11px;
+  color: var(--ss-text-secondary);
+  width: 70px;
+  text-align: right;
+  flex-shrink: 0;
+}

@@ -1,0 +1,28 @@
+.ss-split-panel {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ss-split-panel-list {
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--ss-border, #D4D4D4);
+}
+
+.ss-split-panel-handle {
+  width: 4px;
+  cursor: col-resize;
+  background-color: var(--ss-border, #D4D4D4);
+  flex-shrink: 0;
+  transition: background-color 150ms ease;
+
+  &:hover {
+    background-color: var(--ss-accent);
+  }
+}
+
+.ss-split-panel-detail {
+  flex: 1;
+  overflow-y: auto;
+}
