@@ -308,3 +308,38 @@
 - 2 LOW remaining: Missing spinner/disabled-textarea tests (cosmetic, not auto-resolved)
 
 **User Input Required:** None
+
+## Story 4.1: MCP Server with Ticket Operations
+
+**Status:** COMPLETE
+**Commits:**
+- `8ffb1e6` — feat(4.1): implement MCP Server with Ticket Operations
+- `7e4f861` — test(4.1): add automated tests for MCP Server with Ticket Operations
+
+**Files Touched:**
+- `mcp-server/package.json` — New MCP server project (spectrasight-mcp v0.1.0)
+- `mcp-server/tsconfig.json` — TypeScript config (ES2022/Node16)
+- `mcp-server/src/index.ts` — Server entry point with stdio transport
+- `mcp-server/src/config.ts` — Env var config (SPECTRASIGHT_URL/USERNAME/PASSWORD)
+- `mcp-server/src/api-client.ts` — HTTP client wrapping REST API with Basic Auth
+- `mcp-server/src/errors.ts` — Shared error formatting (extracted during code review)
+- `mcp-server/src/types.ts` — TypeScript types + TICKET_ID_PATTERN regex
+- `mcp-server/src/tools/tickets.ts` — 5 tools: create, get, update, delete, list
+- `mcp-server/src/tools/comments.ts` — add_comment tool (actorType: "agent")
+- `mcp-server/src/__tests__/` — 5 test files, 43 Vitest tests
+- `.gitignore` — Added mcp-server/build/ and mcp-server/node_modules/
+
+**Key Design Decisions:**
+- Thin translation layer wrapping existing REST API (no direct IRIS access)
+- Node.js built-in fetch (no axios) to minimize dependencies
+- Zod schemas with SS-\d+ regex for ticket_id validation (path injection prevention)
+- snake_case MCP params mapped to camelCase REST body
+- add_comment always sets actorType: "agent"
+- Vitest for testing (TypeScript-native, ESM-compatible)
+
+**Issues Auto-Resolved:**
+- 2 HIGH: Password leaked to stderr in defaults log, duplicated formatError extracted to shared module
+- 4 MEDIUM: Path injection via unvalidated ticket_id, Content-Type on bodyless requests, empty PUT guard, duplicated TICKET_ID_PATTERN constant
+- 3 LOW remaining: Negative page numbers, no Content-Type response validation, missing engines field
+
+**User Input Required:** None
