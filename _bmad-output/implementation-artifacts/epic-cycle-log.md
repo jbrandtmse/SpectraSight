@@ -252,3 +252,31 @@
 - 24 new QA tests added (IRIS + Angular)
 
 **User Input Required:** None
+
+## Story 3.1: Activity Timeline & Actor Attribution
+
+**Status:** COMPLETE
+**Commits:**
+- `2562707` — feat(3.1): implement Activity Timeline & Actor Attribution
+- `386297d` — test(3.1): add automated tests for Activity Timeline & Actor Attribution
+
+**Files Touched:**
+- `src/SpectraSight/REST/TicketHandler.cls` — ListActivity, BuildActivityEntry methods
+- `src/SpectraSight/REST/Dispatch.cls` — Activity route
+- `src/SpectraSight/Test/TestREST.cls` — 5 new activity timeline tests
+- `frontend/src/app/activity/activity.model.ts` — TypeScript activity interfaces (union type)
+- `frontend/src/app/activity/activity.service.ts` — Activity HTTP service with signals
+- `frontend/src/app/activity/activity-timeline/` — New ss-activity-timeline component (ts/html/scss/spec)
+- `frontend/src/app/tickets/ticket-detail/` — Timeline integration with refresh trigger
+
+**Key Design Decisions:**
+- Polymorphic query on Activity extent with `$CLASSNAME()` for subclass detection
+- Human and agent entries use identical template — no visual differentiation (FR25)
+- Activity refresh via `activityRefreshTrigger` signal incremented after mutations
+- Subscription cancellation to prevent race conditions on rapid ticket switching
+
+**Issues Auto-Resolved:**
+- 3 MEDIUM: Silent catch logging, subscription race condition, `allowSignalWrites` anti-pattern
+- 5 new IRIS QA tests + 13 dev-authored Angular tests
+
+**User Input Required:** None

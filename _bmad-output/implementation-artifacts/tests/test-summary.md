@@ -732,6 +732,95 @@ The dev agent authored comprehensive Angular tests during Story 2.2 implementati
 
 ---
 
+## Story 3.1: Activity Timeline & Actor Attribution
+
+**Date:** 2026-02-15
+**Test Framework:** IRIS ObjectScript custom runner + Karma/Jasmine (Angular 18)
+**Test Files:** 1 expanded IRIS class (5 new tests), 0 new Angular specs (dev-authored tests already comprehensive)
+
+## Generated Tests
+
+### API Tests (IRIS ObjectScript)
+
+**Test File:** `src/SpectraSight/Test/TestREST.cls` (expanded with 5 new tests)
+
+- [x] `TestListActivityChronological` - AC #1: Activity entries for a ticket returned in chronological order (oldest first), verifies 3 activities (StatusChange, AssignmentChange, CodeReferenceChange) ordered by ascending Timestamp/ID
+- [x] `TestBuildActivityEntryTypes` - AC #2: BuildActivityEntry returns correct type-specific fields for all 4 activity subclasses (statusChange: fromStatus/toStatus, assignmentChange: fromAssignee/toAssignee, codeReferenceChange: className/methodName/action, comment: body)
+- [x] `TestListActivityEmptyTicket` - AC #10: Ticket with no recorded activity returns zero activity entries from SQL query
+- [x] `TestListActivityMixedActorTypes` - AC #7: Human ("human") and agent ("agent") activity entries have identical JSON field sets -- no differentiation by actorType in BuildActivityEntry output
+- [x] `TestBuildActivityEntryCommon` - AC #2: Every activity entry includes all 5 common fields (id as positive number, actorName, actorType, timestamp, type) verified against BuildActivityEntry output
+
+### Frontend Tests (Angular/Jasmine) -- Dev-Authored, QA-Verified
+
+The dev agent authored 13 comprehensive Angular tests during Story 3.1 implementation covering all 11 Acceptance Criteria. QA verified all 378 tests pass with 0 regressions.
+
+**activity-timeline.component.spec.ts** (13 tests):
+
+- [x] AC #9: Loading skeleton shown while HTTP request pending
+- [x] AC #10: Empty state "No activity yet" when no activities
+- [x] AC #3: Activity feed with role="feed" and aria-label="Ticket activity", 4 entries rendered
+- [x] AC #2: Actor name displayed for each entry
+- [x] AC #4: Status change displayed with ss-status-badge components
+- [x] AC #4: "set status to" variant when fromStatus is empty (single badge)
+- [x] AC #5: Assignment change shows from/to names
+- [x] AC #6: Code reference change in monospace (.code-ref with ClassName.MethodName)
+- [x] AC #7: Human and agent entries use identical template (same structural elements)
+- [x] AC #8: Timestamps as `<time>` elements with title tooltip for full date
+- [x] AC #1: HTTP GET to /api/tickets/SS-1/activity
+- [x] AC #11: refreshTrigger change reloads activity (re-fetches HTTP)
+- [x] Comment body text displayed
+
+**activity.service.ts** (implicitly tested via timeline component HTTP mocking)
+
+## Coverage
+
+### By Acceptance Criteria
+
+| AC | Description | Test Coverage | Tests |
+|----|-------------|---------------|-------|
+| 1 | GET /api/tickets/:id/activity returns chronological entries | SQL query order + HTTP GET | TestListActivityChronological, activity-timeline (fetch test) |
+| 2 | Each entry includes actorName, actorType, timestamp, type, details | BuildActivityEntry all 4 types + common fields | TestBuildActivityEntryTypes, TestBuildActivityEntryCommon, activity-timeline (actor name test) |
+| 3 | ss-activity-timeline renders in ticket detail | Feed container with role="feed" | activity-timeline (feed test) |
+| 4 | Status change: "[Actor] changed status from [old] to [new]" with badges | ss-status-badge rendering, empty-from variant | activity-timeline (status badge test, set-status variant) |
+| 5 | Assignment change: "[Actor] reassigned from [old] to [new]" | Text content with from/to names | activity-timeline (assignment test) |
+| 6 | Code reference change: monospace display | .code-ref with ClassName.MethodName | activity-timeline (code-ref test) |
+| 7 | Human and agent entries use same template (FR25) | Identical field sets + identical structural elements | TestListActivityMixedActorTypes, activity-timeline (same template test) |
+| 8 | Timestamps: relative time + hover tooltip | `<time>` element with title attribute | activity-timeline (timestamp test) |
+| 9 | Loading state: skeleton placeholder | .timeline-skeleton rendered during pending request | activity-timeline (skeleton test) |
+| 10 | Empty state: "No activity yet" | .timeline-empty with muted text | TestListActivityEmptyTicket, activity-timeline (empty test) |
+| 11 | Timeline refreshes after inline edits | refreshTrigger signal triggers reload | activity-timeline (refresh test) |
+
+### By Component
+
+| Component | Total Tests | New (QA) | Coverage |
+|-----------|------------|----------|----------|
+| TestREST (IRIS) | 33 | 5 | ListActivity chronological order, BuildActivityEntry all 4 types + common fields, empty ticket, mixed actor types |
+| ActivityTimelineComponent | 13 | 0 (dev) | All 11 ACs: loading, empty, feed, status badges, assignment, code-ref, same-template, timestamps, fetch, refresh, comment |
+| ActivityService | 1 | 0 (dev) | HTTP GET + signal updates (implicitly tested via component) |
+
+### Summary Statistics
+
+- **New IRIS tests (QA-generated):** 5 (all passed)
+- **Existing Angular tests (dev-authored, verified):** 13 activity-timeline + 1 activity-service
+- **Total IRIS tests (TestREST):** 33 passed, 0 failed
+- **Total Angular tests:** 378 passed, 0 failed
+- **Combined project total (Stories 1.2-3.1):** 411 tests, all passing
+
+## Files Created/Modified
+
+- `src/SpectraSight/Test/TestREST.cls` (modified -- 5 new test methods added to RunAll)
+- `_bmad-output/implementation-artifacts/tests/test-summary.md` (modified -- Story 3.1 section added)
+
+## Notes
+
+- The ListActivity handler depends on `%request`/`%response` process-private variables and cannot be called directly in unit tests. Testing exercises the underlying SQL query (Activity extent WHERE Ticket = ? ORDER BY Timestamp ASC), BuildActivityEntry method, and activity recording utilities.
+- BuildActivityEntry is tested directly since it's a static ClassMethod that accepts an Activity object and returns a %DynamicObject -- no HTTP context required.
+- The `TestListActivityMixedActorTypes` test uses `%GetIterator()` on the %DynamicObject to compare field sets between human and agent entries, verifying AC #7/FR25 at the API level (no template differentiation).
+- The `TestBuildActivityEntryTypes` test creates all 4 activity subclass types (StatusChange, AssignmentChange, CodeReferenceChange, Comment) for a single ticket and validates each type's specific fields through BuildActivityEntry.
+- Angular tests were comprehensive from the dev phase: 13 tests in activity-timeline.component.spec.ts cover loading/empty states, all 4 activity types, accessibility attributes, refresh trigger, and the human/agent same-template requirement.
+
+---
+
 ## Next Steps
 
 - Full integration tests via HTTP (curl/REST client) when CI environment is configured

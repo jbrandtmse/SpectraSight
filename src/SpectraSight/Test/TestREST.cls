@@ -38,6 +38,11 @@ ClassMethod RunAll() As %String [ SqlProc ]
         Do ..RunOne("TestCodeReferenceDeleteCrossTicket", .tPassed, .tFailed)
         Do ..RunOne("TestCodeReferenceActivitySequence", .tPassed, .tFailed)
         Do ..RunOne("TestCodeReferenceFieldLengthValidation", .tPassed, .tFailed)
+        Do ..RunOne("TestListActivityChronological", .tPassed, .tFailed)
+        Do ..RunOne("TestBuildActivityEntryTypes", .tPassed, .tFailed)
+        Do ..RunOne("TestListActivityEmptyTicket", .tPassed, .tFailed)
+        Do ..RunOne("TestListActivityMixedActorTypes", .tPassed, .tFailed)
+        Do ..RunOne("TestBuildActivityEntryCommon", .tPassed, .tFailed)
 
         Set tResult = tPassed_" passed, "_tFailed_" failed"
         Set ^ClaudeDebug("REST", "summary") = tResult
@@ -1733,6 +1738,308 @@ ClassMethod TestPaginationWithOffsetFetch() As %Status
     For tI = 1:1:$LISTLENGTH(tIds) {
         Set tDelId = $LISTGET(tIds, tI)
         If tDelId '= "" Do ##class(SpectraSight.Model.Task).%DeleteId(tDelId)
+    }
+    Quit tSC
+}
+
+/// Story 3.1 AC#1: GET /api/tickets/:id/activity returns activities in chronological order (oldest first)
+ClassMethod TestListActivityChronological() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Try {
+        // Create a test ticket
+        Set tBug = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug.Title = "ListActivityTest Bug"
+        Set tSC = tBug.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tBug.%Id()
+
+        // Record activities in sequence with slight delay to ensure ordering
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordStatusChange(tTicketId, "", "Open", "user1", "human")
+        If $$$ISERR(tSC) Quit
+
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordAssignmentChange(tTicketId, "", "Alice", "user1", "human")
+        If $$$ISERR(tSC) Quit
+
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tTicketId, "SpectraSight.Model.Ticket", "Title", "added", "bot1", "agent")
+        If $$$ISERR(tSC) Quit
+
+        // Query activities via the same SQL pattern used by ListActivity
+        Set tStatement = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStatement.%Prepare("SELECT %ID FROM SpectraSight_Model.Activity WHERE Ticket = ? ORDER BY Timestamp ASC")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare activity query") Quit
+
+        Set tResult = tStatement.%Execute(tTicketId)
+        Set tCount = 0
+        Set tPrevId = 0
+        While tResult.%Next() {
+            Set tCount = tCount + 1
+            Set tCurrId = tResult.%Get("ID")
+            // Since activities are created sequentially, IDs should be ascending
+            If tCurrId < tPrevId Set tSC = $$$ERROR(5001, "Activities not in chronological order: ID "_tCurrId_" < "_tPrevId) Quit
+            Set tPrevId = tCurrId
+        }
+        If $$$ISERR(tSC) Quit
+        If tCount '= 3 Set tSC = $$$ERROR(5001, "Expected 3 activity entries, got: "_tCount) Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTicketId '= "" {
+        Set tStmtDel = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmtDel.%Prepare("DELETE FROM SpectraSight_Model.Activity WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tStmtDel.%Execute(tTicketId)
+        Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
+    }
+    Quit tSC
+}
+
+/// Story 3.1 AC#2: BuildActivityEntry returns correct type-specific fields for each activity subclass
+ClassMethod TestBuildActivityEntryTypes() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Set tActivityIds = ""
+    Try {
+        // Create a test ticket
+        Set tBug = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug.Title = "BuildEntryTest Bug"
+        Set tSC = tBug.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tBug.%Id()
+
+        // Create a StatusChange activity
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordStatusChange(tTicketId, "Open", "In Progress", "dev1", "human")
+        If $$$ISERR(tSC) Quit
+
+        // Create an AssignmentChange activity
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordAssignmentChange(tTicketId, "", "Bob", "dev1", "human")
+        If $$$ISERR(tSC) Quit
+
+        // Create a CodeReferenceChange activity
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tTicketId, "HS.MyClass", "Run", "added", "agent1", "agent")
+        If $$$ISERR(tSC) Quit
+
+        // Create a Comment activity
+        Set tComment = ##class(SpectraSight.Model.Comment).%New()
+        Set tComment.Ticket = ##class(SpectraSight.Model.Ticket).%OpenId(tTicketId)
+        Set tComment.ActorName = "dev1"
+        Set tComment.ActorType = "human"
+        Set tComment.Body = "Test comment body text"
+        Set tSC = tComment.%Save()
+        If $$$ISERR(tSC) Quit
+
+        // Query and build entries using the same pattern as ListActivity
+        Set tStatement = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStatement.%Prepare("SELECT %ID FROM SpectraSight_Model.Activity WHERE Ticket = ? ORDER BY Timestamp ASC")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare query") Quit
+
+        Set tResult = tStatement.%Execute(tTicketId)
+        Set tFoundStatus = 0
+        Set tFoundAssignment = 0
+        Set tFoundCodeRef = 0
+        Set tFoundComment = 0
+
+        While tResult.%Next() {
+            Set tActivity = ##class(SpectraSight.Model.Activity).%OpenId(tResult.%Get("ID"))
+            If tActivity = "" Continue
+            Set tEntry = ##class(SpectraSight.REST.TicketHandler).BuildActivityEntry(tActivity)
+
+            // Verify common fields exist
+            If tEntry.%Get("id") = "" Set tSC = $$$ERROR(5001, "Entry missing id field") Quit
+            If tEntry.%Get("actorName") = "" Set tSC = $$$ERROR(5001, "Entry missing actorName field") Quit
+            If tEntry.%Get("actorType") = "" Set tSC = $$$ERROR(5001, "Entry missing actorType field") Quit
+            If tEntry.%Get("timestamp") = "" Set tSC = $$$ERROR(5001, "Entry missing timestamp field") Quit
+
+            Set tType = tEntry.%Get("type")
+            If tType = "statusChange" {
+                Set tFoundStatus = 1
+                If tEntry.%Get("fromStatus") '= "Open" Set tSC = $$$ERROR(5001, "StatusChange fromStatus expected 'Open', got: "_tEntry.%Get("fromStatus")) Quit
+                If tEntry.%Get("toStatus") '= "In Progress" Set tSC = $$$ERROR(5001, "StatusChange toStatus expected 'In Progress', got: "_tEntry.%Get("toStatus")) Quit
+            } ElseIf tType = "assignmentChange" {
+                Set tFoundAssignment = 1
+                If tEntry.%Get("fromAssignee") '= "" Set tSC = $$$ERROR(5001, "AssignmentChange fromAssignee expected empty, got: "_tEntry.%Get("fromAssignee")) Quit
+                If tEntry.%Get("toAssignee") '= "Bob" Set tSC = $$$ERROR(5001, "AssignmentChange toAssignee expected 'Bob', got: "_tEntry.%Get("toAssignee")) Quit
+            } ElseIf tType = "codeReferenceChange" {
+                Set tFoundCodeRef = 1
+                If tEntry.%Get("className") '= "HS.MyClass" Set tSC = $$$ERROR(5001, "CodeRefChange className expected 'HS.MyClass', got: "_tEntry.%Get("className")) Quit
+                If tEntry.%Get("methodName") '= "Run" Set tSC = $$$ERROR(5001, "CodeRefChange methodName expected 'Run', got: "_tEntry.%Get("methodName")) Quit
+                If tEntry.%Get("action") '= "added" Set tSC = $$$ERROR(5001, "CodeRefChange action expected 'added', got: "_tEntry.%Get("action")) Quit
+            } ElseIf tType = "comment" {
+                Set tFoundComment = 1
+                If tEntry.%Get("body") '= "Test comment body text" Set tSC = $$$ERROR(5001, "Comment body mismatch, got: "_tEntry.%Get("body")) Quit
+            }
+        }
+        If $$$ISERR(tSC) Quit
+
+        // Verify all 4 types were found
+        If 'tFoundStatus Set tSC = $$$ERROR(5001, "StatusChange entry not found") Quit
+        If 'tFoundAssignment Set tSC = $$$ERROR(5001, "AssignmentChange entry not found") Quit
+        If 'tFoundCodeRef Set tSC = $$$ERROR(5001, "CodeReferenceChange entry not found") Quit
+        If 'tFoundComment Set tSC = $$$ERROR(5001, "Comment entry not found") Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTicketId '= "" {
+        Set tStmtDel = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmtDel.%Prepare("DELETE FROM SpectraSight_Model.Activity WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tStmtDel.%Execute(tTicketId)
+        Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
+    }
+    Quit tSC
+}
+
+/// Story 3.1 AC#10: Ticket with no activity returns empty result set
+ClassMethod TestListActivityEmptyTicket() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Try {
+        // Create a ticket with NO activities recorded
+        Set tTask = ##class(SpectraSight.Model.Task).%New()
+        Set tTask.Title = "EmptyActivityTest Task"
+        Set tSC = tTask.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tTask.%Id()
+
+        // Query activities - should return zero rows
+        Set tStatement = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStatement.%Prepare("SELECT %ID FROM SpectraSight_Model.Activity WHERE Ticket = ? ORDER BY Timestamp ASC")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare activity query") Quit
+
+        Set tResult = tStatement.%Execute(tTicketId)
+        Set tCount = 0
+        While tResult.%Next() {
+            Set tCount = tCount + 1
+        }
+        If tCount '= 0 Set tSC = $$$ERROR(5001, "Expected 0 activity entries for new ticket, got: "_tCount) Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTicketId '= "" {
+        Do ##class(SpectraSight.Model.Task).%DeleteId(tTicketId)
+    }
+    Quit tSC
+}
+
+/// Story 3.1 AC#7: Human and agent activities are returned identically (same fields, no differentiation)
+ClassMethod TestListActivityMixedActorTypes() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Try {
+        // Create a test ticket
+        Set tStory = ##class(SpectraSight.Model.Story).%New()
+        Set tStory.Title = "MixedActorTest Story"
+        Set tSC = tStory.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tStory.%Id()
+
+        // Record a human activity
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordStatusChange(tTicketId, "", "Open", "humanUser", "human")
+        If $$$ISERR(tSC) Quit
+
+        // Record an agent activity
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordStatusChange(tTicketId, "Open", "In Progress", "agentBot", "agent")
+        If $$$ISERR(tSC) Quit
+
+        // Query and build entries
+        Set tStatement = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStatement.%Prepare("SELECT %ID FROM SpectraSight_Model.Activity WHERE Ticket = ? ORDER BY Timestamp ASC")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare query") Quit
+
+        Set tResult = tStatement.%Execute(tTicketId)
+        Set tHumanFields = ""
+        Set tAgentFields = ""
+
+        While tResult.%Next() {
+            Set tActivity = ##class(SpectraSight.Model.Activity).%OpenId(tResult.%Get("ID"))
+            If tActivity = "" Continue
+            Set tEntry = ##class(SpectraSight.REST.TicketHandler).BuildActivityEntry(tActivity)
+
+            // Collect field names for each entry
+            Set tFieldList = ""
+            Set tIter = tEntry.%GetIterator()
+            While tIter.%GetNext(.tKey, .tVal) {
+                Set tFieldList = tFieldList_$SELECT(tFieldList="":"", 1:",")_tKey
+            }
+
+            If tEntry.%Get("actorType") = "human" {
+                Set tHumanFields = tFieldList
+            } ElseIf tEntry.%Get("actorType") = "agent" {
+                Set tAgentFields = tFieldList
+            }
+        }
+
+        // Both human and agent entries for the same activity type should have identical field sets
+        If tHumanFields '= tAgentFields Set tSC = $$$ERROR(5001, "Human and agent entries have different fields. Human: "_tHumanFields_" Agent: "_tAgentFields) Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTicketId '= "" {
+        Set tStmtDel = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmtDel.%Prepare("DELETE FROM SpectraSight_Model.Activity WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tStmtDel.%Execute(tTicketId)
+        Do ##class(SpectraSight.Model.Story).%DeleteId(tTicketId)
+    }
+    Quit tSC
+}
+
+/// Story 3.1 AC#2: BuildActivityEntry returns common fields (id, actorName, actorType, timestamp, type) for every entry
+ClassMethod TestBuildActivityEntryCommon() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Try {
+        // Create a ticket and one activity
+        Set tBug = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug.Title = "CommonFieldTest Bug"
+        Set tSC = tBug.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tBug.%Id()
+
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordStatusChange(tTicketId, "Open", "In Progress", "testactor", "human")
+        If $$$ISERR(tSC) Quit
+
+        // Get the activity and build entry
+        Set tStatement = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStatement.%Prepare("SELECT %ID FROM SpectraSight_Model.Activity WHERE Ticket = ?")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare query") Quit
+
+        Set tResult = tStatement.%Execute(tTicketId)
+        If 'tResult.%Next() Set tSC = $$$ERROR(5001, "No activity found") Quit
+
+        Set tActivity = ##class(SpectraSight.Model.Activity).%OpenId(tResult.%Get("ID"))
+        Set tEntry = ##class(SpectraSight.REST.TicketHandler).BuildActivityEntry(tActivity)
+
+        // Verify all required common fields
+        If tEntry.%Get("id") = "" Set tSC = $$$ERROR(5001, "Missing id field") Quit
+        If tEntry.%Get("actorName") '= "testactor" Set tSC = $$$ERROR(5001, "actorName expected 'testactor', got: "_tEntry.%Get("actorName")) Quit
+        If tEntry.%Get("actorType") '= "human" Set tSC = $$$ERROR(5001, "actorType expected 'human', got: "_tEntry.%Get("actorType")) Quit
+        If tEntry.%Get("timestamp") = "" Set tSC = $$$ERROR(5001, "Missing timestamp field") Quit
+        If tEntry.%Get("type") '= "statusChange" Set tSC = $$$ERROR(5001, "type expected 'statusChange', got: "_tEntry.%Get("type")) Quit
+
+        // Verify id is numeric
+        Set tId = tEntry.%Get("id")
+        If tId '> 0 Set tSC = $$$ERROR(5001, "id should be a positive number, got: "_tId) Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTicketId '= "" {
+        Set tStmtDel = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmtDel.%Prepare("DELETE FROM SpectraSight_Model.Activity WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tStmtDel.%Execute(tTicketId)
+        Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
     }
     Quit tSC
 }
