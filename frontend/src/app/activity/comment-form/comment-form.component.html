@@ -1,0 +1,27 @@
+<div class="comment-form" [class.expanded]="expanded()">
+  <textarea
+    class="comment-textarea"
+    [class.expanded]="expanded()"
+    aria-label="Add a comment"
+    placeholder="Add a comment..."
+    [ngModel]="commentBody()"
+    (ngModelChange)="commentBody.set($event)"
+    (focus)="onFocus()"
+    [disabled]="submitting()">
+  </textarea>
+  @if (expanded()) {
+    <div class="comment-form-actions">
+      <button
+        mat-flat-button
+        color="primary"
+        [disabled]="isSubmitDisabled"
+        (click)="onSubmit()">
+        @if (submitting()) {
+          <mat-spinner diameter="18"></mat-spinner>
+        } @else {
+          Submit
+        }
+      </button>
+    </div>
+  }
+</div>

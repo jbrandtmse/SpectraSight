@@ -10,6 +10,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Routes>
   <Route Url="/tickets" Method="GET" Call="SpectraSight.REST.TicketHandler:ListTickets" />
   <Route Url="/tickets" Method="POST" Call="SpectraSight.REST.TicketHandler:CreateTicket" />
+  <Route Url="/tickets/:id/comments" Method="POST" Call="SpectraSight.REST.TicketHandler:AddComment" />
   <Route Url="/tickets/:id/activity" Method="GET" Call="SpectraSight.REST.TicketHandler:ListActivity" />
   <Route Url="/tickets/:id" Method="GET" Call="SpectraSight.REST.TicketHandler:GetTicket" />
   <Route Url="/tickets/:id" Method="PUT" Call="SpectraSight.REST.TicketHandler:UpdateTicket" />

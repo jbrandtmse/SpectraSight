@@ -79,6 +79,12 @@
       [refreshTrigger]="activityRefreshTrigger()">
     </ss-activity-timeline>
 
+    <!-- Comment Form -->
+    <ss-comment-form
+      [ticketId]="ticket.id"
+      (commentAdded)="onCommentAdded()">
+    </ss-comment-form>
+
     <!-- Children list -->
     @if (ticket.children?.length) {
       <div class="detail-section children-section">

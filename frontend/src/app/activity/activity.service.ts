@@ -1,13 +1,15 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, Subscription, map } from 'rxjs';
+import { Observable, Subscription, map, tap, catchError, EMPTY } from 'rxjs';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { environment } from '../../environments/environment';
-import { Activity } from './activity.model';
+import { Activity, CommentActivity } from './activity.model';
 import { ApiResponse } from '../shared/models/api-response.model';
 
 @Injectable({ providedIn: 'root' })
 export class ActivityService {
   private http = inject(HttpClient);
+  private snackBar = inject(MatSnackBar);
   private loadSubscription: Subscription | null = null;
 
   private activitiesSignal = signal<Activity[]>([]);
@@ -37,5 +39,44 @@ export class ActivityService {
         this.loadingSignal.set(false);
       },
     });
+  }
+
+  addComment(ticketId: string, body: string): Observable<CommentActivity> {
+    const tempId = -Date.now();
+    const tempComment: CommentActivity = {
+      id: tempId,
+      type: 'comment',
+      actorName: 'You',
+      actorType: 'human',
+      timestamp: new Date().toISOString(),
+      body,
+    };
+
+    // Optimistic: append immediately
+    this.activitiesSignal.update((activities) => [...activities, tempComment]);
+
+    return this.http
+      .post<ApiResponse<CommentActivity>>(
+        `${environment.apiBaseUrl}/tickets/${ticketId}/comments`,
+        { body },
+      )
+      .pipe(
+        map((response) => response.data),
+        tap((serverComment) => {
+          // Replace temp with server response
+          this.activitiesSignal.update((activities) =>
+            activities.map((a) => (a.id === tempId ? serverComment : a)),
+          );
+        }),
+        catchError((err) => {
+          // Remove temp comment on error
+          this.activitiesSignal.update((activities) =>
+            activities.filter((a) => a.id !== tempId),
+          );
+          const message = err?.error?.error?.message || 'Failed to add comment';
+          this.snackBar.open(message, 'Dismiss', { duration: 5000 });
+          return EMPTY;
+        }),
+      );
   }
 }

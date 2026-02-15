@@ -1,0 +1,39 @@
+.comment-form {
+  margin-top: var(--ss-comment-form-margin-top, var(--ss-sm));
+}
+
+.comment-textarea {
+  width: 100%;
+  min-height: var(--ss-comment-form-collapsed-height, 40px);
+  max-height: var(--ss-comment-form-max-height, 200px);
+  padding: var(--ss-comment-form-padding, var(--ss-sm));
+  font-family: inherit;
+  font-size: var(--ss-comment-form-font-size, 13px);
+  border: 1px solid var(--ss-border, #d4d4d4);
+  border-radius: var(--ss-comment-form-border-radius, 4px);
+  background: var(--ss-comment-form-bg, var(--ss-surface, #fff));
+  color: var(--ss-text-primary, #1a1a1a);
+  resize: vertical;
+  transition: min-height 0.2s ease;
+  box-sizing: border-box;
+
+  &.expanded {
+    min-height: var(--ss-comment-form-expanded-height, 100px);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--ss-primary, #1976d2);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.comment-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--ss-comment-form-actions-gap, var(--ss-sm));
+}

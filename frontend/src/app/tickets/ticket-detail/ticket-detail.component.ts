@@ -15,6 +15,7 @@ import { HierarchyBreadcrumbComponent } from '../../shared/hierarchy-breadcrumb/
 import { ConfirmDeleteDialogComponent } from '../confirm-delete-dialog/confirm-delete-dialog.component';
 import { CodeReferenceFieldComponent } from '../../code-references/code-reference-field/code-reference-field.component';
 import { ActivityTimelineComponent } from '../../activity/activity-timeline/activity-timeline.component';
+import { CommentFormComponent } from '../../activity/comment-form/comment-form.component';
 import { CodeReference } from '../ticket.model';
 
 @Component({
@@ -33,6 +34,7 @@ import { CodeReference } from '../ticket.model';
     HierarchyBreadcrumbComponent,
     CodeReferenceFieldComponent,
     ActivityTimelineComponent,
+    CommentFormComponent,
   ],
   templateUrl: './ticket-detail.component.html',
   styleUrl: './ticket-detail.component.scss',
@@ -102,6 +104,10 @@ export class TicketDetailComponent {
     if (ticket) {
       this.addSubtaskRequested.emit(ticket.id);
     }
+  }
+
+  onCommentAdded(): void {
+    this.activityRefreshTrigger.update((n) => n + 1);
   }
 
   onCodeReferenceAdded(_ref: CodeReference): void {

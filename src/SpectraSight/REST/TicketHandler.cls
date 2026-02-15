@@ -778,6 +778,73 @@ ClassMethod BuildTicketResponse(pTicket As SpectraSight.Model.Ticket, pIncludeCh
     Quit tObj
 }
 
+/// POST /api/tickets/:id/comments - Add a comment to a ticket
+ClassMethod AddComment(pId As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        Set tInternalId = ##class(SpectraSight.Util.TicketID).Parse(pId)
+        If tInternalId = "" {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Invalid ticket ID format")
+            Quit
+        }
+
+        Set tTicket = ##class(SpectraSight.Model.Ticket).%OpenId(tInternalId)
+        If tTicket = "" {
+            Set tSC = ##class(SpectraSight.REST.Response).NotFound("Ticket "_##class(SpectraSight.Util.TicketID).Format(tInternalId)_" not found")
+            Quit
+        }
+
+        // Guard against empty/missing request body
+        If (%request.Content = "") || ('$ISOBJECT(%request.Content)) {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Comment body cannot be empty")
+            Quit
+        }
+
+        Set tBody = ##class(%DynamicObject).%FromJSON(%request.Content)
+        Set tCommentBody = tBody.%Get("body")
+
+        // Validate body is non-empty and not just whitespace
+        If (tCommentBody = "") || ($ZSTRIP(tCommentBody, "<>W") = "") {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Comment body cannot be empty")
+            Quit
+        }
+
+        // Validate body length
+        If $LENGTH(tCommentBody) > 32000 {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Comment body exceeds maximum length of 32000 characters")
+            Quit
+        }
+
+        // Determine actor type from request body (default to "human")
+        Set tActorType = tBody.%Get("actorType")
+        If (tActorType '= "human") && (tActorType '= "agent") {
+            Set tActorType = "human"
+        }
+
+        // Create the comment
+        Set tComment = ##class(SpectraSight.Model.Comment).%New()
+        Set tComment.Ticket = tTicket
+        Set tComment.Body = tCommentBody
+        Set tComment.ActorName = ##class(SpectraSight.Util.ActivityRecorder).GetActorFromRequest()
+        Set tComment.ActorType = tActorType
+
+        Set tSC = tComment.%Save()
+        If $$$ISERR(tSC) {
+            Set tSC = ##class(SpectraSight.REST.Response).ServerError("Failed to save comment: "_$System.Status.GetErrorText(tSC))
+            Quit
+        }
+
+        // Build response using BuildActivityEntry
+        Set tResponse = ..BuildActivityEntry(tComment)
+        Set tSC = ##class(SpectraSight.REST.Response).Created(tResponse)
+    }
+    Catch ex {
+        Set tSC = ##class(SpectraSight.REST.Response).ServerError("An unexpected error occurred while adding comment")
+    }
+    Quit tSC
+}
+
 /// Determine the lowercase type string from the ticket class
 ClassMethod GetTicketType(pTicket As SpectraSight.Model.Ticket) As %String
 {
