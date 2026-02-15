@@ -19,7 +19,7 @@ export class TicketListComponent implements OnInit {
   private router = inject(Router);
   private snackBar = inject(MatSnackBar);
 
-  @ViewChildren('rowRef') rowRefs!: QueryList<ElementRef>;
+  @ViewChildren('rowRef', { read: ElementRef }) rowRefs!: QueryList<ElementRef>;
 
   focusedIndex = signal(0);
   skeletonRows = Array(8);
