@@ -1,0 +1,70 @@
+<!-- Display mode: list saved references -->
+<div class="code-ref-section">
+  <span class="code-ref-label">Code References</span>
+
+  @if (codeReferences().length) {
+    <div class="code-ref-list">
+      @for (ref of codeReferences(); track ref.id) {
+        <div class="code-ref-item">
+          <code class="code-ref-display">{{ formatReference(ref) }}</code>
+          <button
+            mat-icon-button
+            class="code-ref-remove"
+            (click)="removeReference(ref.id)"
+            aria-label="Remove code reference">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Edit mode: add new reference -->
+  @if (editing()) {
+    <div class="code-ref-form">
+      <mat-form-field class="code-ref-input">
+        <mat-label>Class Name</mat-label>
+        <input
+          matInput
+          [formControl]="classControl"
+          [matAutocomplete]="classAuto"
+          aria-label="ObjectScript code reference"
+          role="combobox" />
+        <mat-autocomplete
+          #classAuto="matAutocomplete"
+          (optionSelected)="onClassSelected($event.option.value)">
+          @for (cls of classSuggestions(); track cls) {
+            <mat-option [value]="cls">{{ cls }}</mat-option>
+          }
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <mat-form-field class="code-ref-input">
+        <mat-label>Method Name</mat-label>
+        <input
+          matInput
+          [formControl]="methodControl"
+          [matAutocomplete]="methodAuto"
+          aria-label="ObjectScript method reference"
+          role="combobox" />
+        <mat-autocomplete #methodAuto="matAutocomplete">
+          @for (method of methodSuggestions(); track method) {
+            <mat-option [value]="method">{{ method }}</mat-option>
+          }
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <div class="code-ref-actions">
+        <button mat-flat-button color="primary" (click)="addReference()" [disabled]="!classControl.value">
+          Add
+        </button>
+        <button mat-button (click)="cancelEditing()">Cancel</button>
+      </div>
+    </div>
+  } @else {
+    <button mat-button class="code-ref-add-btn" (click)="startEditing()">
+      <mat-icon>add</mat-icon>
+      Add code reference
+    </button>
+  }
+</div>

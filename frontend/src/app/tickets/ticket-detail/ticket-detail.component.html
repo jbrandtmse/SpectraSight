@@ -65,6 +65,14 @@
       </app-inline-edit>
     </div>
 
+    <!-- Code References -->
+    <ss-code-reference
+      [codeReferences]="ticket.codeReferences || []"
+      [ticketId]="ticket.id"
+      (referenceAdded)="onCodeReferenceAdded($event)"
+      (referenceRemoved)="onCodeReferenceRemoved($event)">
+    </ss-code-reference>
+
     <!-- Children list -->
     @if (ticket.children?.length) {
       <div class="detail-section children-section">

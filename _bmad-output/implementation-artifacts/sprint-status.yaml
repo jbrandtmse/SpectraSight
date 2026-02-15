@@ -54,7 +54,7 @@ development_status:
   epic-2: in-progress
   2-1-ticket-hierarchy-and-navigation: done
   2-2-list-filtering-sorting-and-search: done
-  2-3-code-reference-fields: backlog
+  2-3-code-reference-fields: done
   epic-2-retrospective: optional
 
   # Epic 3: Collaboration & Activity Tracking

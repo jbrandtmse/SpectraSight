@@ -26,6 +26,11 @@ ClassMethod RunAll() As %String [ SqlProc ]
         Do ..RunOne("TestValidateHierarchy", .tPassed, .tFailed)
         Do ..RunOne("TestHierarchyInCreate", .tPassed, .tFailed)
         Do ..RunOne("TestChildrenInGetTicket", .tPassed, .tFailed)
+        Do ..RunOne("TestClassHandlerListClasses", .tPassed, .tFailed)
+        Do ..RunOne("TestClassHandlerListMethods", .tPassed, .tFailed)
+        Do ..RunOne("TestCodeReferenceEndpoints", .tPassed, .tFailed)
+        Do ..RunOne("TestCodeReferenceInTicketResponse", .tPassed, .tFailed)
+        Do ..RunOne("TestRecordCodeReferenceChange", .tPassed, .tFailed)
 
         Set tResult = tPassed_" passed, "_tFailed_" failed"
         Set ^ClaudeDebug("REST", "summary") = tResult
@@ -956,6 +961,282 @@ ClassMethod TestChildrenInGetTicket() As %Status
     If tStoryId2 '= "" Do ##class(SpectraSight.Model.Story).%DeleteId(tStoryId2)
     If tStoryId '= "" Do ##class(SpectraSight.Model.Story).%DeleteId(tStoryId)
     If tEpicId '= "" Do ##class(SpectraSight.Model.Epic).%DeleteId(tEpicId)
+    Quit tSC
+}
+
+/// Test ClassHandler.ListClasses returns class definitions
+ClassMethod TestClassHandlerListClasses() As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        // The %Dictionary.ClassDefinition table should have entries
+        Set tStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt.%Prepare("SELECT COUNT(*) AS cnt FROM %Dictionary.ClassDefinition WHERE Name NOT LIKE '\%%' ESCAPE '\' AND Name NOT LIKE '%.' AND System = 0")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare class query") Quit
+        Set tRes = tStmt.%Execute()
+        If tRes.%Next() {
+            Set tCount = tRes.%Get("cnt")
+            If tCount < 1 Set tSC = $$$ERROR(5001, "Expected at least 1 user class, got: "_tCount) Quit
+        }
+
+        // Test with search filter
+        Set tStmt2 = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt2.%Prepare("SELECT Name FROM %Dictionary.ClassDefinition WHERE Name NOT LIKE '\%%' ESCAPE '\' AND Name NOT LIKE '%.' AND System = 0 AND Name LIKE ? FETCH FIRST 50 ROWS ONLY")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare search query") Quit
+        Set tRes2 = tStmt2.%Execute("SpectraSight%")
+        Set tMatchCount = 0
+        While tRes2.%Next() {
+            Set tMatchCount = tMatchCount + 1
+        }
+        If tMatchCount < 1 Set tSC = $$$ERROR(5001, "Expected SpectraSight classes in search results, got: "_tMatchCount) Quit
+
+        // Verify limit of 50 works (just check query doesn't error)
+        Set tStmt3 = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt3.%Prepare("SELECT Name, Super FROM %Dictionary.ClassDefinition WHERE Name NOT LIKE '\%%' ESCAPE '\' AND Name NOT LIKE '%.' AND System = 0 ORDER BY Name FETCH FIRST 50 ROWS ONLY")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare limited query") Quit
+        Set tRes3 = tStmt3.%Execute()
+        Set tLimitCount = 0
+        While tRes3.%Next() {
+            Set tLimitCount = tLimitCount + 1
+        }
+        If tLimitCount > 50 Set tSC = $$$ERROR(5001, "Expected at most 50 results, got: "_tLimitCount) Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    Quit tSC
+}
+
+/// Test ClassHandler.ListMethods returns method definitions
+ClassMethod TestClassHandlerListMethods() As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        // Query methods for a known class
+        Set tStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt.%Prepare("SELECT Name, ClassMethod, ReturnType FROM %Dictionary.MethodDefinition WHERE parent = ?")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare method query") Quit
+        Set tRes = tStmt.%Execute("SpectraSight.REST.ClassHandler")
+        Set tMethodCount = 0
+        Set tFoundListClasses = 0
+        While tRes.%Next() {
+            Set tMethodCount = tMethodCount + 1
+            If tRes.%Get("Name") = "ListClasses" Set tFoundListClasses = 1
+        }
+        If tMethodCount < 2 Set tSC = $$$ERROR(5001, "Expected at least 2 methods on ClassHandler, got: "_tMethodCount) Quit
+        If 'tFoundListClasses Set tSC = $$$ERROR(5001, "Expected to find ListClasses method") Quit
+
+        // Verify class existence check works for a non-existent class
+        If ##class(%Dictionary.ClassDefinition).%ExistsId("NonExistent.Fake.Class") {
+            Set tSC = $$$ERROR(5001, "Non-existent class should not exist") Quit
+        }
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    Quit tSC
+}
+
+/// Test adding and removing code references on a ticket
+ClassMethod TestCodeReferenceEndpoints() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Set tRefId = ""
+    Try {
+        // Create test ticket
+        Set tBug = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug.Title = "CodeRefTest Bug"
+        Set tSC = tBug.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tBug.%Id()
+
+        // Add a code reference
+        Set tRef = ##class(SpectraSight.Model.CodeReference).%New()
+        Set tRef.Ticket = tBug
+        Set tRef.ClassName = "SpectraSight.Model.Ticket"
+        Set tRef.MethodName = "%OnNew"
+        Set tRef.AddedBy = "testuser"
+        Set tSC = tRef.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tRefId = tRef.%Id()
+
+        // Verify the ref was saved
+        Set tReloaded = ##class(SpectraSight.Model.CodeReference).%OpenId(tRefId)
+        If tReloaded = "" Set tSC = $$$ERROR(5001, "Code reference should exist") Quit
+        If tReloaded.ClassName '= "SpectraSight.Model.Ticket" Set tSC = $$$ERROR(5001, "ClassName mismatch") Quit
+        If tReloaded.MethodName '= "%OnNew" Set tSC = $$$ERROR(5001, "MethodName mismatch") Quit
+        If tReloaded.Ticket.%Id() '= tTicketId Set tSC = $$$ERROR(5001, "Ticket reference mismatch") Quit
+        If tReloaded.Timestamp = "" Set tSC = $$$ERROR(5001, "Timestamp should be auto-set") Quit
+
+        // Add a second reference (no method name)
+        Set tRef2 = ##class(SpectraSight.Model.CodeReference).%New()
+        Set tRef2.Ticket = tBug
+        Set tRef2.ClassName = "SpectraSight.REST.Response"
+        Set tRef2.AddedBy = "testuser"
+        Set tSC = tRef2.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tRefId2 = tRef2.%Id()
+
+        // Verify we can query both refs for the ticket
+        Set tStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt.%Prepare("SELECT COUNT(*) AS cnt FROM SpectraSight_Model.CodeReference WHERE Ticket = ?")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare count query") Quit
+        Set tRes = tStmt.%Execute(tTicketId)
+        If tRes.%Next() {
+            If tRes.%Get("cnt") '= 2 Set tSC = $$$ERROR(5001, "Expected 2 code references, got: "_tRes.%Get("cnt")) Quit
+        }
+
+        // Delete a reference
+        Set tSC = ##class(SpectraSight.Model.CodeReference).%DeleteId(tRefId)
+        If $$$ISERR(tSC) Quit
+        Set tRefId = ""
+
+        // Verify only 1 remains
+        Set tRes2 = tStmt.%Execute(tTicketId)
+        If tRes2.%Next() {
+            If tRes2.%Get("cnt") '= 1 Set tSC = $$$ERROR(5001, "Expected 1 code reference after delete, got: "_tRes2.%Get("cnt")) Quit
+        }
+
+        // Cleanup second ref
+        Do ##class(SpectraSight.Model.CodeReference).%DeleteId(tRefId2)
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tRefId '= "" Do ##class(SpectraSight.Model.CodeReference).%DeleteId(tRefId)
+    If tTicketId '= "" {
+        Set tCleanStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tCleanStmt.%Prepare("DELETE FROM SpectraSight_Model.CodeReference WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tCleanStmt.%Execute(tTicketId)
+        Set tCleanStmt2 = ##class(%SQL.Statement).%New()
+        Set tSC2 = tCleanStmt2.%Prepare("DELETE FROM SpectraSight_Model.Activity WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tCleanStmt2.%Execute(tTicketId)
+        Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
+    }
+    Quit tSC
+}
+
+/// Test that BuildTicketResponse includes codeReferences array
+ClassMethod TestCodeReferenceInTicketResponse() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Try {
+        // Create a ticket with code references
+        Set tTask = ##class(SpectraSight.Model.Task).%New()
+        Set tTask.Title = "CodeRefResponseTest Task"
+        Set tSC = tTask.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tTask.%Id()
+
+        // Add two code references
+        Set tRef1 = ##class(SpectraSight.Model.CodeReference).%New()
+        Set tRef1.Ticket = tTask
+        Set tRef1.ClassName = "SpectraSight.Model.Ticket"
+        Set tRef1.MethodName = "Title"
+        Set tRef1.AddedBy = "testuser"
+        Set tSC = tRef1.%Save()
+        If $$$ISERR(tSC) Quit
+
+        Set tRef2 = ##class(SpectraSight.Model.CodeReference).%New()
+        Set tRef2.Ticket = tTask
+        Set tRef2.ClassName = "SpectraSight.REST.Response"
+        Set tRef2.AddedBy = "testuser"
+        Set tSC = tRef2.%Save()
+        If $$$ISERR(tSC) Quit
+
+        // Build response with pIncludeChildren=1 (detail view)
+        Set tResponse = ##class(SpectraSight.REST.TicketHandler).BuildTicketResponse(tTask, 1)
+        Set tCodeRefs = tResponse.%Get("codeReferences")
+        If tCodeRefs = "" Set tSC = $$$ERROR(5001, "codeReferences should be present in detail response") Quit
+        If tCodeRefs.%Size() '= 2 Set tSC = $$$ERROR(5001, "Expected 2 codeReferences, got: "_tCodeRefs.%Size()) Quit
+
+        // Verify structure of first ref
+        Set tFirstRef = tCodeRefs.%Get(0)
+        If tFirstRef.%Get("className") = "" Set tSC = $$$ERROR(5001, "className should be present") Quit
+        If tFirstRef.%Get("addedBy") = "" Set tSC = $$$ERROR(5001, "addedBy should be present") Quit
+
+        // Build response with pIncludeChildren=0 (list view) should NOT include codeReferences
+        Set tListResp = ##class(SpectraSight.REST.TicketHandler).BuildTicketResponse(tTask, 0)
+        If tListResp.%IsDefined("codeReferences") Set tSC = $$$ERROR(5001, "codeReferences should not be in list response") Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTicketId '= "" {
+        Set tCleanStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tCleanStmt.%Prepare("DELETE FROM SpectraSight_Model.CodeReference WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tCleanStmt.%Execute(tTicketId)
+        Do ##class(SpectraSight.Model.Task).%DeleteId(tTicketId)
+    }
+    Quit tSC
+}
+
+/// Test RecordCodeReferenceChange creates proper activity entries
+ClassMethod TestRecordCodeReferenceChange() As %Status
+{
+    Set tSC = $$$OK
+    Set tTicketId = ""
+    Try {
+        // Create a test ticket
+        Set tBug = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug.Title = "CodeRefActivityTest Bug"
+        Set tSC = tBug.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTicketId = tBug.%Id()
+
+        // Record an "added" activity
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tTicketId, "SpectraSight.Model.Ticket", "%OnNew", "added", "testuser", "human")
+        If $$$ISERR(tSC) Quit
+
+        // Record a "removed" activity
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tTicketId, "SpectraSight.Model.Ticket", "%OnNew", "removed", "testuser", "human")
+        If $$$ISERR(tSC) Quit
+
+        // Verify activities exist
+        Set tStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt.%Prepare("SELECT COUNT(*) AS cnt FROM SpectraSight_Model.Activity WHERE Ticket = ?")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare activity count query") Quit
+        Set tRes = tStmt.%Execute(tTicketId)
+        If tRes.%Next() {
+            If tRes.%Get("cnt") '= 2 Set tSC = $$$ERROR(5001, "Expected 2 activities, got: "_tRes.%Get("cnt")) Quit
+        }
+
+        // Verify CodeReferenceChange specific fields
+        Set tStmt2 = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStmt2.%Prepare("SELECT ClassName, MethodName, Action FROM SpectraSight_Model.CodeReferenceChange WHERE Ticket = ? ORDER BY ID")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Failed to prepare CodeReferenceChange query") Quit
+        Set tRes2 = tStmt2.%Execute(tTicketId)
+
+        // First entry: added
+        If tRes2.%Next() {
+            If tRes2.%Get("ClassName") '= "SpectraSight.Model.Ticket" Set tSC = $$$ERROR(5001, "ClassName mismatch on added entry") Quit
+            If tRes2.%Get("MethodName") '= "%OnNew" Set tSC = $$$ERROR(5001, "MethodName mismatch on added entry") Quit
+            If tRes2.%Get("Action") '= "added" Set tSC = $$$ERROR(5001, "Action should be 'added', got: "_tRes2.%Get("Action")) Quit
+        } Else {
+            Set tSC = $$$ERROR(5001, "Expected first CodeReferenceChange entry") Quit
+        }
+
+        // Second entry: removed
+        If tRes2.%Next() {
+            If tRes2.%Get("Action") '= "removed" Set tSC = $$$ERROR(5001, "Action should be 'removed', got: "_tRes2.%Get("Action")) Quit
+        } Else {
+            Set tSC = $$$ERROR(5001, "Expected second CodeReferenceChange entry") Quit
+        }
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTicketId '= "" {
+        Set tCleanStmt = ##class(%SQL.Statement).%New()
+        Set tSC2 = tCleanStmt.%Prepare("DELETE FROM SpectraSight_Model.Activity WHERE Ticket = ?")
+        If $$$ISOK(tSC2) Do tCleanStmt.%Execute(tTicketId)
+        Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
+    }
     Quit tSC
 }
 

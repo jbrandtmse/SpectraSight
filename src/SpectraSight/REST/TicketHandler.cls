@@ -492,6 +492,119 @@ ClassMethod DeleteTicket(pId As %String) As %Status
     Quit tSC
 }
 
+/// POST /api/tickets/:id/code-references - Add a code reference to a ticket
+ClassMethod AddCodeReference(pId As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        Set tInternalId = ##class(SpectraSight.Util.TicketID).Parse(pId)
+        If tInternalId = "" {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Invalid ticket ID format")
+            Quit
+        }
+
+        Set tTicket = ##class(SpectraSight.Model.Ticket).%OpenId(tInternalId)
+        If tTicket = "" {
+            Set tSC = ##class(SpectraSight.REST.Response).NotFound("Ticket " _ ##class(SpectraSight.Util.TicketID).Format(tInternalId) _ " not found")
+            Quit
+        }
+
+        Set tBody = ##class(%DynamicObject).%FromJSON(%request.Content)
+        Set tClassName = tBody.%Get("className")
+        If tClassName = "" {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest("className is required")
+            Quit
+        }
+        If $LENGTH(tClassName) > 500 {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest("className exceeds maximum length of 500 characters")
+            Quit
+        }
+        Set tMethodName = tBody.%Get("methodName")
+        If (tMethodName '= "") && ($LENGTH(tMethodName) > 255) {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest("methodName exceeds maximum length of 255 characters")
+            Quit
+        }
+
+        Set tRef = ##class(SpectraSight.Model.CodeReference).%New()
+        Set tRef.Ticket = tTicket
+        Set tRef.ClassName = tClassName
+        If tMethodName '= "" {
+            Set tRef.MethodName = tMethodName
+        }
+        Set tRef.AddedBy = ##class(SpectraSight.Util.ActivityRecorder).GetActorFromRequest()
+
+        Set tSC2 = tRef.%Save()
+        If $$$ISERR(tSC2) {
+            Set tSC = ##class(SpectraSight.REST.Response).ServerError("Failed to save code reference: " _ $System.Status.GetErrorText(tSC2))
+            Quit
+        }
+
+        // Record activity
+        Do ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tInternalId, tClassName, tMethodName, "added", tRef.AddedBy, "human")
+
+        // Build response
+        Set tResponse = ##class(%DynamicObject).%New()
+        Do tResponse.%Set("id", tRef.%Id(), "number")
+        Do tResponse.%Set("className", tRef.ClassName)
+        Do tResponse.%Set("methodName", tRef.MethodName)
+        Do tResponse.%Set("addedBy", tRef.AddedBy)
+        Do tResponse.%Set("timestamp", tRef.Timestamp)
+
+        Set tSC = ##class(SpectraSight.REST.Response).Created(tResponse)
+    }
+    Catch ex {
+        Set tSC = ##class(SpectraSight.REST.Response).ServerError("An unexpected error occurred while adding code reference")
+    }
+    Quit tSC
+}
+
+/// DELETE /api/tickets/:id/code-references/:refId - Remove a code reference from a ticket
+ClassMethod RemoveCodeReference(pId As %String, pRefId As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        Set tInternalId = ##class(SpectraSight.Util.TicketID).Parse(pId)
+        If tInternalId = "" {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Invalid ticket ID format")
+            Quit
+        }
+
+        Set tTicket = ##class(SpectraSight.Model.Ticket).%OpenId(tInternalId)
+        If tTicket = "" {
+            Set tSC = ##class(SpectraSight.REST.Response).NotFound("Ticket " _ ##class(SpectraSight.Util.TicketID).Format(tInternalId) _ " not found")
+            Quit
+        }
+
+        // Validate code reference exists and belongs to this ticket
+        Set tRef = ##class(SpectraSight.Model.CodeReference).%OpenId(pRefId)
+        If tRef = "" {
+            Set tSC = ##class(SpectraSight.REST.Response).NotFound("Code reference not found")
+            Quit
+        }
+        If tRef.Ticket.%Id() '= tInternalId {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Code reference does not belong to this ticket")
+            Quit
+        }
+
+        // Record activity BEFORE deleting
+        Set tActor = ##class(SpectraSight.Util.ActivityRecorder).GetActorFromRequest()
+        Do ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tInternalId, tRef.ClassName, tRef.MethodName, "removed", tActor, "human")
+
+        // Delete the code reference
+        Set tSC2 = ##class(SpectraSight.Model.CodeReference).%DeleteId(pRefId)
+        If $$$ISERR(tSC2) {
+            Set tSC = ##class(SpectraSight.REST.Response).ServerError("Failed to delete code reference")
+            Quit
+        }
+
+        Set tSC = ##class(SpectraSight.REST.Response).SuccessNoContent()
+    }
+    Catch ex {
+        Set tSC = ##class(SpectraSight.REST.Response).ServerError("An unexpected error occurred while removing code reference")
+    }
+    Quit tSC
+}
+
 /// Build a %DynamicObject response from a ticket object
 /// pIncludeChildren: if true, include children array and parent object (used for detail view)
 ClassMethod BuildTicketResponse(pTicket As SpectraSight.Model.Ticket, pIncludeChildren As %Boolean = 1) As %DynamicObject
@@ -534,6 +647,26 @@ ClassMethod BuildTicketResponse(pTicket As SpectraSight.Model.Ticket, pIncludeCh
         } ElseIf pTicket.%IsA("SpectraSight.Model.Epic") {
             Do tObj.%Set("startDate", pTicket.StartDate)
             Do tObj.%Set("targetDate", pTicket.TargetDate)
+        }
+
+        // Include code references
+        If pIncludeChildren {
+            Set tCodeRefs = ##class(%DynamicArray).%New()
+            Set tRefStmt = ##class(%SQL.Statement).%New()
+            Set tSC2 = tRefStmt.%Prepare("SELECT ID, ClassName, MethodName, AddedBy, Timestamp FROM SpectraSight_Model.CodeReference WHERE Ticket = ? ORDER BY ID")
+            If $$$ISOK(tSC2) {
+                Set tRefRS = tRefStmt.%Execute(pTicket.%Id())
+                While tRefRS.%Next() {
+                    Set tRefObj = ##class(%DynamicObject).%New()
+                    Do tRefObj.%Set("id", tRefRS.ID, "number")
+                    Do tRefObj.%Set("className", tRefRS.ClassName)
+                    Do tRefObj.%Set("methodName", tRefRS.MethodName)
+                    Do tRefObj.%Set("addedBy", tRefRS.AddedBy)
+                    Do tRefObj.%Set("timestamp", tRefRS.Timestamp)
+                    Do tCodeRefs.%Push(tRefObj)
+                }
+            }
+            Do tObj.%Set("codeReferences", tCodeRefs)
         }
 
         // Include children array for detail view

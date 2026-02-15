@@ -181,4 +181,14 @@ export class TicketService {
   refreshTickets(): void {
     this.loadTickets();
   }
+
+  updateTicketInList(ticket: Ticket): void {
+    this.ticketsSignal.update((tickets) => {
+      const idx = tickets.findIndex((t) => t.id === ticket.id);
+      if (idx === -1) return tickets;
+      const updated = [...tickets];
+      updated[idx] = ticket;
+      return updated;
+    });
+  }
 }

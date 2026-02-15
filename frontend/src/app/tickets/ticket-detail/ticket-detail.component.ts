@@ -13,6 +13,8 @@ import { FieldDropdownComponent } from '../../shared/field-dropdown/field-dropdo
 import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
 import { HierarchyBreadcrumbComponent } from '../../shared/hierarchy-breadcrumb/hierarchy-breadcrumb.component';
 import { ConfirmDeleteDialogComponent } from '../confirm-delete-dialog/confirm-delete-dialog.component';
+import { CodeReferenceFieldComponent } from '../../code-references/code-reference-field/code-reference-field.component';
+import { CodeReference } from '../ticket.model';
 
 @Component({
   selector: 'app-ticket-detail',
@@ -28,6 +30,7 @@ import { ConfirmDeleteDialogComponent } from '../confirm-delete-dialog/confirm-d
     FieldDropdownComponent,
     RelativeTimePipe,
     HierarchyBreadcrumbComponent,
+    CodeReferenceFieldComponent,
   ],
   templateUrl: './ticket-detail.component.html',
   styleUrl: './ticket-detail.component.scss',
@@ -36,7 +39,6 @@ export class TicketDetailComponent {
   ticketService = inject(TicketService);
   private router = inject(Router);
   private dialog = inject(MatDialog);
-
   addSubtaskRequested = output<string>();
 
   statusOptions = ['Open', 'In Progress', 'Blocked', 'Complete'];
@@ -93,6 +95,23 @@ export class TicketDetailComponent {
     const ticket = this.ticketService.selectedTicket();
     if (ticket) {
       this.addSubtaskRequested.emit(ticket.id);
+    }
+  }
+
+  onCodeReferenceAdded(_ref: CodeReference): void {
+    this.reloadSelectedTicket();
+  }
+
+  onCodeReferenceRemoved(_refId: number): void {
+    this.reloadSelectedTicket();
+  }
+
+  private reloadSelectedTicket(): void {
+    const ticket = this.ticketService.selectedTicket();
+    if (ticket) {
+      this.ticketService.getTicket(ticket.id).subscribe((updated) => {
+        this.ticketService.updateTicketInList(updated);
+      });
     }
   }
 

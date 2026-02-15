@@ -15,6 +15,14 @@ export interface TicketChild {
   type: TicketType;
 }
 
+export interface CodeReference {
+  id: number;
+  className: string;
+  methodName?: string;
+  addedBy?: string;
+  timestamp?: string;
+}
+
 export interface Ticket {
   id: string;
   type: TicketType;
@@ -26,6 +34,7 @@ export interface Ticket {
   parentId?: string;
   parent?: TicketRef;
   children?: TicketChild[];
+  codeReferences?: CodeReference[];
   createdAt: string;
   updatedAt: string;
 }
