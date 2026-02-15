@@ -101,6 +101,7 @@ export class FieldDropdownComponent implements AfterViewChecked {
       this.saveFreeText();
     } else if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
       this.editing.set(false);
     }
   }

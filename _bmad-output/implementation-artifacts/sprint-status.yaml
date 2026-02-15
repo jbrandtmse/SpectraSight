@@ -46,7 +46,7 @@ development_status:
   1-2-rest-api-for-ticket-operations: done
   1-3-app-shell-and-split-panel-layout: done
   1-4-ticket-list-view: in-progress
-  1-5-ticket-detail-view-and-inline-editing: ready-for-dev
+  1-5-ticket-detail-view-and-inline-editing: done
   1-6-ticket-creation-and-deletion: ready-for-dev
   epic-1-retrospective: optional
 
@@ -54,12 +54,12 @@ development_status:
   epic-2: in-progress
   2-1-ticket-hierarchy-and-navigation: ready-for-dev
   2-2-list-filtering-sorting-and-search: ready-for-dev
-  2-3-code-reference-fields: backlog
+  2-3-code-reference-fields: ready-for-dev
   epic-2-retrospective: optional
 
   # Epic 3: Collaboration & Activity Tracking
-  epic-3: backlog
-  3-1-activity-timeline-and-actor-attribution: backlog
+  epic-3: in-progress
+  3-1-activity-timeline-and-actor-attribution: ready-for-dev
   3-2-comment-system: backlog
   epic-3-retrospective: optional
 

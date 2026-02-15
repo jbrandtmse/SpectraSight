@@ -25,13 +25,18 @@ export interface BugTicket extends Ticket {
 
 export interface TaskTicket extends Ticket {
   type: 'task';
+  estimatedHours?: number;
+  actualHours?: number;
 }
 
 export interface StoryTicket extends Ticket {
   type: 'story';
   storyPoints?: number;
+  acceptanceCriteria?: string;
 }
 
 export interface EpicTicket extends Ticket {
   type: 'epic';
+  startDate?: string;
+  targetDate?: string;
 }

@@ -1,0 +1,175 @@
+@if (ticketService.selectedTicket(); as ticket) {
+  <div class="detail-panel" tabindex="0">
+    <!-- Header: type icon, ID, close button -->
+    <div class="detail-header">
+      <ss-type-icon [type]="ticket.type" [size]="20"></ss-type-icon>
+      <span class="detail-id">{{ ticket.id }}</span>
+      <span class="spacer"></span>
+      <button mat-icon-button (click)="close()" aria-label="Close detail panel">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Title (inline-edit, headline) -->
+    <div class="detail-title">
+      <app-inline-edit
+        [value]="ticket.title"
+        fieldClass="headline"
+        placeholder="Enter title"
+        (valueChanged)="onFieldChanged('title', $event)">
+      </app-inline-edit>
+    </div>
+
+    <!-- Fields row: status, priority, assignee -->
+    <div class="detail-fields">
+      <app-field-dropdown
+        label="Status"
+        [value]="ticket.status"
+        [options]="statusOptions"
+        [allowEmpty]="false"
+        (valueChanged)="onFieldChanged('status', $event)">
+      </app-field-dropdown>
+
+      <app-field-dropdown
+        label="Priority"
+        [value]="ticket.priority"
+        [options]="priorityOptions"
+        [allowEmpty]="false"
+        (valueChanged)="onFieldChanged('priority', $event)">
+      </app-field-dropdown>
+
+      <app-field-dropdown
+        label="Assignee"
+        [value]="ticket.assignee || ''"
+        [freeText]="true"
+        placeholder="Unassigned"
+        (valueChanged)="onFieldChanged('assignee', $event)">
+      </app-field-dropdown>
+    </div>
+
+    <!-- Description (inline-edit, textarea) -->
+    <div class="detail-section">
+      <span class="detail-section-label">Description</span>
+      <app-inline-edit
+        [value]="ticket.description || ''"
+        type="textarea"
+        fieldClass="body"
+        placeholder="Add a description..."
+        (valueChanged)="onFieldChanged('description', $event)">
+      </app-inline-edit>
+    </div>
+
+    <!-- Type-specific fields -->
+    @if (ticket.type === 'bug') {
+      <div class="detail-section type-specific">
+        <span class="detail-section-label">Bug Details</span>
+        <app-field-dropdown
+          label="Severity"
+          [value]="asAny(ticket)['severity']?.toString() || ''"
+          [options]="severityOptions"
+          (valueChanged)="onFieldChanged('severity', $event)">
+        </app-field-dropdown>
+        <div class="type-field-row">
+          <span class="type-field-label">Steps to Reproduce</span>
+          <app-inline-edit
+            [value]="asAny(ticket)['stepsToReproduce']?.toString() || ''"
+            type="textarea"
+            fieldClass="body"
+            placeholder="Steps to reproduce..."
+            (valueChanged)="onFieldChanged('stepsToReproduce', $event)">
+          </app-inline-edit>
+        </div>
+        <div class="type-field-row">
+          <span class="type-field-label">Expected Behavior</span>
+          <app-inline-edit
+            [value]="asAny(ticket)['expectedBehavior']?.toString() || ''"
+            type="textarea"
+            fieldClass="body"
+            placeholder="Expected behavior..."
+            (valueChanged)="onFieldChanged('expectedBehavior', $event)">
+          </app-inline-edit>
+        </div>
+        <div class="type-field-row">
+          <span class="type-field-label">Actual Behavior</span>
+          <app-inline-edit
+            [value]="asAny(ticket)['actualBehavior']?.toString() || ''"
+            type="textarea"
+            fieldClass="body"
+            placeholder="Actual behavior..."
+            (valueChanged)="onFieldChanged('actualBehavior', $event)">
+          </app-inline-edit>
+        </div>
+      </div>
+    }
+
+    @if (ticket.type === 'task') {
+      <div class="detail-section type-specific">
+        <span class="detail-section-label">Task Details</span>
+        <div class="type-field-row">
+          <app-inline-edit
+            [value]="asAny(ticket)['estimatedHours']?.toString() || ''"
+            placeholder="Estimated hours"
+            (valueChanged)="onFieldChanged('estimatedHours', $event)">
+          </app-inline-edit>
+        </div>
+        <div class="type-field-row">
+          <app-inline-edit
+            [value]="asAny(ticket)['actualHours']?.toString() || ''"
+            placeholder="Actual hours"
+            (valueChanged)="onFieldChanged('actualHours', $event)">
+          </app-inline-edit>
+        </div>
+      </div>
+    }
+
+    @if (ticket.type === 'story') {
+      <div class="detail-section type-specific">
+        <span class="detail-section-label">Story Details</span>
+        <div class="type-field-row">
+          <app-inline-edit
+            [value]="asAny(ticket)['storyPoints']?.toString() || ''"
+            placeholder="Story points"
+            (valueChanged)="onFieldChanged('storyPoints', $event)">
+          </app-inline-edit>
+        </div>
+        <div class="type-field-row">
+          <span class="type-field-label">Acceptance Criteria</span>
+          <app-inline-edit
+            [value]="asAny(ticket)['acceptanceCriteria']?.toString() || ''"
+            type="textarea"
+            fieldClass="body"
+            placeholder="Acceptance criteria..."
+            (valueChanged)="onFieldChanged('acceptanceCriteria', $event)">
+          </app-inline-edit>
+        </div>
+      </div>
+    }
+
+    @if (ticket.type === 'epic') {
+      <div class="detail-section type-specific">
+        <span class="detail-section-label">Epic Details</span>
+        <div class="type-field-row">
+          <app-inline-edit
+            [value]="asAny(ticket)['startDate']?.toString() || ''"
+            placeholder="Start date"
+            (valueChanged)="onFieldChanged('startDate', $event)">
+          </app-inline-edit>
+        </div>
+        <div class="type-field-row">
+          <app-inline-edit
+            [value]="asAny(ticket)['targetDate']?.toString() || ''"
+            placeholder="Target date"
+            (valueChanged)="onFieldChanged('targetDate', $event)">
+          </app-inline-edit>
+        </div>
+      </div>
+    }
+
+    <!-- Timestamps -->
+    <div class="detail-timestamps">
+      <span [matTooltip]="ticket.createdAt">Created: {{ ticket.createdAt | relativeTime }}</span>
+      <span class="timestamp-separator">&middot;</span>
+      <span [matTooltip]="ticket.updatedAt">Updated: {{ ticket.updatedAt | relativeTime }}</span>
+    </div>
+  </div>
+}

@@ -58,6 +58,7 @@ export class InlineEditComponent implements AfterViewChecked {
   onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
       this.cancel();
     } else if (event.key === 'Enter') {
       if (this.type() === 'text') {

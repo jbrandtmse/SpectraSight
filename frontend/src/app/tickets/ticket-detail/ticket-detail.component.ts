@@ -1,0 +1,64 @@
+import { Component, ChangeDetectionStrategy, inject, HostListener } from '@angular/core';
+import { Router } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TicketService } from '../ticket.service';
+import { Ticket } from '../ticket.model';
+import { TypeIconComponent } from '../../shared/type-icon/type-icon.component';
+import { InlineEditComponent } from '../../shared/inline-edit/inline-edit.component';
+import { FieldDropdownComponent } from '../../shared/field-dropdown/field-dropdown.component';
+import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
+
+@Component({
+  selector: 'app-ticket-detail',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    MatIconModule,
+    MatButtonModule,
+    MatTooltipModule,
+    TypeIconComponent,
+    InlineEditComponent,
+    FieldDropdownComponent,
+    RelativeTimePipe,
+  ],
+  templateUrl: './ticket-detail.component.html',
+  styleUrl: './ticket-detail.component.scss',
+})
+export class TicketDetailComponent {
+  ticketService = inject(TicketService);
+  private router = inject(Router);
+
+  statusOptions = ['Open', 'In Progress', 'Blocked', 'Complete'];
+  priorityOptions = ['Low', 'Medium', 'High', 'Critical'];
+  severityOptions = ['Low', 'Medium', 'High', 'Critical'];
+
+  @HostListener('keydown.escape')
+  onEscape(): void {
+    this.close();
+  }
+
+  close(): void {
+    this.ticketService.selectTicket(null);
+    this.router.navigate(['/tickets']);
+  }
+
+  private numericFields = new Set(['estimatedHours', 'actualHours', 'storyPoints']);
+
+  onFieldChanged(field: string, value: unknown): void {
+    const ticket = this.ticketService.selectedTicket();
+    if (ticket) {
+      let coerced = value;
+      if (this.numericFields.has(field) && typeof value === 'string') {
+        const parsed = parseFloat(value);
+        coerced = isNaN(parsed) ? null : parsed;
+      }
+      this.ticketService.updateTicketField(ticket.id, field, coerced);
+    }
+  }
+
+  asAny(ticket: Ticket): Record<string, unknown> {
+    return ticket as unknown as Record<string, unknown>;
+  }
+}
