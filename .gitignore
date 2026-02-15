@@ -18,6 +18,10 @@ dist/
 .DS_Store
 Thumbs.db
 
+# MCP Server build output
+mcp-server/build/
+mcp-server/node_modules/
+
 # Environment files
 .env
 .env.local

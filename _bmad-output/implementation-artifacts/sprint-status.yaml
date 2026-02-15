@@ -64,7 +64,7 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: AI Agent Integration via MCP Server
-  epic-4: backlog
-  4-1-mcp-server-with-ticket-operations: backlog
+  epic-4: in-progress
+  4-1-mcp-server-with-ticket-operations: review
   4-2-mcp-configuration-and-connection-testing: backlog
   epic-4-retrospective: optional
