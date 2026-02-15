@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Angular build output
+dist/
+.angular/
+
+# Source maps
+*.js.map
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
