@@ -8,9 +8,9 @@ import { Ticket } from '../../tickets/ticket.model';
   template: `
     @if (ticket().parent; as parent) {
       <nav class="breadcrumb" aria-label="Ticket hierarchy">
-        <a class="ancestor" (click)="ancestorClicked.emit(parent.id)" (keydown.enter)="ancestorClicked.emit(parent.id)" tabindex="0">
+        <button class="ancestor" (click)="ancestorClicked.emit(parent.id)" type="button">
           {{ parent.title }}
-        </a>
+        </button>
         <span class="chevron" aria-hidden="true">&gt;</span>
         <span class="current">{{ ticket().title }}</span>
       </nav>
@@ -27,17 +27,25 @@ import { Ticket } from '../../tickets/ticket.model';
     }
 
     .ancestor {
+      all: unset;
       color: var(--ss-text-link, var(--ss-primary));
       cursor: pointer;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       max-width: var(--ss-breadcrumb-max-width, 200px);
-      text-decoration: none;
+      font: inherit;
+      font-size: 12px;
     }
 
     .ancestor:hover {
       text-decoration: underline;
+    }
+
+    .ancestor:focus-visible {
+      outline: 2px solid var(--ss-primary);
+      outline-offset: 2px;
+      border-radius: 2px;
     }
 
     .chevron {

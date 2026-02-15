@@ -51,6 +51,32 @@ const MOCK_EPIC: Ticket = {
   updatedAt: '2026-02-12T10:00:00Z',
 };
 
+const MOCK_TASK_WITH_PARENT: Ticket = {
+  id: 'SS-5',
+  type: 'task',
+  title: 'Implement login form',
+  status: 'In Progress',
+  priority: 'High',
+  createdAt: '2026-01-05T00:00:00Z',
+  updatedAt: '2026-02-15T10:00:00Z',
+  parentId: 'SS-3',
+  parent: { id: 'SS-3', title: 'User login flow', type: 'story' },
+};
+
+const MOCK_EPIC_WITH_CHILDREN: Ticket = {
+  id: 'SS-6',
+  type: 'epic',
+  title: 'Epic with children',
+  status: 'Open',
+  priority: 'High',
+  createdAt: '2026-01-06T00:00:00Z',
+  updatedAt: '2026-02-15T10:00:00Z',
+  children: [
+    { id: 'SS-7', title: 'Child Story 1', status: 'Open', type: 'story' },
+    { id: 'SS-8', title: 'Child Bug', status: 'In Progress', type: 'bug' },
+  ],
+};
+
 describe('TicketDetailComponent', () => {
   let component: TicketDetailComponent;
   let fixture: ComponentFixture<TicketDetailComponent>;
@@ -81,10 +107,13 @@ describe('TicketDetailComponent', () => {
   });
 
   function selectTicket(ticket: Ticket): void {
-    // Load tickets into the service and select one
+    selectTicketFromList([MOCK_BUG, MOCK_TASK, MOCK_STORY, MOCK_EPIC], ticket);
+  }
+
+  function selectTicketFromList(tickets: Ticket[], ticket: Ticket): void {
     ticketService.loadTickets();
     const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [MOCK_BUG, MOCK_TASK, MOCK_STORY, MOCK_EPIC], total: 4, page: 1, pageSize: 100, totalPages: 1 });
+    req.flush({ data: tickets, total: tickets.length, page: 1, pageSize: 100, totalPages: 1 });
     ticketService.selectTicket(ticket.id);
     fixture.detectChanges();
   }
@@ -433,5 +462,94 @@ describe('TicketDetailComponent', () => {
     component.onDelete();
 
     expect(openSpy).not.toHaveBeenCalled();
+  });
+
+  // Story 2.1: Hierarchy breadcrumb tests (AC #5, #6, #9)
+  it('should render hierarchy breadcrumb when ticket has parent', () => {
+    selectTicketFromList([MOCK_BUG, MOCK_TASK, MOCK_STORY, MOCK_EPIC, MOCK_TASK_WITH_PARENT, MOCK_EPIC_WITH_CHILDREN], MOCK_TASK_WITH_PARENT);
+    const breadcrumb = fixture.nativeElement.querySelector('ss-hierarchy-breadcrumb');
+    expect(breadcrumb).toBeTruthy();
+  });
+
+  it('should not render breadcrumb content when ticket has no parent', () => {
+    selectTicket(MOCK_BUG);
+    const breadcrumb = fixture.nativeElement.querySelector('ss-hierarchy-breadcrumb');
+    expect(breadcrumb).toBeTruthy(); // Component is always present
+    // But the nav inside should not render
+    const nav = fixture.nativeElement.querySelector('nav.breadcrumb');
+    expect(nav).toBeFalsy();
+  });
+
+  // Story 2.1: Children list tests (AC #7, #8)
+  it('should render children section when ticket has children', () => {
+    selectTicketFromList([MOCK_BUG, MOCK_TASK, MOCK_STORY, MOCK_EPIC, MOCK_TASK_WITH_PARENT, MOCK_EPIC_WITH_CHILDREN], MOCK_EPIC_WITH_CHILDREN);
+    const childrenLabel = Array.from(fixture.nativeElement.querySelectorAll('.detail-section-label')).find(
+      (el: any) => el.textContent.trim() === 'Children'
+    );
+    expect(childrenLabel).toBeTruthy();
+  });
+
+  it('should render correct number of child rows', () => {
+    selectTicketFromList([MOCK_BUG, MOCK_TASK, MOCK_STORY, MOCK_EPIC, MOCK_TASK_WITH_PARENT, MOCK_EPIC_WITH_CHILDREN], MOCK_EPIC_WITH_CHILDREN);
+    const childRows = fixture.nativeElement.querySelectorAll('.child-row');
+    expect(childRows.length).toBe(2);
+  });
+
+  it('should render child title and type icon in child row', () => {
+    selectTicketFromList([MOCK_BUG, MOCK_TASK, MOCK_STORY, MOCK_EPIC, MOCK_TASK_WITH_PARENT, MOCK_EPIC_WITH_CHILDREN], MOCK_EPIC_WITH_CHILDREN);
+    const childRows = fixture.nativeElement.querySelectorAll('.child-row');
+    const firstChild = childRows[0];
+    expect(firstChild.querySelector('ss-type-icon')).toBeTruthy();
+    expect(firstChild.querySelector('.child-title').textContent.trim()).toBe('Child Story 1');
+    expect(firstChild.querySelector('ss-status-badge')).toBeTruthy();
+  });
+
+  it('should call navigateToTicket when child row is clicked', () => {
+    selectTicketFromList([MOCK_BUG, MOCK_TASK, MOCK_STORY, MOCK_EPIC, MOCK_TASK_WITH_PARENT, MOCK_EPIC_WITH_CHILDREN], MOCK_EPIC_WITH_CHILDREN);
+    const navigateSpy = spyOn(router, 'navigate');
+    spyOn(ticketService, 'selectTicket');
+    const childRows = fixture.nativeElement.querySelectorAll('.child-row');
+    childRows[0].click();
+    expect(ticketService.selectTicket).toHaveBeenCalledWith('SS-7');
+    expect(navigateSpy).toHaveBeenCalledWith(['/tickets', 'SS-7']);
+  });
+
+  it('should not render children section when ticket has no children', () => {
+    selectTicket(MOCK_BUG);
+    const childrenSection = fixture.nativeElement.querySelector('.children-section');
+    expect(childrenSection).toBeFalsy();
+  });
+
+  // Story 2.1: Add sub-task button (AC #11)
+  it('should render Add sub-task button for non-bug tickets', () => {
+    selectTicket(MOCK_EPIC);
+    const addBtn = fixture.nativeElement.querySelector('.add-subtask-btn');
+    expect(addBtn).toBeTruthy();
+    expect(addBtn.textContent).toContain('Add sub-task');
+  });
+
+  it('should not render Add sub-task button for bug tickets', () => {
+    selectTicket(MOCK_BUG);
+    const addBtn = fixture.nativeElement.querySelector('.add-subtask-btn');
+    expect(addBtn).toBeFalsy();
+  });
+
+  it('should emit addSubtaskRequested on Add sub-task click', () => {
+    selectTicket(MOCK_EPIC);
+    let emittedId = '';
+    component.addSubtaskRequested.subscribe((id: string) => emittedId = id);
+    const addBtn = fixture.nativeElement.querySelector('.add-subtask-btn');
+    addBtn.click();
+    expect(emittedId).toBe('SS-4');
+  });
+
+  // Story 2.1: navigateToTicket for breadcrumb ancestor click (AC #6)
+  it('should select ticket and navigate on navigateToTicket call', () => {
+    selectTicket(MOCK_BUG);
+    const selectSpy = spyOn(ticketService, 'selectTicket');
+    const navigateSpy = spyOn(router, 'navigate');
+    component.navigateToTicket('SS-99');
+    expect(selectSpy).toHaveBeenCalledWith('SS-99');
+    expect(navigateSpy).toHaveBeenCalledWith(['/tickets', 'SS-99']);
   });
 });

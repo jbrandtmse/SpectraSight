@@ -383,6 +383,11 @@ ClassMethod UpdateTicket(pId As %String) As %Status
                     Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Invalid parent ticket ID format")
                     Quit
                 }
+                // Prevent self-parenting
+                If tNewParentInternalId = tInternalId {
+                    Set tSC = ##class(SpectraSight.REST.Response).BadRequest("A ticket cannot be its own parent")
+                    Quit
+                }
                 Set tChildType = ..GetTicketType(tTicket)
                 Set tSC = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tNewParentInternalId, tChildType)
                 If $$$ISERR(tSC) {
@@ -470,6 +475,13 @@ ClassMethod DeleteTicket(pId As %String) As %Status
             Do tStatement2.%Execute(tInternalId)
         }
 
+        // Clear parent references on children (make them standalone)
+        Set tStatement3 = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStatement3.%Prepare("UPDATE SpectraSight_Model.Ticket SET Parent = NULL WHERE Parent = ?")
+        If $$$ISOK(tSC2) {
+            Do tStatement3.%Execute(tInternalId)
+        }
+
         // Delete the ticket
         Set tSC = ##class(SpectraSight.Model.Ticket).%DeleteId(tInternalId)
         If $$$ISERR(tSC) {
@@ -533,16 +545,16 @@ ClassMethod BuildTicketResponse(pTicket As SpectraSight.Model.Ticket, pIncludeCh
         If pIncludeChildren {
             Set tChildren = ##class(%DynamicArray).%New()
             Set tChildStmt = ##class(%SQL.Statement).%New()
-            Set tSC2 = tChildStmt.%Prepare("SELECT ID FROM SpectraSight_Model.Ticket WHERE Parent = ?")
+            Set tSC2 = tChildStmt.%Prepare("SELECT ID, Title, Status FROM SpectraSight_Model.Ticket WHERE Parent = ?")
             If $$$ISOK(tSC2) {
                 Set tChildRS = tChildStmt.%Execute(pTicket.%Id())
                 While tChildRS.%Next() {
                     Set tChild = ##class(SpectraSight.Model.Ticket).%OpenId(tChildRS.ID)
                     If tChild '= "" {
                         Set tChildObj = ##class(%DynamicObject).%New()
-                        Do tChildObj.%Set("id", ##class(SpectraSight.Util.TicketID).Format(tChild.%Id()))
-                        Do tChildObj.%Set("title", tChild.Title)
-                        Do tChildObj.%Set("status", tChild.Status)
+                        Do tChildObj.%Set("id", ##class(SpectraSight.Util.TicketID).Format(tChildRS.ID))
+                        Do tChildObj.%Set("title", tChildRS.Title)
+                        Do tChildObj.%Set("status", tChildRS.Status)
                         Do tChildObj.%Set("type", ..GetTicketType(tChild))
                         Do tChildren.%Push(tChildObj)
                     }

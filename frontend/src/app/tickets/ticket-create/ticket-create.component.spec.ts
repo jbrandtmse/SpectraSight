@@ -218,4 +218,120 @@ describe('TicketCreateComponent', () => {
     req.flush({ data: { ...MOCK_CREATED_TICKET, type: 'story', title: 'Full ticket' } });
     tick(3000); // flush snackbar timer
   }));
+
+  // Story 2.1: Parent autocomplete tests (AC #10)
+  it('should have a parentSearch form control', () => {
+    expect(component.form.contains('parentSearch')).toBeTrue();
+  });
+
+  it('should render parent autocomplete input', () => {
+    const input = fixture.nativeElement.querySelector('input[formControlName="parentSearch"]');
+    expect(input).toBeTruthy();
+  });
+
+  it('should start with no parent selected', () => {
+    expect(component.selectedParent()).toBeNull();
+  });
+
+  it('should set selectedParent when onParentSelected is called', () => {
+    const mockParent: Ticket = {
+      id: 'SS-1', type: 'epic', title: 'Parent Epic',
+      status: 'Open', priority: 'High',
+      createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-02-15T10:00:00Z',
+    };
+    component.onParentSelected(mockParent);
+    expect(component.selectedParent()).toBe(mockParent);
+    expect(component.form.controls.parentSearch.value).toBe('Parent Epic');
+  });
+
+  it('should clear parent when clearParent is called', () => {
+    const mockParent: Ticket = {
+      id: 'SS-1', type: 'epic', title: 'Parent Epic',
+      status: 'Open', priority: 'High',
+      createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-02-15T10:00:00Z',
+    };
+    component.onParentSelected(mockParent);
+    component.clearParent();
+    expect(component.selectedParent()).toBeNull();
+    expect(component.form.controls.parentSearch.value).toBe('');
+  });
+
+  it('should include parentId in request when parent is selected', fakeAsync(() => {
+    spyOn(router, 'navigate');
+    const mockParent: Ticket = {
+      id: 'SS-1', type: 'epic', title: 'Parent Epic',
+      status: 'Open', priority: 'High',
+      createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-02-15T10:00:00Z',
+    };
+    component.onParentSelected(mockParent);
+    component.form.controls.title.setValue('Child story');
+    component.form.controls.type.setValue('story');
+    component.onSubmit();
+
+    const req = httpMock.expectOne(r => r.method === 'POST');
+    expect(req.request.body.parentId).toBe('SS-1');
+
+    req.flush({ data: { ...MOCK_CREATED_TICKET, type: 'story', title: 'Child story', parentId: 'SS-1' } });
+    tick(3000);
+  }));
+
+  it('should not include parentId when no parent is selected', fakeAsync(() => {
+    spyOn(router, 'navigate');
+    component.form.controls.title.setValue('Standalone task');
+    component.form.controls.type.setValue('task');
+    component.onSubmit();
+
+    const req = httpMock.expectOne(r => r.method === 'POST');
+    expect(req.request.body.parentId).toBeUndefined();
+
+    req.flush({ data: { ...MOCK_CREATED_TICKET, type: 'task', title: 'Standalone task' } });
+    tick(3000);
+  }));
+
+  // Story 2.1: Hierarchy warning (AC #10 client-side validation)
+  it('should show hierarchy warning for invalid parent-child combo', () => {
+    const mockEpicParent: Ticket = {
+      id: 'SS-1', type: 'epic', title: 'Parent Epic',
+      status: 'Open', priority: 'High',
+      createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-02-15T10:00:00Z',
+    };
+    component.onParentSelected(mockEpicParent);
+    component.form.controls.type.setValue('task');
+    // Trigger change detection for the computed signal
+    fixture.detectChanges();
+    // Need to wait for the valueChanges subscription to fire
+    expect(component.hierarchyWarning()).toContain('epic cannot contain task');
+  });
+
+  it('should not show hierarchy warning for valid parent-child combo', () => {
+    const mockEpicParent: Ticket = {
+      id: 'SS-1', type: 'epic', title: 'Parent Epic',
+      status: 'Open', priority: 'High',
+      createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-02-15T10:00:00Z',
+    };
+    component.onParentSelected(mockEpicParent);
+    component.form.controls.type.setValue('story');
+    fixture.detectChanges();
+    expect(component.hierarchyWarning()).toBe('');
+  });
+
+  it('should update parentSearch signal on input', () => {
+    const input = fixture.nativeElement.querySelector('input[formControlName="parentSearch"]');
+    input.value = 'Epic';
+    input.dispatchEvent(new Event('input'));
+    expect(component.parentSearch()).toBe('Epic');
+  });
+
+  it('should clear selectedParent when parentSearch input is emptied', () => {
+    const mockParent: Ticket = {
+      id: 'SS-1', type: 'epic', title: 'Parent Epic',
+      status: 'Open', priority: 'High',
+      createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-02-15T10:00:00Z',
+    };
+    component.onParentSelected(mockParent);
+    const input = fixture.nativeElement.querySelector('input[formControlName="parentSearch"]');
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    expect(component.selectedParent()).toBeNull();
+  });
 });

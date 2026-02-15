@@ -7,14 +7,16 @@ description: 'Execute the full BMAD development cycle (create-story → dev-stor
 
 Execute the BMAD Method development cycle for all stories in an Epic (or a range of Epics) using **Agent Teams** with spawn-on-demand coordination. For each story, the pipeline runs:
 
-1. `/bmad-bmm-create-story`
-2. `/bmad-bmm-dev-story`
-3. `/bmad-bmm-code-review`
-4. Commit and Push to Git
-5. `/bmad-bmm-qa-automate`
-6. Commit and Push to Git
+1. **Lead** executes `/bmad-bmm-create-story` directly (no agent — prevents race-ahead)
+2. Agent: `/bmad-bmm-dev-story`
+3. Agent: `/bmad-bmm-code-review`
+4. **Lead**: Commit and Push to Git
+5. Agent: `/bmad-bmm-qa-automate`
+6. **Lead**: Commit and Push to Git
 
 **IMPORTANT:** This workflow uses Agent Teams with **spawn-on-demand** coordination. Do NOT use the task list system (`TaskCreate`, `TaskList`, `TaskUpdate`) — agents poll TaskList on every wake-up and will self-schedule regardless of prompt instructions, `blockedBy` constraints, or task ownership. The lead tracks pipeline state directly and spawns/dispatches/shuts down agents one at a time.
+
+**IMPORTANT:** The lead creates story files directly (step 1) rather than delegating to a story-creator agent. This acts as a natural pipeline gate — no agent can race ahead because the story file doesn't exist until the lead creates it.
 
 ---
 
@@ -40,11 +42,10 @@ The team exists only for agent coordination (SendMessage routing). **Do NOT crea
 
 ### Agent Roles
 
-Four agent roles are used, each spawned fresh per task via the `Task` tool:
+Three agent roles are used, each spawned fresh per task via the `Task` tool. **Story creation is handled by the lead directly** — this prevents agents from racing ahead to create story files for future stories.
 
 | Role | Name | Workflow |
 |------|------|----------|
-| Story Creator | `story-creator` | `/bmad-bmm-create-story` |
 | Developer | `developer` | `/bmad-bmm-dev-story` |
 | Code Reviewer | `code-reviewer` | `/bmad-bmm-code-review` |
 | QA Agent | `qa-agent` | `/bmad-bmm-qa-automate` |
@@ -101,7 +102,7 @@ The lead tracks pipeline state directly from the story list built in Phase 1. St
 
 ```
 For each story in order:
-  1. Spawn story-creator → dispatch → wait → shut down
+  1. Lead: Execute /bmad-bmm-create-story (directly, no agent)
   2. Spawn developer → dispatch → wait → shut down
   3. Spawn code-reviewer → dispatch → wait → shut down
   4. Lead: Git commit (feat)
@@ -109,6 +110,15 @@ For each story in order:
   6. Lead: Git commit (test) + log entry
   → Next story
 ```
+
+### Lead Creates Story Files (Step 1)
+
+The lead executes `/bmad-bmm-create-story` directly — NOT via an agent. This is a deliberate pipeline gate:
+1. Read `{project-root}/_bmad/core/tasks/workflow.xml` (always read fully)
+2. Use workflow-config: `{project-root}/_bmad/bmm/workflows/4-implementation/create-story/workflow.yaml`
+3. Follow workflow.xml instructions in yolo mode
+4. Save the story file to `{implementation_artifacts}/`
+5. Proceed to spawn the developer agent
 
 ### Spawn-Dispatch-Shutdown Pattern
 
@@ -199,3 +209,4 @@ These patterns were tested and failed due to agent self-scheduling behavior:
 - **Persistent agents** — Idle agents self-schedule between tasks. Always shut down after each task.
 - **Self-scheduling prompts** — Instructions like "do NOT call TaskList" are unreliable. Agents have built-in behavior to poll for work that overrides prompt text.
 - **blockedBy constraints** — The task system does NOT enforce `blockedBy`. Agents can mark blocked tasks as `in_progress` and start working.
+- **Story-creator agent** — A story-creator agent races ahead to create story files for future stories, enabling other agents to self-schedule on those files. The lead must create story files directly as a pipeline gate.

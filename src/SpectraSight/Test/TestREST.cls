@@ -23,6 +23,9 @@ ClassMethod RunAll() As %String [ SqlProc ]
         Do ..RunOne("TestValidationAllValues", .tPassed, .tFailed)
         Do ..RunOne("TestUpdateTicketDirect", .tPassed, .tFailed)
         Do ..RunOne("TestPaginationWithOffsetFetch", .tPassed, .tFailed)
+        Do ..RunOne("TestValidateHierarchy", .tPassed, .tFailed)
+        Do ..RunOne("TestHierarchyInCreate", .tPassed, .tFailed)
+        Do ..RunOne("TestChildrenInGetTicket", .tPassed, .tFailed)
 
         Set tResult = tPassed_" passed, "_tFailed_" failed"
         Set ^ClaudeDebug("REST", "summary") = tResult
@@ -727,6 +730,232 @@ ClassMethod TestUpdateTicketDirect() As %Status
         If $$$ISOK(tSC2) Do tCleanStmt.%Execute(tTicketId)
         Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
     }
+    Quit tSC
+}
+
+/// Test ValidateHierarchy rules: Epic->Story(valid), Epic->Task(invalid), Story->Task(valid), etc.
+ClassMethod TestValidateHierarchy() As %Status
+{
+    Set tSC = $$$OK
+    Set tEpicId = ""
+    Set tStoryId = ""
+    Set tTaskId = ""
+    Set tBugId = ""
+    Try {
+        // Create test tickets
+        Set tEpic = ##class(SpectraSight.Model.Epic).%New()
+        Set tEpic.Title = "HierarchyTest Epic"
+        Set tSC = tEpic.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tEpicId = tEpic.%Id()
+
+        Set tStory = ##class(SpectraSight.Model.Story).%New()
+        Set tStory.Title = "HierarchyTest Story"
+        Set tSC = tStory.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tStoryId = tStory.%Id()
+
+        Set tTask = ##class(SpectraSight.Model.Task).%New()
+        Set tTask.Title = "HierarchyTest Task"
+        Set tSC = tTask.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTaskId = tTask.%Id()
+
+        Set tBug = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug.Title = "HierarchyTest Bug"
+        Set tSC = tBug.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tBugId = tBug.%Id()
+
+        // Epic -> Story: VALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tEpicId, "story")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Epic->Story should be valid") Quit
+
+        // Epic -> Bug: VALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tEpicId, "bug")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Epic->Bug should be valid") Quit
+
+        // Epic -> Task: INVALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tEpicId, "task")
+        If $$$ISOK(tSC2) Set tSC = $$$ERROR(5001, "Epic->Task should be invalid") Quit
+
+        // Epic -> Epic: INVALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tEpicId, "epic")
+        If $$$ISOK(tSC2) Set tSC = $$$ERROR(5001, "Epic->Epic should be invalid") Quit
+
+        // Story -> Task: VALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tStoryId, "task")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Story->Task should be valid") Quit
+
+        // Story -> Bug: VALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tStoryId, "bug")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Story->Bug should be valid") Quit
+
+        // Story -> Story: INVALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tStoryId, "story")
+        If $$$ISOK(tSC2) Set tSC = $$$ERROR(5001, "Story->Story should be invalid") Quit
+
+        // Story -> Epic: INVALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tStoryId, "epic")
+        If $$$ISOK(tSC2) Set tSC = $$$ERROR(5001, "Story->Epic should be invalid") Quit
+
+        // Task -> Bug: VALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tTaskId, "bug")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Task->Bug should be valid") Quit
+
+        // Task -> Task: INVALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tTaskId, "task")
+        If $$$ISOK(tSC2) Set tSC = $$$ERROR(5001, "Task->Task should be invalid") Quit
+
+        // Bug -> anything: INVALID (Bug cannot have children)
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tBugId, "task")
+        If $$$ISOK(tSC2) Set tSC = $$$ERROR(5001, "Bug->Task should be invalid (Bug cannot have children)") Quit
+
+        // No parent (empty string): VALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy("", "task")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "No parent should be valid") Quit
+
+        // Non-existent parent: INVALID
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(999999, "task")
+        If $$$ISOK(tSC2) Set tSC = $$$ERROR(5001, "Non-existent parent should be invalid") Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tBugId '= "" Do ##class(SpectraSight.Model.Bug).%DeleteId(tBugId)
+    If tTaskId '= "" Do ##class(SpectraSight.Model.Task).%DeleteId(tTaskId)
+    If tStoryId '= "" Do ##class(SpectraSight.Model.Story).%DeleteId(tStoryId)
+    If tEpicId '= "" Do ##class(SpectraSight.Model.Epic).%DeleteId(tEpicId)
+    Quit tSC
+}
+
+/// Test that creating a ticket with an invalid hierarchy is rejected
+ClassMethod TestHierarchyInCreate() As %Status
+{
+    Set tSC = $$$OK
+    Set tEpicId = ""
+    Set tTaskId = ""
+    Try {
+        // Create an Epic as parent
+        Set tEpic = ##class(SpectraSight.Model.Epic).%New()
+        Set tEpic.Title = "HierarchyCreateTest Epic"
+        Set tSC = tEpic.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tEpicId = tEpic.%Id()
+
+        // Valid: Create Story with Epic parent (direct object test)
+        Set tStory = ##class(SpectraSight.Model.Story).%New()
+        Set tStory.Title = "HierarchyCreateTest Story"
+        Set tStory.Parent = tEpic
+        Set tSC = tStory.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tStoryId = tStory.%Id()
+
+        // Verify parent was set
+        Set tReloaded = ##class(SpectraSight.Model.Story).%OpenId(tStoryId)
+        If tReloaded.Parent = "" Set tSC = $$$ERROR(5001, "Story parent should be set") Quit
+        If tReloaded.Parent.%Id() '= tEpicId Set tSC = $$$ERROR(5001, "Story parent should be epic, got: "_tReloaded.Parent.%Id()) Quit
+
+        // Invalid: Validate Task under Epic (should fail)
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tEpicId, "task")
+        If $$$ISOK(tSC2) Set tSC = $$$ERROR(5001, "Task under Epic should be rejected") Quit
+
+        // Cleanup story
+        Do ##class(SpectraSight.Model.Story).%DeleteId(tStoryId)
+
+        // Create a Task (to test as parent of Bug)
+        Set tTask = ##class(SpectraSight.Model.Task).%New()
+        Set tTask.Title = "HierarchyCreateTest Task"
+        Set tSC = tTask.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tTaskId = tTask.%Id()
+
+        // Valid: Bug under Task
+        Set tSC2 = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tTaskId, "bug")
+        If $$$ISERR(tSC2) Set tSC = $$$ERROR(5001, "Bug under Task should be valid") Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tTaskId '= "" Do ##class(SpectraSight.Model.Task).%DeleteId(tTaskId)
+    If tEpicId '= "" Do ##class(SpectraSight.Model.Epic).%DeleteId(tEpicId)
+    Quit tSC
+}
+
+/// Test that children array is populated in BuildTicketResponse
+ClassMethod TestChildrenInGetTicket() As %Status
+{
+    Set tSC = $$$OK
+    Set tEpicId = ""
+    Set tStoryId = ""
+    Set tStoryId2 = ""
+    Try {
+        // Create parent Epic
+        Set tEpic = ##class(SpectraSight.Model.Epic).%New()
+        Set tEpic.Title = "ChildrenTest Epic"
+        Set tSC = tEpic.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tEpicId = tEpic.%Id()
+
+        // Create child Story 1
+        Set tStory = ##class(SpectraSight.Model.Story).%New()
+        Set tStory.Title = "ChildrenTest Story 1"
+        Set tStory.Parent = tEpic
+        Set tSC = tStory.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tStoryId = tStory.%Id()
+
+        // Create child Story 2
+        Set tStory2 = ##class(SpectraSight.Model.Story).%New()
+        Set tStory2.Title = "ChildrenTest Story 2"
+        Set tStory2.Parent = tEpic
+        Set tSC = tStory2.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tStoryId2 = tStory2.%Id()
+
+        // Build response for Epic (with children)
+        Set tEpicReloaded = ##class(SpectraSight.Model.Epic).%OpenId(tEpicId)
+        Set tResponse = ##class(SpectraSight.REST.TicketHandler).BuildTicketResponse(tEpicReloaded, 1)
+        Set tChildren = tResponse.%Get("children")
+        If tChildren = "" Set tSC = $$$ERROR(5001, "children should be present") Quit
+        If tChildren.%Size() '= 2 Set tSC = $$$ERROR(5001, "Expected 2 children, got: "_tChildren.%Size()) Quit
+
+        // Verify child objects have correct structure
+        Set tChild1 = tChildren.%Get(0)
+        If tChild1.%Get("title") = "" Set tSC = $$$ERROR(5001, "Child should have title") Quit
+        If tChild1.%Get("type") '= "story" Set tSC = $$$ERROR(5001, "Child type should be story, got: "_tChild1.%Get("type")) Quit
+        If tChild1.%Get("status") = "" Set tSC = $$$ERROR(5001, "Child should have status") Quit
+
+        // Build response for Story (with parent object)
+        Set tStoryReloaded = ##class(SpectraSight.Model.Story).%OpenId(tStoryId)
+        Set tStoryResp = ##class(SpectraSight.REST.TicketHandler).BuildTicketResponse(tStoryReloaded, 1)
+        Set tParent = tStoryResp.%Get("parent")
+        If tParent = "" Set tSC = $$$ERROR(5001, "parent object should be present") Quit
+        If tParent.%Get("id") '= ("SS-"_tEpicId) Set tSC = $$$ERROR(5001, "Parent id should be SS-"_tEpicId_", got: "_tParent.%Get("id")) Quit
+        If tParent.%Get("title") '= "ChildrenTest Epic" Set tSC = $$$ERROR(5001, "Parent title mismatch") Quit
+        If tParent.%Get("type") '= "epic" Set tSC = $$$ERROR(5001, "Parent type should be epic") Quit
+
+        // parentId should still be present for backward compat
+        If tStoryResp.%Get("parentId") '= ("SS-"_tEpicId) Set tSC = $$$ERROR(5001, "parentId should be SS-"_tEpicId) Quit
+
+        // Build response WITHOUT children (list mode)
+        Set tListResp = ##class(SpectraSight.REST.TicketHandler).BuildTicketResponse(tEpicReloaded, 0)
+        // children key should not be present when pIncludeChildren=0
+        If tListResp.%IsDefined("children") Set tSC = $$$ERROR(5001, "children should not be in list response") Quit
+
+        // Ticket with no parent should not have parent object
+        Set tEpicResp2 = ##class(SpectraSight.REST.TicketHandler).BuildTicketResponse(tEpicReloaded, 1)
+        If tEpicResp2.%IsDefined("parent") Set tSC = $$$ERROR(5001, "Epic with no parent should not have parent object") Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    // Cleanup
+    If tStoryId2 '= "" Do ##class(SpectraSight.Model.Story).%DeleteId(tStoryId2)
+    If tStoryId '= "" Do ##class(SpectraSight.Model.Story).%DeleteId(tStoryId)
+    If tEpicId '= "" Do ##class(SpectraSight.Model.Epic).%DeleteId(tEpicId)
     Quit tSC
 }
 

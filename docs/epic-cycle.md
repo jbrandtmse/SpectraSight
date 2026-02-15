@@ -1,13 +1,13 @@
 # Epic Development Cycle Slash Command
 
-Develop a slash command that executes the BMAD Method development cycle, using Agent Teams, sequentially for a story (although multiple stories can be built in parallel if it makes sense) for all stories in an Epic, or a range of Epics. The task sequence is:
+Develop a slash command that executes the BMAD Method development cycle, using Agent Teams, sequentially for a story for all stories in an Epic, or a range of Epics. The task sequence is:
 
-1. `/bmad-bmm-create-story`
-2. `/bmad-bmm-dev-story`
-3. `/bmad-bmm-code-review`
-4. Commit and Push to Git
-5. `/bmad-bmm-qa-automate`
-6. Commit and Push to Git
+1. **Lead** executes `/bmad-bmm-create-story` directly (no agent — prevents race-ahead)
+2. Agent: `/bmad-bmm-dev-story`
+3. Agent: `/bmad-bmm-code-review`
+4. **Lead**: Commit and Push to Git
+5. Agent: `/bmad-bmm-qa-automate`
+6. **Lead**: Commit and Push to Git
 
 Make sure to include a file for the slash command in the `/.claude/commands` folder so the workflow can be executed as a slash command.
 
@@ -39,7 +39,7 @@ This completely eliminates self-scheduling — terminated agents can't poll Task
 
 ```
 For each story in order:
-  Lead spawns story-creator → dispatches → waits → shuts down
+  Lead executes /bmad-bmm-create-story directly (pipeline gate)
   Lead spawns developer → dispatches → waits → shuts down
   Lead spawns code-reviewer → dispatches → waits → shuts down
   Lead does feat commit + push
@@ -47,6 +47,10 @@ For each story in order:
   Lead does test commit + push
   Lead logs completion → next story
 ```
+
+### Lead Creates Story Files (Critical Gate)
+
+The lead executes `/bmad-bmm-create-story` directly — NOT via an agent. This is a deliberate pipeline gate that prevents agents from racing ahead. Only 3 agent roles exist: developer, code-reviewer, qa-agent.
 
 ### Agent Prompt Requirements
 
@@ -101,3 +105,4 @@ These patterns were tested and failed due to agent self-scheduling behavior:
 - **`blockedBy` constraints** — The task system does NOT enforce `blockedBy`. Agents work out of order
 - **Lead-owned task parking** — Assigning tasks to "team-lead" is unreliable; agents still find and grab tasks
 - **Self-scheduling prompts** — "Do NOT call TaskList" is unreliable; agents have built-in polling behavior
+- **Story-creator agent** — A story-creator agent races ahead to create story files for future stories, enabling other agents to self-schedule. The lead must create story files directly as a pipeline gate

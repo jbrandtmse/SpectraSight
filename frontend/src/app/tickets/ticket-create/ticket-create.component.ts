@@ -122,6 +122,12 @@ export class TicketCreateComponent implements OnInit {
     this.parentSearch.set('');
   }
 
+  displayParent(ticket: Ticket | string): string {
+    if (!ticket) return '';
+    if (typeof ticket === 'string') return ticket;
+    return ticket.title;
+  }
+
   onSubmit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();

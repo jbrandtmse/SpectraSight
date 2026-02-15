@@ -352,6 +352,128 @@
 
 ---
 
+## Story 2.1: Ticket Hierarchy & Navigation
+
+**Date:** 2026-02-15
+**Test Framework:** IRIS ObjectScript custom runner + Karma/Jasmine (Angular 18)
+**Test Files:** 1 new IRIS class, 1 new Angular spec, 3 expanded Angular specs
+
+## Generated Tests
+
+### API Tests (IRIS ObjectScript)
+
+- [x] `TestHierarchy.TestEpicValidChildren` - AC #2: Epic allows Story/Bug, rejects Task/Epic
+- [x] `TestHierarchy.TestStoryValidChildren` - AC #2: Story allows Task/Bug, rejects Story/Epic
+- [x] `TestHierarchy.TestTaskValidChildren` - AC #2: Task allows Bug only, rejects Task/Story/Epic
+- [x] `TestHierarchy.TestBugCannotHaveChildren` - AC #2: Bug rejects all child types
+- [x] `TestHierarchy.TestNoParentIsValid` - AC #3: All types valid without parent
+- [x] `TestHierarchy.TestNonexistentParent` - AC #2: Non-existent parent ID rejected
+- [x] `TestHierarchy.TestParentChildPersistence` - AC #1: Parent reference persisted and reloaded
+- [x] `TestHierarchy.TestRemoveParent` - AC #1: Setting parent to empty removes hierarchy link
+- [x] `TestHierarchy.TestChildrenArrayInResponse` - AC #4: BuildTicketResponse includes children array with id/title/status/type
+- [x] `TestHierarchy.TestParentObjectInResponse` - AC #4: BuildTicketResponse includes parent object with id/title/type and parentId for backward compat
+- [x] `TestHierarchy.TestListModeExcludesChildren` - AC #4: List mode (pIncludeChildren=0) excludes children and parent object, keeps parentId
+- [x] `TestHierarchy.TestNoParentObjectWhenOrphan` - AC #9: Orphan ticket has no parent object or parentId
+- [x] `TestHierarchy.TestSelfParentingPrevented` - Validates self-parenting prevention check exists
+- [x] `TestHierarchy.TestParentIdx` - Performance: ParentIdx index enables children queries
+
+### Frontend Component Tests (Angular/Jasmine)
+
+#### HierarchyBreadcrumbComponent (new - 9 tests)
+
+- [x] AC #5: Renders breadcrumb nav when ticket has parent
+- [x] AC #5: Shows parent title as clickable link
+- [x] AC #5: Shows current ticket title at end
+- [x] AC #5: Shows chevron separator between parent and current
+- [x] Accessibility: aria-label on nav element
+- [x] AC #6: Emits ancestorClicked with parent id on click
+- [x] Keyboard accessibility: ancestor element is focusable (tabindex=0)
+- [x] AC #9: No breadcrumb nav rendered when ticket has no parent
+- [x] AC #9: No content rendered for parentless tickets
+
+#### TicketDetailComponent (expanded - 10 new tests)
+
+- [x] AC #5: Renders hierarchy breadcrumb when ticket has parent
+- [x] AC #9: No breadcrumb content when ticket has no parent
+- [x] AC #7: Renders children section when ticket has children
+- [x] AC #7: Renders correct number of child rows
+- [x] AC #7: Renders child title, type icon, status badge in child row
+- [x] AC #8: Calls navigateToTicket on child row click
+- [x] AC #7: No children section when ticket has no children
+- [x] AC #11: Renders Add sub-task button for non-bug tickets
+- [x] Bug guard: No Add sub-task button for bug tickets
+- [x] AC #11: Emits addSubtaskRequested on Add sub-task click
+- [x] AC #6: navigateToTicket selects ticket and navigates
+
+#### TicketCreateComponent (expanded - 10 new tests)
+
+- [x] AC #10: Has parentSearch form control
+- [x] AC #10: Renders parent autocomplete input
+- [x] AC #10: Starts with no parent selected
+- [x] AC #10: Sets selectedParent on onParentSelected
+- [x] AC #10: Clears parent on clearParent
+- [x] AC #10: Includes parentId in request when parent selected
+- [x] AC #3: No parentId when no parent selected
+- [x] AC #10: Shows hierarchy warning for invalid parent-child combo
+- [x] AC #10: No warning for valid parent-child combo
+- [x] AC #10: Updates parentSearch signal on input
+- [x] AC #10: Clears selectedParent when input emptied
+
+#### TicketsPageComponent (expanded - 6 new tests)
+
+- [x] AC #11: Starts with creatingParentId as null
+- [x] AC #11: Sets creatingParentId and creating on onAddSubtask
+- [x] AC #11: Clears creatingParentId on onNewTicket
+- [x] AC #11: Clears creatingParentId on onCreated
+- [x] AC #11: Clears creatingParentId on onCancelled
+- [x] AC #11: Clears creatingParentId on Ctrl+N
+
+## Coverage
+
+### By Acceptance Criteria
+
+| AC | Description | Test Coverage | Tests |
+|----|-------------|---------------|-------|
+| 1 | Parent-child relationship persisted | Persistence + remove parent | TestParentChildPersistence, TestRemoveParent |
+| 2 | Hierarchy rules enforced | All 4 parent types x 4 child types | TestEpicValidChildren, TestStoryValidChildren, TestTaskValidChildren, TestBugCannotHaveChildren, TestNonexistentParent |
+| 3 | No parent = valid | All types without parent | TestNoParentIsValid |
+| 4 | GET response includes children + parent | Detail vs list mode responses | TestChildrenArrayInResponse, TestParentObjectInResponse, TestListModeExcludesChildren |
+| 5 | Breadcrumb shows ancestor chain | Breadcrumb rendering + structure | HierarchyBreadcrumb (5 tests), TicketDetail breadcrumb (1 test) |
+| 6 | Click ancestor loads ticket | Ancestor click + navigateToTicket | HierarchyBreadcrumb click test, TicketDetail navigateToTicket test |
+| 7 | Children displayed as clickable list | Children section rendering | TicketDetail children tests (4 tests) |
+| 8 | Child click loads in detail panel | Child row click | TicketDetail child click test |
+| 9 | No breadcrumb when no parent | Empty breadcrumb | HierarchyBreadcrumb no-parent tests (2), TicketDetail no-breadcrumb test, TestNoParentObjectWhenOrphan |
+| 10 | Parent autocomplete field | Form control, select, clear, hierarchy warning | TicketCreate parent tests (10 tests) |
+| 11 | Pre-filled parent from detail | creatingParentId signal lifecycle | TicketsPage subtask tests (6 tests), TicketDetail add-subtask tests (3 tests) |
+
+### By Component
+
+| Component | Tests | New | Coverage |
+|-----------|-------|-----|----------|
+| TestHierarchy (IRIS) | 14 | 14 | Hierarchy rules, persistence, response structure, index |
+| HierarchyBreadcrumbComponent | 9 | 9 | Rendering, click, keyboard, no-parent |
+| TicketDetailComponent | 47 | 10 | Breadcrumb, children, add-subtask, navigateToTicket |
+| TicketCreateComponent | 31 | 10 | Parent autocomplete, hierarchy warning |
+| TicketsPageComponent | 19 | 6 | creatingParentId signal lifecycle |
+
+### Summary Statistics
+
+- **New IRIS tests:** 14 (14 passed, 0 failed)
+- **New Angular tests:** 37 (9 breadcrumb + 10 detail + 12 create + 6 page)
+- **Total Angular tests:** 291 (all passing)
+- **Total IRIS tests (TestREST + TestHierarchy):** 30 (all passing)
+- **Combined project total (Stories 1.2-2.1):** 321 tests, all passing
+
+## Notes
+
+- The `TestHierarchy` class is separate from `TestREST` to isolate Story 2.1 QA tests from dev-authored tests. It covers all hierarchy rules from the rules matrix comprehensively.
+- Angular signal inputs (`input.required<T>()`) require a test host component wrapper to provide values in tests. The breadcrumb spec uses this pattern.
+- The `(keydown.enter)` binding in the breadcrumb template does not trigger reliably via native `KeyboardEvent` dispatch in Karma tests. Keyboard accessibility is verified by checking `tabIndex` instead.
+- Parent autocomplete tests verify the full signal flow: `parentSearch` signal -> `filteredParents` computed -> `selectedParent` signal -> `hierarchyWarning` computed -> request body.
+- The `creatingParentId` signal on `TicketsPageComponent` is tested through its full lifecycle: set via `onAddSubtask`, cleared via `onNewTicket`/`onCreated`/`onCancelled`/`onCtrlN`.
+
+---
+
 ## Next Steps
 
 - Full integration tests via HTTP (curl/REST client) when CI environment is configured

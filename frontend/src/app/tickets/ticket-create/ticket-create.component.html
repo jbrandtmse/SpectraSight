@@ -49,7 +49,7 @@
           <mat-icon>close</mat-icon>
         </button>
       }
-      <mat-autocomplete #parentAuto="matAutocomplete" (optionSelected)="onParentSelected($event.option.value)">
+      <mat-autocomplete #parentAuto="matAutocomplete" [displayWith]="displayParent" (optionSelected)="onParentSelected($event.option.value)">
         @for (t of filteredParents(); track t.id) {
           <mat-option [value]="t">
             <div class="type-option">

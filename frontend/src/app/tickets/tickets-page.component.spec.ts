@@ -185,4 +185,67 @@ describe('TicketsPageComponent', () => {
     expect(component.creating()).toBeTrue();
     expect(event.preventDefault).toHaveBeenCalled();
   });
+
+  // Story 2.1: Pre-filled parent from detail view (AC #11)
+  it('should start with creatingParentId as null', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    expect(component.creatingParentId()).toBeNull();
+  });
+
+  it('should set creatingParentId and creating on onAddSubtask', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    component.onAddSubtask('SS-5');
+    expect(component.creating()).toBeTrue();
+    expect(component.creatingParentId()).toBe('SS-5');
+  });
+
+  it('should clear creatingParentId on onNewTicket', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    component.onAddSubtask('SS-5');
+    component.onNewTicket();
+    expect(component.creatingParentId()).toBeNull();
+    expect(component.creating()).toBeTrue();
+  });
+
+  it('should clear creatingParentId on onCreated', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    component.onAddSubtask('SS-5');
+    component.onCreated();
+    expect(component.creatingParentId()).toBeNull();
+    expect(component.creating()).toBeFalse();
+  });
+
+  it('should clear creatingParentId on onCancelled', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    component.onAddSubtask('SS-5');
+    component.onCancelled();
+    expect(component.creatingParentId()).toBeNull();
+    expect(component.creating()).toBeFalse();
+  });
+
+  it('should clear creatingParentId on Ctrl+N', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    component.creatingParentId.set('SS-5');
+    const event = new KeyboardEvent('keydown', { key: 'n', ctrlKey: true });
+    Object.defineProperty(event, 'preventDefault', { value: jasmine.createSpy('preventDefault') });
+    component.onCtrlN(event);
+    expect(component.creatingParentId()).toBeNull();
+  });
 });

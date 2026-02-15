@@ -365,7 +365,7 @@ Claude Opus 4.6 (claude-opus-4-6)
 - Task 10: Added 3 test methods: `TestValidateHierarchy` (all hierarchy rule combos), `TestHierarchyInCreate` (parent persistence), `TestChildrenInGetTicket` (children array, parent object, list vs detail).
 - Task 11: All IRIS classes compiled successfully. Angular build succeeded with zero errors.
 
-### Senior Developer Review (AI)
+### Senior Developer Review (AI) - Pass 1
 
 **Reviewer:** Claude Opus 4.6 | **Date:** 2026-02-15 | **Outcome:** Approved (with fixes applied)
 
@@ -389,14 +389,31 @@ Claude Opus 4.6 (claude-opus-4-6)
 
 **L3 (FIXED):** Removed unused `displayParent` method from create component.
 
-**AC Validation:** All 11 acceptance criteria verified as implemented.
-**Task Audit:** All 11 tasks verified as complete.
-**Tests:** 16/16 IRIS tests pass. Angular build succeeds.
+### Senior Developer Review (AI) - Pass 2
+
+**Reviewer:** Claude Opus 4.6 | **Date:** 2026-02-15 | **Outcome:** Approved (with fixes applied)
+
+**Issues Found:** 1 High, 3 Medium, 1 Low | **Fixed:** 1 High, 3 Medium
+
+**H3 (FIXED):** `UpdateTicket` had no self-parenting prevention. A ticket could be set as its own parent, creating a circular reference. Added check: `If tNewParentInternalId = tInternalId` returns 400 error. (`TicketHandler.cls:385`)
+
+**M5 (FIXED):** `DeleteTicket` left dangling parent references on children. When a parent is deleted, child tickets retained broken `Parent` foreign key references. Added `UPDATE SET Parent = NULL WHERE Parent = ?` before delete to make orphans standalone. (`TicketHandler.cls:472-476`)
+
+**M6 (FIXED):** Breadcrumb used `<a>` element without `href`, poor for accessibility and keyboard navigation. Changed to `<button>` with `all: unset` styling and added `:focus-visible` outline. (`hierarchy-breadcrumb.component.ts`)
+
+**M7 (FIXED):** `mat-autocomplete` in parent field lacked `displayWith` function. After selecting a parent ticket (object value), the input would briefly flash `[object Object]` because Angular Material writes the display value after `optionSelected` fires. Added `displayParent()` method and `[displayWith]="displayParent"` binding. (`ticket-create.component.ts`, `ticket-create.component.html`)
+
+**L4 (NOTE):** N+1 `%OpenId` pattern in `BuildTicketResponse` children query persists. `%ClassName(1)` is not available as a SQL function in IRIS. Acceptable for MVP given small child counts per ticket.
+
+**AC Validation:** All 11 acceptance criteria re-verified as implemented.
+**Task Audit:** All 11 tasks re-verified as complete.
+**Tests:** 16/16 IRIS tests pass after fixes. Angular build succeeds (zero errors).
 
 ### Change Log
 
 - 2026-02-15: Implemented Story 2.1 - Ticket Hierarchy & Navigation (all 11 tasks)
-- 2026-02-15: Code review: fixed 6 issues (2 high, 2 medium, 2 low), deferred 1 N+1 optimization
+- 2026-02-15: Code review pass 1: fixed 6 issues (2 high, 2 medium, 2 low), deferred 1 N+1 optimization
+- 2026-02-15: Code review pass 2: fixed 4 issues (1 high, 3 medium) -- self-parenting prevention, dangling parent cleanup on delete, breadcrumb a11y, autocomplete displayWith
 
 ### File List
 
