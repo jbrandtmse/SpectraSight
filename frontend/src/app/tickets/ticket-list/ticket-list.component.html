@@ -10,12 +10,51 @@
       </div>
     }
   </div>
+} @else if (tickets().length === 0 && hasActiveFilters()) {
+  <div class="empty-state empty-state--filtered">
+    <p>No tickets match your filters</p>
+    <button mat-flat-button color="primary" (click)="onClearFilters()">Clear filters</button>
+  </div>
 } @else if (tickets().length === 0) {
   <div class="empty-state">
     <p>No tickets yet. Create your first ticket to get started.</p>
     <button mat-flat-button color="primary" (click)="onNewTicket()">New Ticket</button>
   </div>
 } @else {
+  <!-- Column headers -->
+  <div class="column-headers">
+    <span class="col-header col-header--icon"></span>
+    <button class="col-header col-header--title" (click)="onSortColumn('title')">
+      Title
+      @if (sortField() === 'title') {
+        <mat-icon class="sort-indicator">{{ sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+      }
+    </button>
+    <button class="col-header col-header--status" (click)="onSortColumn('status')">
+      Status
+      @if (sortField() === 'status') {
+        <mat-icon class="sort-indicator">{{ sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+      }
+    </button>
+    <button class="col-header col-header--priority" (click)="onSortColumn('priority')">
+      Priority
+      @if (sortField() === 'priority') {
+        <mat-icon class="sort-indicator">{{ sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+      }
+    </button>
+    <button class="col-header col-header--assignee" (click)="onSortColumn('assignee')">
+      Assignee
+      @if (sortField() === 'assignee') {
+        <mat-icon class="sort-indicator">{{ sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+      }
+    </button>
+    <button class="col-header col-header--updated" (click)="onSortColumn('updatedAt')">
+      Updated
+      @if (sortField() === 'updatedAt') {
+        <mat-icon class="sort-indicator">{{ sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+      }
+    </button>
+  </div>
   <div class="ticket-list" role="listbox" aria-label="Tickets" tabindex="0" (keydown)="onKeydown($event)">
     @for (ticket of tickets(); track ticket.id; let i = $index) {
       <app-ticket-row

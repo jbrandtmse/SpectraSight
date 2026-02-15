@@ -56,6 +56,15 @@ export interface EpicTicket extends Ticket {
   targetDate?: string;
 }
 
+export interface FilterState {
+  type?: string[];
+  status?: string[];
+  priority?: string;
+  assignee?: string;
+  search?: string;
+  sort?: string;
+}
+
 export interface CreateTicketRequest {
   type: TicketType;
   title: string;

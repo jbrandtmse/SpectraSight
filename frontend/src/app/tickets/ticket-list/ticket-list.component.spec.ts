@@ -43,7 +43,9 @@ describe('TicketListComponent', () => {
     httpMock.verify();
   });
 
-  function flushTickets(tickets: Ticket[] = MOCK_TICKETS): void {
+  /** Load tickets via the service (simulating what the parent page does). */
+  function loadAndFlush(tickets: Ticket[] = MOCK_TICKETS): void {
+    ticketService.loadTickets();
     const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
     req.flush({
       data: tickets,
@@ -56,28 +58,27 @@ describe('TicketListComponent', () => {
 
   it('should create', () => {
     fixture.detectChanges();
-    flushTickets();
     expect(component).toBeTruthy();
   });
 
-  it('should call loadTickets on init', () => {
-    spyOn(ticketService, 'loadTickets').and.callThrough();
+  it('should not call loadTickets on init (parent page orchestrates loading)', () => {
+    spyOn(ticketService, 'loadTickets');
     fixture.detectChanges();
-    flushTickets();
-    expect(ticketService.loadTickets).toHaveBeenCalled();
+    expect(ticketService.loadTickets).not.toHaveBeenCalled();
   });
 
   it('should show skeleton rows while loading', () => {
+    ticketService.loadTickets();
     fixture.detectChanges();
-    // Don't flush yet -- loading is true
     const skeletonRows = fixture.nativeElement.querySelectorAll('.skeleton-row');
     expect(skeletonRows.length).toBe(8);
-    flushTickets();
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
   });
 
   it('should show empty state when no tickets', () => {
-    fixture.detectChanges();
-    flushTickets([]);
+    loadAndFlush([]);
     fixture.detectChanges();
 
     const emptyState = fixture.nativeElement.querySelector('.empty-state');
@@ -88,8 +89,7 @@ describe('TicketListComponent', () => {
   });
 
   it('should render ticket rows after loading', () => {
-    fixture.detectChanges();
-    flushTickets();
+    loadAndFlush();
     fixture.detectChanges();
 
     const rows = fixture.nativeElement.querySelectorAll('app-ticket-row');
@@ -97,8 +97,7 @@ describe('TicketListComponent', () => {
   });
 
   it('should have listbox role on ticket list container', () => {
-    fixture.detectChanges();
-    flushTickets();
+    loadAndFlush();
     fixture.detectChanges();
 
     const list = fixture.nativeElement.querySelector('.ticket-list');
@@ -108,13 +107,10 @@ describe('TicketListComponent', () => {
 
   it('should start with focusedIndex 0', () => {
     expect(component.focusedIndex()).toBe(0);
-    fixture.detectChanges();
-    flushTickets();
   });
 
   it('should navigate focusedIndex down on ArrowDown', () => {
-    fixture.detectChanges();
-    flushTickets();
+    loadAndFlush();
     fixture.detectChanges();
 
     const list = fixture.nativeElement.querySelector('.ticket-list');
@@ -123,8 +119,7 @@ describe('TicketListComponent', () => {
   });
 
   it('should not go past last ticket on ArrowDown', () => {
-    fixture.detectChanges();
-    flushTickets();
+    loadAndFlush();
     fixture.detectChanges();
 
     component.focusedIndex.set(2);
@@ -134,8 +129,7 @@ describe('TicketListComponent', () => {
   });
 
   it('should navigate focusedIndex up on ArrowUp', () => {
-    fixture.detectChanges();
-    flushTickets();
+    loadAndFlush();
     fixture.detectChanges();
 
     component.focusedIndex.set(2);
@@ -145,8 +139,7 @@ describe('TicketListComponent', () => {
   });
 
   it('should not go below 0 on ArrowUp', () => {
-    fixture.detectChanges();
-    flushTickets();
+    loadAndFlush();
     fixture.detectChanges();
 
     const list = fixture.nativeElement.querySelector('.ticket-list');
@@ -156,8 +149,7 @@ describe('TicketListComponent', () => {
 
   it('should select focused ticket and navigate on Enter', () => {
     const navigateSpy = spyOn(router, 'navigate');
-    fixture.detectChanges();
-    flushTickets();
+    loadAndFlush();
     fixture.detectChanges();
 
     component.focusedIndex.set(1);
@@ -169,8 +161,7 @@ describe('TicketListComponent', () => {
   });
 
   it('should deselect ticket on Escape', () => {
-    fixture.detectChanges();
-    flushTickets();
+    loadAndFlush();
     fixture.detectChanges();
 
     ticketService.selectTicket('1');
@@ -180,8 +171,7 @@ describe('TicketListComponent', () => {
   });
 
   it('should ignore keyboard events when no tickets', () => {
-    fixture.detectChanges();
-    flushTickets([]);
+    loadAndFlush([]);
     fixture.detectChanges();
 
     // No list container rendered in empty state
@@ -190,8 +180,7 @@ describe('TicketListComponent', () => {
 
   it('should select ticket and update focusedIndex on onTicketSelected', () => {
     const navigateSpy = spyOn(router, 'navigate');
-    fixture.detectChanges();
-    flushTickets();
+    loadAndFlush();
     fixture.detectChanges();
 
     component.onTicketSelected('3');
@@ -201,8 +190,7 @@ describe('TicketListComponent', () => {
   });
 
   it('should have tabindex on the ticket list for keyboard focus', () => {
-    fixture.detectChanges();
-    flushTickets();
+    loadAndFlush();
     fixture.detectChanges();
 
     const list = fixture.nativeElement.querySelector('.ticket-list');
@@ -213,8 +201,7 @@ describe('TicketListComponent', () => {
   it('should emit newTicketRequested on onNewTicket()', () => {
     let emitted = false;
     component.newTicketRequested.subscribe(() => emitted = true);
-    fixture.detectChanges();
-    flushTickets();
+    loadAndFlush();
     fixture.detectChanges();
 
     component.onNewTicket();
@@ -224,12 +211,81 @@ describe('TicketListComponent', () => {
   it('should emit newTicketRequested when empty state New Ticket button is clicked', () => {
     let emitted = false;
     component.newTicketRequested.subscribe(() => emitted = true);
-    fixture.detectChanges();
-    flushTickets([]);
+    loadAndFlush([]);
     fixture.detectChanges();
 
     const newBtn = fixture.nativeElement.querySelector('.empty-state button');
     newBtn.click();
     expect(emitted).toBeTrue();
+  });
+
+  // Story 2.2: Column headers
+  it('should render column headers when tickets are present', () => {
+    loadAndFlush();
+    fixture.detectChanges();
+
+    const headers = fixture.nativeElement.querySelector('.column-headers');
+    expect(headers).toBeTruthy();
+    const buttons = headers.querySelectorAll('button.col-header');
+    expect(buttons.length).toBe(5); // Title, Status, Priority, Assignee, Updated
+  });
+
+  it('should not render column headers when no tickets', () => {
+    loadAndFlush([]);
+    fixture.detectChanges();
+
+    const headers = fixture.nativeElement.querySelector('.column-headers');
+    expect(headers).toBeFalsy();
+  });
+
+  // Story 2.2: Sort functionality (onSortColumn emits sortChanged)
+  it('should emit sortChanged on column header click', () => {
+    let emittedSort = '';
+    component.sortChanged.subscribe((s: string) => emittedSort = s);
+    loadAndFlush();
+    fixture.detectChanges();
+
+    component.onSortColumn('title');
+    expect(emittedSort).toBe('title');
+  });
+
+  it('should toggle sort direction when clicking same column', () => {
+    let emittedSort = '';
+    component.sortChanged.subscribe((s: string) => emittedSort = s);
+    loadAndFlush();
+    fixture.detectChanges();
+
+    // Default sort is -updatedAt, clicking updatedAt should toggle to ascending
+    component.onSortColumn('updatedAt');
+    expect(emittedSort).toBe('updatedAt');
+  });
+
+  it('should compute sortField and sortDirection from filterState', () => {
+    fixture.detectChanges();
+
+    // Default sort is -updatedAt
+    expect(component.sortField()).toBe('updatedAt');
+    expect(component.sortDirection()).toBe('desc');
+  });
+
+  // Story 2.2: Filtered empty state (AC #10)
+  it('should show filtered empty state when tickets empty with active filters', () => {
+    ticketService.setFilters({ type: ['bug'] });
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    fixture.detectChanges();
+
+    const filteredEmpty = fixture.nativeElement.querySelector('.empty-state--filtered');
+    expect(filteredEmpty).toBeTruthy();
+    expect(filteredEmpty.textContent).toContain('No tickets match your filters');
+
+    const clearBtn = filteredEmpty.querySelector('button');
+    expect(clearBtn.textContent.trim()).toContain('Clear filters');
+  });
+
+  it('should call setFilters({}) on Clear filters click', () => {
+    const setFiltersSpy = spyOn(ticketService, 'setFilters');
+    component.onClearFilters();
+    expect(setFiltersSpy).toHaveBeenCalledWith({});
   });
 });

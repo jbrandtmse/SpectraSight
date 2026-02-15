@@ -1,10 +1,10 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpClient, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { TicketService } from './ticket.service';
-import { Ticket } from './ticket.model';
+import { Ticket, FilterState } from './ticket.model';
 import { ApiListResponse, ApiResponse } from '../shared/models/api-response.model';
 
 const MOCK_TICKETS: Ticket[] = [
@@ -276,4 +276,95 @@ describe('TicketService', () => {
     // Tickets should NOT have been modified on error
     expect(service.tickets().length).toBe(3);
   });
+
+  // Story 2.2: Filter state and setFilters
+  it('should start with empty filterState', () => {
+    expect(service.filterState()).toEqual({});
+  });
+
+  it('should update filterState and reload on setFilters', () => {
+    const filters: FilterState = { type: ['bug'], status: ['Open'] };
+    service.setFilters(filters);
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets') && r.method === 'GET');
+    expect(req.request.params.get('type')).toBe('bug');
+    expect(req.request.params.get('status')).toBe('Open');
+    expect(req.request.params.get('sort')).toBe('-updatedAt');
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    expect(service.filterState()).toEqual(filters);
+  });
+
+  it('should pass sort parameter from filter state', () => {
+    service.setFilters({ sort: '-title' });
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req.request.params.get('sort')).toBe('-title');
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+  });
+
+  it('should pass search parameter from filter state', () => {
+    service.setFilters({ search: 'validation' });
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req.request.params.get('search')).toBe('validation');
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+  });
+
+  it('should pass multi-value type as comma-separated', () => {
+    service.setFilters({ type: ['bug', 'task'] });
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req.request.params.get('type')).toBe('bug,task');
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+  });
+
+  it('should pass priority and assignee parameters', () => {
+    service.setFilters({ priority: 'High', assignee: 'alice' });
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req.request.params.get('priority')).toBe('High');
+    expect(req.request.params.get('assignee')).toBe('alice');
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+  });
+
+  it('should not include empty filter params in request', () => {
+    service.setFilters({});
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req.request.params.has('type')).toBeFalse();
+    expect(req.request.params.has('status')).toBeFalse();
+    expect(req.request.params.has('search')).toBeFalse();
+    expect(req.request.params.has('priority')).toBeFalse();
+    expect(req.request.params.has('assignee')).toBeFalse();
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+  });
+
+  it('should debounce search via setSearch', fakeAsync(() => {
+    service.setSearch('test');
+
+    // No request yet (debounce pending)
+    httpMock.expectNone(r => r.url.includes('/api/tickets'));
+
+    tick(300);
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req.request.params.get('search')).toBe('test');
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+  }));
+
+  it('should clear search when setSearch receives empty string', fakeAsync(() => {
+    // First set a search
+    service.setFilters({ search: 'old' });
+    const req1 = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req1.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    // Then clear via setSearch
+    service.setSearch('');
+    tick(300);
+
+    const req2 = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req2.request.params.has('search')).toBeFalse();
+    req2.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+  }));
 });

@@ -35,10 +35,20 @@
   min-width: 0;
 }
 
+.ticket-priority {
+  font-size: 11px;
+  color: var(--ss-text-secondary);
+  width: 60px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
 .ticket-assignee {
   font-size: 11px;
   color: var(--ss-text-secondary);
-  max-width: 80px;
+  width: 80px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

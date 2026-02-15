@@ -1,9 +1,10 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, map, Subject } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { environment } from '../../environments/environment';
-import { Ticket, CreateTicketRequest } from './ticket.model';
+import { Ticket, CreateTicketRequest, FilterState } from './ticket.model';
 import { ApiListResponse, ApiResponse } from '../shared/models/api-response.model';
 
 @Injectable({ providedIn: 'root' })
@@ -15,24 +16,68 @@ export class TicketService {
   private loadingSignal = signal<boolean>(false);
   private errorSignal = signal<string | null>(null);
   private selectedTicketIdSignal = signal<string | null>(null);
+  private filterStateSignal = signal<FilterState>({});
+  private searchDebounce$ = new Subject<string>();
 
   readonly tickets = this.ticketsSignal.asReadonly();
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
   readonly selectedTicketId = this.selectedTicketIdSignal.asReadonly();
+  readonly filterState = this.filterStateSignal.asReadonly();
   readonly selectedTicket = computed(() => {
     const id = this.selectedTicketIdSignal();
     return this.ticketsSignal().find((t) => t.id === id) ?? null;
   });
 
+  constructor() {
+    this.searchDebounce$.pipe(debounceTime(300)).subscribe((search) => {
+      this.filterStateSignal.update((s) => ({ ...s, search: search || undefined }));
+      this.loadTickets();
+    });
+  }
+
+  setFilters(filters: FilterState): void {
+    this.filterStateSignal.set(filters);
+    this.loadTickets();
+  }
+
+  setSearch(search: string): void {
+    this.searchDebounce$.next(search);
+  }
+
   loadTickets(): void {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
 
+    const state = this.filterStateSignal();
+    let params = new HttpParams()
+      .set('pageSize', '100');
+
+    if (state.sort) {
+      params = params.set('sort', state.sort);
+    } else {
+      params = params.set('sort', '-updatedAt');
+    }
+    if (state.type?.length) {
+      params = params.set('type', state.type.join(','));
+    }
+    if (state.status?.length) {
+      params = params.set('status', state.status.join(','));
+    }
+    if (state.priority) {
+      params = params.set('priority', state.priority);
+    }
+    if (state.assignee) {
+      params = params.set('assignee', state.assignee);
+    }
+    if (state.search) {
+      params = params.set('search', state.search);
+    }
+
     this.http
       .get<ApiListResponse<Ticket>>(
         `${environment.apiBaseUrl}/tickets`,
-        { params: { sort: '-updatedAt', pageSize: '100' } }
+        { params }
       )
       .subscribe({
         next: (response) => {

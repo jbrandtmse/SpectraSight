@@ -1,0 +1,88 @@
+<div class="filter-bar" role="search" aria-label="Filter tickets">
+  <!-- Search input -->
+  <mat-form-field class="filter-bar__search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      #searchInput
+      placeholder="Search tickets..."
+      [value]="searchText()"
+      (input)="onSearchInput(searchInput.value)"
+      aria-label="Search tickets" />
+    @if (searchText()) {
+      <button matSuffix mat-icon-button (click)="clearSearch()" aria-label="Clear search">
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+  </mat-form-field>
+
+  <!-- Type filter chips -->
+  <div class="filter-bar__group">
+    <span class="filter-bar__label">Type</span>
+    <div class="filter-bar__chips">
+      @for (type of typeOptions; track type) {
+        <button
+          class="filter-chip"
+          [class.filter-chip--selected]="isTypeSelected(type)"
+          (click)="onTypeToggle(type)"
+          [attr.aria-pressed]="isTypeSelected(type)">
+          {{ type }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Status filter chips -->
+  <div class="filter-bar__group">
+    <span class="filter-bar__label">Status</span>
+    <div class="filter-bar__chips">
+      @for (status of statusOptions; track status) {
+        <button
+          class="filter-chip"
+          [class.filter-chip--selected]="isStatusSelected(status)"
+          (click)="onStatusToggle(status)"
+          [attr.aria-pressed]="isStatusSelected(status)">
+          {{ status }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Priority filter -->
+  <mat-form-field class="filter-bar__select" appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Priority</mat-label>
+    <mat-select [value]="selectedPriority()" (selectionChange)="onPriorityChange($event.value)">
+      <mat-option value="">All</mat-option>
+      @for (p of priorityOptions; track p) {
+        <mat-option [value]="p">{{ p }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <!-- Assignee filter -->
+  <mat-form-field class="filter-bar__select" appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Assignee</mat-label>
+    <mat-select [value]="selectedAssignee()" (selectionChange)="onAssigneeChange($event.value)">
+      <mat-option value="">All</mat-option>
+      @for (a of assignees(); track a) {
+        <mat-option [value]="a">{{ a }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<!-- Active filter chips row -->
+@if (hasActiveFilters()) {
+  <div class="filter-bar__active">
+    @for (chip of activeFilterChips(); track chip.category + chip.value) {
+      <span class="active-chip">
+        <span class="active-chip__category">{{ chip.category }}:</span>
+        {{ chip.label }}
+        <button class="active-chip__remove" (click)="removeFilter(chip)" [attr.aria-label]="'Remove filter ' + chip.label">
+          <mat-icon>close</mat-icon>
+        </button>
+      </span>
+    }
+    <button class="filter-bar__clear-all" (click)="clearAll()">Clear all</button>
+  </div>
+}

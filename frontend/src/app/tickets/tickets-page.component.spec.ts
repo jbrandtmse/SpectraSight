@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter, ActivatedRoute } from '@angular/router';
+import { provideRouter, ActivatedRoute, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -14,9 +14,11 @@ describe('TicketsPageComponent', () => {
   let ticketService: TicketService;
   let httpMock: HttpTestingController;
   let paramMapSubject: Subject<ParamMap>;
+  let queryParamMapSubject: Subject<ParamMap>;
 
   beforeEach(async () => {
     paramMapSubject = new Subject<ParamMap>();
+    queryParamMapSubject = new Subject<ParamMap>();
 
     await TestBed.configureTestingModule({
       imports: [TicketsPageComponent],
@@ -29,7 +31,11 @@ describe('TicketsPageComponent', () => {
           provide: ActivatedRoute,
           useValue: {
             paramMap: paramMapSubject.asObservable(),
-            snapshot: { paramMap: convertToParamMap({}) },
+            queryParamMap: queryParamMapSubject.asObservable(),
+            snapshot: {
+              paramMap: convertToParamMap({}),
+              queryParamMap: convertToParamMap({}),
+            },
           },
         },
       ],
@@ -247,5 +253,87 @@ describe('TicketsPageComponent', () => {
     Object.defineProperty(event, 'preventDefault', { value: jasmine.createSpy('preventDefault') });
     component.onCtrlN(event);
     expect(component.creatingParentId()).toBeNull();
+  });
+
+  // Story 2.2: Filter bar integration
+  it('should contain the filter bar', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    fixture.detectChanges();
+
+    const filterBar = fixture.nativeElement.querySelector('ss-filter-bar');
+    expect(filterBar).toBeTruthy();
+  });
+
+  it('should compute distinct assignees from tickets', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({
+      data: [
+        { id: '1', type: 'bug', title: 'Bug', status: 'Open', priority: 'High', assignee: 'alice', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { id: '2', type: 'task', title: 'Task', status: 'Open', priority: 'Low', assignee: 'bob', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { id: '3', type: 'task', title: 'Task2', status: 'Open', priority: 'Low', assignee: 'alice', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+      ],
+      total: 3, page: 1, pageSize: 100, totalPages: 1,
+    });
+
+    expect(component.distinctAssignees()).toEqual(['alice', 'bob']);
+  });
+
+  it('should call setFilters on filtersChanged event', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    const setFiltersSpy = spyOn(ticketService, 'setFilters');
+    component.onFiltersChanged({ type: ['bug'] });
+
+    expect(setFiltersSpy).toHaveBeenCalledWith({ type: ['bug'] });
+  });
+
+  it('should update service filters and sync filter bar on sort change from list', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    const setFiltersSpy = spyOn(ticketService, 'setFilters');
+    component.onSortChanged('title');
+
+    expect(setFiltersSpy).toHaveBeenCalledWith(jasmine.objectContaining({ sort: 'title' }));
+  });
+
+  // Story 2.2: "/" keyboard shortcut (AC #9)
+  it('should prevent default and focus search on "/" key', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    fixture.detectChanges();
+
+    const event = new KeyboardEvent('keydown', { key: '/' });
+    Object.defineProperty(event, 'preventDefault', { value: jasmine.createSpy('preventDefault') });
+    component.onKeydown(event);
+
+    expect(event.preventDefault).toHaveBeenCalled();
+  });
+
+  it('should not focus search on "/" when input is already focused', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    fixture.detectChanges();
+
+    // Focus an input element
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+
+    const event = new KeyboardEvent('keydown', { key: '/' });
+    Object.defineProperty(event, 'preventDefault', { value: jasmine.createSpy('preventDefault') });
+    component.onKeydown(event);
+
+    // Should NOT prevent default since input is focused
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    document.body.removeChild(input);
   });
 });

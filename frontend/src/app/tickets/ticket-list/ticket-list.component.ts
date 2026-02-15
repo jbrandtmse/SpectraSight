@@ -1,6 +1,7 @@
-import { Component, ChangeDetectionStrategy, inject, signal, output, OnInit, ElementRef, ViewChildren, QueryList } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed, output, ElementRef, ViewChildren, QueryList } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { TicketService } from '../ticket.service';
 import { TicketRowComponent } from './ticket-row.component';
 import { Ticket } from '../ticket.model';
@@ -9,15 +10,16 @@ import { Ticket } from '../ticket.model';
   selector: 'app-ticket-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, TicketRowComponent],
+  imports: [MatButtonModule, MatIconModule, TicketRowComponent],
   templateUrl: './ticket-list.component.html',
   styleUrl: './ticket-list.component.scss',
 })
-export class TicketListComponent implements OnInit {
+export class TicketListComponent {
   ticketService = inject(TicketService);
   private router = inject(Router);
 
   newTicketRequested = output<void>();
+  sortChanged = output<string>();
 
   @ViewChildren('rowRef', { read: ElementRef }) rowRefs!: QueryList<ElementRef>;
 
@@ -26,9 +28,20 @@ export class TicketListComponent implements OnInit {
 
   tickets = this.ticketService.tickets;
 
-  ngOnInit(): void {
-    this.ticketService.loadTickets();
-  }
+  readonly hasActiveFilters = computed(() => {
+    const state = this.ticketService.filterState();
+    return !!(state.type?.length || state.status?.length || state.priority || state.assignee || state.search);
+  });
+
+  readonly sortField = computed(() => {
+    const sort = this.ticketService.filterState().sort || '-updatedAt';
+    return sort.startsWith('-') ? sort.substring(1) : sort;
+  });
+
+  readonly sortDirection = computed(() => {
+    const sort = this.ticketService.filterState().sort || '-updatedAt';
+    return sort.startsWith('-') ? 'desc' : 'asc';
+  });
 
   onTicketSelected(id: string): void {
     this.ticketService.selectTicket(id);
@@ -40,6 +53,25 @@ export class TicketListComponent implements OnInit {
 
   onNewTicket(): void {
     this.newTicketRequested.emit();
+  }
+
+  onSortColumn(field: string): void {
+    const currentSort = this.ticketService.filterState().sort || '-updatedAt';
+    const currentField = currentSort.startsWith('-') ? currentSort.substring(1) : currentSort;
+    const currentDir = currentSort.startsWith('-') ? 'desc' : 'asc';
+
+    let newSort: string;
+    if (currentField === field) {
+      newSort = currentDir === 'asc' ? '-' + field : field;
+    } else {
+      newSort = field;
+    }
+
+    this.sortChanged.emit(newSort);
+  }
+
+  onClearFilters(): void {
+    this.ticketService.setFilters({});
   }
 
   onKeydown(event: KeyboardEvent): void {

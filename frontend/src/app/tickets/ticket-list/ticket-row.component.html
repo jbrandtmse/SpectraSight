@@ -9,6 +9,7 @@
   <ss-type-icon [type]="ticket().type" [size]="16"></ss-type-icon>
   <span class="ticket-title" [matTooltip]="ticket().title">{{ ticket().title }}</span>
   <ss-status-badge [status]="ticket().status" [compact]="true"></ss-status-badge>
+  <span class="ticket-priority">{{ ticket().priority }}</span>
   <span class="ticket-assignee">{{ ticket().assignee || '' }}</span>
   <span class="ticket-timestamp">{{ ticket().updatedAt | relativeTime }}</span>
 </div>

@@ -182,25 +182,47 @@ ClassMethod ListTickets() As %Status
         Set tWhere = ""
         Set tParamCount = 0
 
-        // Type filter using subquery approach
+        // Type filter using subquery approach (supports comma-separated values)
         If tType '= "" {
-            Set tLowerType = $ZCONVERT(tType, "L")
-            Set tSC2 = ##class(SpectraSight.Util.Validation).GetClassForType(tLowerType, .tFilterClass)
-            If $$$ISERR(tSC2) {
-                Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Invalid type filter: "_tType)
-                Quit
+            Set tTypeList = $LISTFROMSTRING(tType, ",")
+            Set tTypeCount = $LISTLENGTH(tTypeList)
+            Set tTypeClauses = ""
+            Set tTypeValid = 1
+            For tI = 1:1:tTypeCount {
+                Set tOneType = $ZCONVERT($ZSTRIP($LIST(tTypeList, tI), "<>W"), "L")
+                Set tSC2 = ##class(SpectraSight.Util.Validation).GetClassForType(tOneType, .tFilterClass)
+                If $$$ISOK(tSC2) {
+                    Set tTableName = $TRANSLATE(tFilterClass, ".", "_")
+                    Set tTypeClauses = tTypeClauses_$SELECT(tTypeClauses="":"", 1:" OR ")_"%ID IN (SELECT %ID FROM "_tTableName_")"
+                } Else {
+                    Set tTypeValid = 0
+                    Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Invalid type filter: "_$LIST(tTypeList, tI))
+                    Quit
+                }
             }
-            // Map class name to SQL table name
-            Set tTableName = $TRANSLATE(tFilterClass, ".", "_")
-            Set tTypeClause = "%ID IN (SELECT %ID FROM "_tTableName_")"
-            Set tWhere = tWhere_$SELECT(tWhere="":"", 1:" AND ")_tTypeClause
+            If 'tTypeValid Quit
+            If tTypeClauses '= "" {
+                Set tWhere = tWhere_$SELECT(tWhere="":"", 1:" AND ")_"("_tTypeClauses_")"
+            }
         }
 
-        // Status filter
+        // Status filter (supports comma-separated values)
         If tStatus '= "" {
-            Set tParamCount = tParamCount + 1
-            Set tParams(tParamCount) = tStatus
-            Set tWhere = tWhere_$SELECT(tWhere="":"", 1:" AND ")_"Status = ?"
+            Set tStatusList = $LISTFROMSTRING(tStatus, ",")
+            Set tStatusCount = $LISTLENGTH(tStatusList)
+            If tStatusCount = 1 {
+                Set tParamCount = tParamCount + 1
+                Set tParams(tParamCount) = tStatus
+                Set tWhere = tWhere_$SELECT(tWhere="":"", 1:" AND ")_"Status = ?"
+            } Else {
+                Set tStatusPlaceholders = ""
+                For tI = 1:1:tStatusCount {
+                    Set tParamCount = tParamCount + 1
+                    Set tParams(tParamCount) = $ZSTRIP($LIST(tStatusList, tI), "<>W")
+                    Set tStatusPlaceholders = tStatusPlaceholders_$SELECT(tStatusPlaceholders="":"", 1:", ")_"?"
+                }
+                Set tWhere = tWhere_$SELECT(tWhere="":"", 1:" AND ")_"Status IN ("_tStatusPlaceholders_")"
+            }
         }
 
         // Priority filter
@@ -242,21 +264,7 @@ ClassMethod ListTickets() As %Status
         }
 
         // Execute count with parameters
-        If tParamCount = 0 {
-            Set tResult = tStatement.%Execute()
-        } ElseIf tParamCount = 1 {
-            Set tResult = tStatement.%Execute(tParams(1))
-        } ElseIf tParamCount = 2 {
-            Set tResult = tStatement.%Execute(tParams(1), tParams(2))
-        } ElseIf tParamCount = 3 {
-            Set tResult = tStatement.%Execute(tParams(1), tParams(2), tParams(3))
-        } ElseIf tParamCount = 4 {
-            Set tResult = tStatement.%Execute(tParams(1), tParams(2), tParams(3), tParams(4))
-        } ElseIf tParamCount = 5 {
-            Set tResult = tStatement.%Execute(tParams(1), tParams(2), tParams(3), tParams(4), tParams(5))
-        } Else {
-            Set tResult = tStatement.%Execute(tParams(1), tParams(2), tParams(3), tParams(4), tParams(5), tParams(6))
-        }
+        Set tResult = ..ExecuteWithParams(tStatement, .tParams, tParamCount)
 
         Set tTotal = 0
         If tResult.%Next() {
@@ -277,21 +285,7 @@ ClassMethod ListTickets() As %Status
         }
 
         // Execute data query with same parameters
-        If tParamCount = 0 {
-            Set tResult2 = tStatement2.%Execute()
-        } ElseIf tParamCount = 1 {
-            Set tResult2 = tStatement2.%Execute(tParams(1))
-        } ElseIf tParamCount = 2 {
-            Set tResult2 = tStatement2.%Execute(tParams(1), tParams(2))
-        } ElseIf tParamCount = 3 {
-            Set tResult2 = tStatement2.%Execute(tParams(1), tParams(2), tParams(3))
-        } ElseIf tParamCount = 4 {
-            Set tResult2 = tStatement2.%Execute(tParams(1), tParams(2), tParams(3), tParams(4))
-        } ElseIf tParamCount = 5 {
-            Set tResult2 = tStatement2.%Execute(tParams(1), tParams(2), tParams(3), tParams(4), tParams(5))
-        } Else {
-            Set tResult2 = tStatement2.%Execute(tParams(1), tParams(2), tParams(3), tParams(4), tParams(5), tParams(6))
-        }
+        Set tResult2 = ..ExecuteWithParams(tStatement2, .tParams, tParamCount)
 
         // Build response array
         Set tArray = ##class(%DynamicArray).%New()
@@ -623,6 +617,32 @@ ClassMethod BuildOrderBy(pSort As %String) As %String
         // Fall back to default sort on error
     }
     Quit tResult
+}
+
+/// Execute a prepared SQL statement with a dynamic number of parameters
+ClassMethod ExecuteWithParams(pStatement As %SQL.Statement, ByRef pParams, pCount As %Integer) As %SQL.StatementResult
+{
+    If pCount = 0 {
+        Quit pStatement.%Execute()
+    } ElseIf pCount = 1 {
+        Quit pStatement.%Execute(pParams(1))
+    } ElseIf pCount = 2 {
+        Quit pStatement.%Execute(pParams(1), pParams(2))
+    } ElseIf pCount = 3 {
+        Quit pStatement.%Execute(pParams(1), pParams(2), pParams(3))
+    } ElseIf pCount = 4 {
+        Quit pStatement.%Execute(pParams(1), pParams(2), pParams(3), pParams(4))
+    } ElseIf pCount = 5 {
+        Quit pStatement.%Execute(pParams(1), pParams(2), pParams(3), pParams(4), pParams(5))
+    } ElseIf pCount = 6 {
+        Quit pStatement.%Execute(pParams(1), pParams(2), pParams(3), pParams(4), pParams(5), pParams(6))
+    } ElseIf pCount = 7 {
+        Quit pStatement.%Execute(pParams(1), pParams(2), pParams(3), pParams(4), pParams(5), pParams(6), pParams(7))
+    } ElseIf pCount = 8 {
+        Quit pStatement.%Execute(pParams(1), pParams(2), pParams(3), pParams(4), pParams(5), pParams(6), pParams(7), pParams(8))
+    } Else {
+        Quit pStatement.%Execute(pParams(1), pParams(2), pParams(3), pParams(4), pParams(5), pParams(6), pParams(7), pParams(8), pParams(9))
+    }
 }
 
 }
