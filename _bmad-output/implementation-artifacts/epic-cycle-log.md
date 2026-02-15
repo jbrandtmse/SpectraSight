@@ -280,3 +280,31 @@
 - 5 new IRIS QA tests + 13 dev-authored Angular tests
 
 **User Input Required:** None
+
+## Story 3.2: Comment System
+
+**Status:** COMPLETE
+**Commits:**
+- `9f6d514` — feat(3.2): implement Comment System
+- `670740e` — test(3.2): add automated tests for Comment System
+
+**Files Touched:**
+- `src/SpectraSight/REST/TicketHandler.cls` — AddComment method with body + actorType validation
+- `src/SpectraSight/REST/Dispatch.cls` — POST /tickets/:id/comments route
+- `src/SpectraSight/Test/TestComment.cls` — 8 new IRIS comment tests
+- `frontend/src/app/activity/activity.service.ts` — addComment() with optimistic UI
+- `frontend/src/app/activity/activity.service.spec.ts` — 10 new Angular service tests
+- `frontend/src/app/activity/comment-form/` — New ss-comment-form component (ts/html/scss/spec — 14 dev tests)
+- `frontend/src/app/tickets/ticket-detail/` — Comment form integration below timeline
+
+**Key Design Decisions:**
+- Optimistic UI: temp comment appended immediately, replaced on server success, removed on error
+- Expanding textarea (40px → 100px on focus) with disabled submit when empty
+- Code review added optional actorType extraction from request body with whitelist validation (human/agent)
+- Separate TestComment.cls created (TestREST.cls exceeded 700-line limit)
+
+**Issues Auto-Resolved:**
+- 1 MEDIUM: AddComment hard-coded actorType="human" — added optional actorType from request body with whitelist validation
+- 2 LOW remaining: Missing spinner/disabled-textarea tests (cosmetic, not auto-resolved)
+
+**User Input Required:** None

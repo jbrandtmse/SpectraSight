@@ -58,7 +58,7 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: Collaboration & Activity Tracking
-  epic-3: in-progress
+  epic-3: done
   3-1-activity-timeline-and-actor-attribution: done
   3-2-comment-system: done
   epic-3-retrospective: optional
