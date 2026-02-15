@@ -103,4 +103,21 @@ describe('TicketsPageComponent', () => {
     expect(placeholder).toBeTruthy();
     expect(placeholder.textContent).toContain('Select a ticket from the list');
   });
+
+  it('should show ticket-detail when a ticket is selected', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({
+      data: [{ id: 'SS-1', type: 'bug', title: 'Test', status: 'Open', priority: 'High', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }],
+      total: 1, page: 1, pageSize: 100, totalPages: 1,
+    });
+
+    ticketService.selectTicket('SS-1');
+    fixture.detectChanges();
+
+    const detail = fixture.nativeElement.querySelector('app-ticket-detail');
+    expect(detail).toBeTruthy();
+    const placeholder = fixture.nativeElement.querySelector('.detail-placeholder');
+    expect(placeholder).toBeFalsy();
+  });
 });

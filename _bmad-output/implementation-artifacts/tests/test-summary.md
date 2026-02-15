@@ -217,6 +217,64 @@
 
 ---
 
+## Story 1.5: Ticket Detail View & Inline Editing
+
+**Date:** 2026-02-15
+**Test Framework:** Karma + Jasmine (Angular CLI default)
+**Test Files:** 1 new spec file, 1 expanded
+
+## Generated Tests
+
+### Ticket Detail Component
+
+- [x] `ticket-detail.component.spec.ts` - TicketDetailComponent: creation, no render without selection, render with selection, ID display, type icon, title inline-edit, status/priority/assignee dropdowns, description section, timestamps with relativeTime pipe, close button, close() clears selection + navigates, close button click clears selection, onFieldChanged delegates to service, title/priority/assignee field changes, numeric coercion (estimatedHours/storyPoints), null for invalid numeric input, non-numeric fields pass through, type-specific sections (Bug/Task/Story/Epic Details), conditional section exclusion, bug-specific labels (Steps to Reproduce/Expected Behavior/Actual Behavior), option arrays (status/priority/severity), timestamp tooltips, type-specific border separator, no-op when no ticket selected (36 tests)
+
+### Tickets Page Component (expanded)
+
+- [x] `tickets-page.component.spec.ts` (expanded) - Added test for ticket-detail rendering when ticket is selected; placeholder hidden when detail shown (1 new test)
+
+## Coverage
+
+### By Acceptance Criteria
+
+| AC | Test Coverage | Tests |
+|----|---------------|-------|
+| 1. Display title, type icon, ID, status, priority, assignee, description, timestamps | Header elements, inline-edit, dropdowns, timestamps | ticket-detail: ID display, type icon, title inline-edit, status/priority/assignee dropdowns, description section, timestamps |
+| 2. Inline-edit title (click-to-edit) | Title via app-inline-edit with headline fieldClass | ticket-detail: title inline-edit, onFieldChanged for title |
+| 3. Status dropdown (Open/InProgress/Blocked/Complete) | app-field-dropdown with statusOptions | ticket-detail: status dropdown, status options array, onFieldChanged for status |
+| 4. Priority dropdown (Low/Medium/High/Critical) | app-field-dropdown with priorityOptions | ticket-detail: priority dropdown, priority options array, onFieldChanged for priority |
+| 5. Assignee free-text dropdown | app-field-dropdown with freeText=true | ticket-detail: assignee dropdown, onFieldChanged for assignee |
+| 6. Type-specific fields: Bug (severity, steps, expected, actual), Task (estimatedHours, actualHours), Story (storyPoints, acceptanceCriteria), Epic (startDate, targetDate) | Conditional sections + field labels + numeric coercion | ticket-detail: type-specific sections (4 tests), bug field labels (3 tests), numeric coercion (3 tests), non-numeric passthrough |
+| 7. Description inline-edit (textarea) | app-inline-edit with type="textarea" | ticket-detail: description section |
+| 8. Timestamps with relative time + absolute tooltip | relativeTime pipe + matTooltip | ticket-detail: timestamps test, tooltip test |
+| 9. Escape clears selection | close() + HostListener('keydown.escape') | ticket-detail: close() clears selection, close button click |
+| 10. Close button navigates to /tickets | router.navigate(['/tickets']) | ticket-detail: close() navigates, close button click navigates |
+
+### By Component
+
+| Component | Tests | Coverage |
+|-----------|-------|----------|
+| TicketDetailComponent | 36 | Header, fields, inline-edit, dropdowns, type-specific sections, numeric coercion, close, timestamps |
+| TicketsPageComponent | 7 (6 existing + 1 new) | Route param, split panel, placeholder, detail rendering |
+
+### Summary Statistics
+
+- **Total new tests:** 37 (36 ticket-detail + 1 tickets-page)
+- **Passed:** 37
+- **Failed:** 0
+- **New spec files:** 1 (ticket-detail.component.spec.ts)
+- **Expanded spec files:** 1 (tickets-page.component.spec.ts: 6 -> 7 tests)
+- **Combined project total (Stories 1.2-1.5):** 212 tests, all passing
+
+## Notes
+
+- The `NG0205 Injector has already been destroyed` error appears during close() tests because `router.navigate()` fires after the TestBed injector is torn down. This is a known Angular testing artifact and does not affect test results.
+- The `asAny()` helper in the component is used for type-safe access to type-specific fields on the `Ticket` union type. Tests verify all 4 type-specific sections render with correct labels.
+- Numeric coercion logic tested: `estimatedHours`, `storyPoints`, and `actualHours` are coerced from string to number; invalid input sends `null`.
+- Tests use a `selectTicket()` helper that loads tickets into the service via HTTP mock, then selects one, ensuring the signal-based reactive chain works end-to-end.
+
+---
+
 ## Next Steps
 
 - Full integration tests via HTTP (curl/REST client) when CI environment is configured
