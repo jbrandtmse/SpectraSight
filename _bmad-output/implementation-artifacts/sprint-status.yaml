@@ -64,7 +64,7 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: AI Agent Integration via MCP Server
-  epic-4: in-progress
+  epic-4: done
   4-1-mcp-server-with-ticket-operations: done
-  4-2-mcp-configuration-and-connection-testing: review
+  4-2-mcp-configuration-and-connection-testing: done
   epic-4-retrospective: optional

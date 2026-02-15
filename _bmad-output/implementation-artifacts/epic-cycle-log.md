@@ -343,3 +343,34 @@
 - 3 LOW remaining: Negative page numbers, no Content-Type response validation, missing engines field
 
 **User Input Required:** None
+
+## Story 4.2: MCP Configuration & Connection Testing
+
+**Status:** COMPLETE
+**Commits:**
+- `c085a2d` — feat(4.2): implement MCP Configuration & Connection Testing
+- `037b771` — test(4.2): add automated tests for MCP Configuration & Connection Testing
+
+**Files Touched:**
+- `mcp-server/src/api-client.ts` — Enhanced error messages for ECONNREFUSED, ETIMEDOUT, 401, 403; auth checks before JSON parsing
+- `mcp-server/src/index.ts` — Startup connection validation (non-blocking), connection tool registration
+- `mcp-server/src/tools/connection.ts` — New test_connection MCP tool
+- `mcp-server/tsconfig.json` — Excluded test files from build output
+- `mcp-server/README.md` — Setup docs with build/config/client-setup/troubleshooting
+- `mcp-server/src/__tests__/api-client.test.ts` — 9 new dev tests + expect.assertions() guards
+- `mcp-server/src/__tests__/tools/connection.test.ts` — 8 dev tests for test_connection tool
+- `mcp-server/src/__tests__/qa-story-4-2.test.ts` — 32 QA tests (README accuracy, config warnings, error format, startup validation, edge cases)
+
+**Key Design Decisions:**
+- 401/403 auth checks moved before JSON parsing (handles non-JSON IRIS error pages)
+- Startup validation is non-blocking — logs warning but doesn't prevent server start
+- test_connection tool calls GET /tickets?page=1&pageSize=1 for lightweight verification
+- Shared formatError() utility used consistently across all tools
+- README includes real MCP client config JSON example
+
+**Issues Auto-Resolved:**
+- 1 HIGH: 401/403 auth checks after JSON parsing (non-JSON body caused PARSE_ERROR instead of AUTH_FAILED)
+- 4 MEDIUM: Hardcoded toolCount, manual error formatting in connection.ts, missing expect.assertions(), startup validation before transport connection
+- 3 LOW remaining: README testing section, manual TOOL_COUNT sync, default creds in docs
+
+**User Input Required:** None
