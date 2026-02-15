@@ -56,15 +56,46 @@ export class ApiClient {
         body: jsonBody,
       });
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("ECONNREFUSED")) {
+        throw new ApiError(
+          "CONNECTION_ERROR",
+          `Cannot connect to SpectraSight API at ${this.baseUrl} — connection refused. Is IRIS running?`,
+          0
+        );
+      }
+      if (errMsg.includes("ETIMEDOUT") || errMsg.includes("ENOTFOUND")) {
+        throw new ApiError(
+          "CONNECTION_ERROR",
+          `Cannot reach SpectraSight API at ${this.baseUrl} — check SPECTRASIGHT_URL`,
+          0
+        );
+      }
       throw new ApiError(
         "CONNECTION_ERROR",
-        `Failed to connect to SpectraSight API at ${this.baseUrl}: ${err instanceof Error ? err.message : String(err)}`,
+        `Network error connecting to SpectraSight API at ${this.baseUrl}: ${errMsg}`,
         0
       );
     }
 
     if (response.status === 204) {
       return undefined;
+    }
+
+    // Check auth errors before JSON parsing — IRIS may return non-JSON bodies for 401/403
+    if (response.status === 401) {
+      throw new ApiError(
+        "AUTH_FAILED",
+        `Authentication failed for ${this.baseUrl} — check SPECTRASIGHT_USERNAME and SPECTRASIGHT_PASSWORD`,
+        401
+      );
+    }
+    if (response.status === 403) {
+      throw new ApiError(
+        "AUTH_FORBIDDEN",
+        `Access denied at ${this.baseUrl} — insufficient permissions for this operation`,
+        403
+      );
     }
 
     let json: unknown;

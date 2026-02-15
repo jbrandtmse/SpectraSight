@@ -166,18 +166,103 @@ describe("ApiClient", () => {
       }
     });
 
-    it("throws ApiError with CONNECTION_ERROR on network failure", async () => {
-      mockFetch.mockRejectedValue(new Error("ECONNREFUSED"));
-
-      await expect(client.get("/tickets")).rejects.toThrow(ApiError);
+    it("throws CONNECTION_ERROR with 'connection refused' message on ECONNREFUSED", async () => {
+      expect.assertions(3);
+      mockFetch.mockRejectedValue(new Error("connect ECONNREFUSED 127.0.0.1:52773"));
 
       try {
         await client.get("/tickets");
       } catch (err) {
         const apiErr = err as ApiError;
         expect(apiErr.code).toBe("CONNECTION_ERROR");
-        expect(apiErr.message).toContain("ECONNREFUSED");
+        expect(apiErr.message).toBe("Cannot connect to SpectraSight API at http://localhost:52773 — connection refused. Is IRIS running?");
         expect(apiErr.status).toBe(0);
+      }
+    });
+
+    it("throws CONNECTION_ERROR with 'check URL' message on ETIMEDOUT", async () => {
+      expect.assertions(3);
+      mockFetch.mockRejectedValue(new Error("connect ETIMEDOUT 10.0.0.1:52773"));
+
+      try {
+        await client.get("/tickets");
+      } catch (err) {
+        const apiErr = err as ApiError;
+        expect(apiErr.code).toBe("CONNECTION_ERROR");
+        expect(apiErr.message).toBe("Cannot reach SpectraSight API at http://localhost:52773 — check SPECTRASIGHT_URL");
+        expect(apiErr.status).toBe(0);
+      }
+    });
+
+    it("throws CONNECTION_ERROR with 'check URL' message on ENOTFOUND", async () => {
+      expect.assertions(2);
+      mockFetch.mockRejectedValue(new Error("getaddrinfo ENOTFOUND badhost"));
+
+      try {
+        await client.get("/tickets");
+      } catch (err) {
+        const apiErr = err as ApiError;
+        expect(apiErr.message).toContain("Cannot reach SpectraSight API");
+        expect(apiErr.message).toContain("check SPECTRASIGHT_URL");
+      }
+    });
+
+    it("throws CONNECTION_ERROR with generic network message for other errors", async () => {
+      expect.assertions(2);
+      mockFetch.mockRejectedValue(new Error("socket hang up"));
+
+      try {
+        await client.get("/tickets");
+      } catch (err) {
+        const apiErr = err as ApiError;
+        expect(apiErr.code).toBe("CONNECTION_ERROR");
+        expect(apiErr.message).toBe("Network error connecting to SpectraSight API at http://localhost:52773: socket hang up");
+      }
+    });
+
+    it("throws AUTH_FAILED with credential guidance on 401", async () => {
+      expect.assertions(4);
+      mockFetch.mockResolvedValue(mockResponse(401, { error: { message: "Unauthorized" } }, false));
+
+      try {
+        await client.get("/tickets");
+      } catch (err) {
+        const apiErr = err as ApiError;
+        expect(apiErr.code).toBe("AUTH_FAILED");
+        expect(apiErr.message).toContain("Authentication failed");
+        expect(apiErr.message).toContain("SPECTRASIGHT_USERNAME");
+        expect(apiErr.status).toBe(401);
+      }
+    });
+
+    it("throws AUTH_FORBIDDEN with permissions message on 403", async () => {
+      expect.assertions(3);
+      mockFetch.mockResolvedValue(mockResponse(403, { error: { message: "Forbidden" } }, false));
+
+      try {
+        await client.get("/tickets");
+      } catch (err) {
+        const apiErr = err as ApiError;
+        expect(apiErr.code).toBe("AUTH_FORBIDDEN");
+        expect(apiErr.message).toContain("Access denied");
+        expect(apiErr.status).toBe(403);
+      }
+    });
+
+    it("throws AUTH_FAILED even when 401 response body is not JSON", async () => {
+      expect.assertions(2);
+      mockFetch.mockResolvedValue({
+        status: 401,
+        ok: false,
+        json: vi.fn().mockRejectedValue(new SyntaxError("Unexpected token")),
+      });
+
+      try {
+        await client.get("/tickets");
+      } catch (err) {
+        const apiErr = err as ApiError;
+        expect(apiErr.code).toBe("AUTH_FAILED");
+        expect(apiErr.status).toBe(401);
       }
     });
 
@@ -199,6 +284,7 @@ describe("ApiClient", () => {
     });
 
     it("uses fallback error fields when error envelope is incomplete", async () => {
+      expect.assertions(2);
       mockFetch.mockResolvedValue(mockResponse(500, {}, false));
 
       try {
@@ -207,6 +293,40 @@ describe("ApiClient", () => {
         const apiErr = err as ApiError;
         expect(apiErr.code).toBe("UNKNOWN_ERROR");
         expect(apiErr.status).toBe(500);
+      }
+    });
+
+    it("includes base URL in connection error messages", async () => {
+      expect.assertions(1);
+      const customClient = new ApiClient({
+        baseUrl: "http://custom-host:9999",
+        username: "user",
+        password: "pass",
+      });
+      mockFetch.mockRejectedValue(new Error("ECONNREFUSED"));
+
+      try {
+        await customClient.get("/tickets");
+      } catch (err) {
+        const apiErr = err as ApiError;
+        expect(apiErr.message).toContain("http://custom-host:9999");
+      }
+    });
+
+    it("includes base URL in auth error messages", async () => {
+      expect.assertions(1);
+      const customClient = new ApiClient({
+        baseUrl: "http://custom-host:9999",
+        username: "user",
+        password: "pass",
+      });
+      mockFetch.mockResolvedValue(mockResponse(401, {}, false));
+
+      try {
+        await customClient.get("/tickets");
+      } catch (err) {
+        const apiErr = err as ApiError;
+        expect(apiErr.message).toContain("http://custom-host:9999");
       }
     });
   });

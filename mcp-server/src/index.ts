@@ -6,6 +6,7 @@ import { getConfig } from "./config.js";
 import { ApiClient } from "./api-client.js";
 import { registerTicketTools } from "./tools/tickets.js";
 import { registerCommentTools } from "./tools/comments.js";
+import { registerConnectionTools } from "./tools/connection.js";
 
 async function main(): Promise<void> {
   const config = getConfig();
@@ -18,11 +19,22 @@ async function main(): Promise<void> {
 
   registerTicketTools(server, apiClient);
   registerCommentTools(server, apiClient);
+  registerConnectionTools(server, apiClient, config);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
   console.error("[spectrasight-mcp] Server started on stdio transport");
+
+  // Non-blocking startup connection validation (after transport is connected
+  // so MCP client doesn't time out if the API is slow/unreachable)
+  try {
+    await apiClient.get("/tickets", { page: "1", pageSize: "1" });
+    console.error(`[spectrasight-mcp] Connected to ${config.baseUrl} — ready`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[spectrasight-mcp] Warning: Could not connect to ${config.baseUrl} — ${message}. Tools will attempt to connect on first use.`);
+  }
 }
 
 main().catch((err) => {
