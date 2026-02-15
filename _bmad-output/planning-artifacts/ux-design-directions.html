@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpectraSight — Design Direction Showcase</title>
+<style>
+  :root {
+    --bg: #FFFFFF; --surface: #F5F5F5; --surface-variant: #EBEBEB;
+    --border: #D4D4D4; --text-primary: #1E1E1E; --text-secondary: #6B6B6B;
+    --accent: #4A6FA5; --accent-hover: #3A5F95;
+    --bug: #C74E4E; --task: #4A7FB5; --story: #4E8C57; --epic: #7B5EA7;
+    --open: #858585; --in-progress: #2979C1; --blocked: #C78A2E; --complete: #388E3C;
+    --error: #C74E4E; --warning: #C78A2E; --success: #388E3C; --info: #2979C1;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --font-code: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  }
+  .dark {
+    --bg: #1E1E1E; --surface: #252526; --surface-variant: #2D2D2D;
+    --border: #3E3E3E; --text-primary: #D4D4D4; --text-secondary: #858585;
+    --accent: #6B8FC7; --accent-hover: #7B9FD7;
+    --bug: #E06C6C; --task: #6B9FD5; --story: #6BAF75; --epic: #9B7EC7;
+    --open: #A0A0A0; --in-progress: #4A9FE5; --blocked: #E5A84A; --complete: #5CB860;
+    --error: #E06C6C; --warning: #E5A84A; --success: #5CB860; --info: #4A9FE5;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font-ui); background: var(--bg); color: var(--text-primary); font-size: 13px; line-height: 1.4; }
+
+  /* Navigation */
+  .showcase-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 24px; display: flex; align-items: center; gap: 16px; }
+  .showcase-nav h1 { font-size: 16px; font-weight: 500; white-space: nowrap; }
+  .showcase-nav .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .showcase-nav .tab { padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: transparent; color: var(--text-primary); transition: all 0.15s; }
+  .showcase-nav .tab:hover { background: var(--surface-variant); }
+  .showcase-nav .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .theme-toggle { margin-left: auto; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; border: 1px solid var(--border); background: transparent; color: var(--text-primary); }
+
+  /* Mockup Container */
+  .mockup-container { margin-top: 52px; }
+  .mockup { display: none; height: calc(100vh - 52px); }
+  .mockup.active { display: flex; flex-direction: column; }
+
+  /* Shared mockup components */
+  .mock-toolbar { height: 48px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; gap: 12px; flex-shrink: 0; }
+  .mock-toolbar .logo { font-weight: 600; font-size: 14px; color: var(--accent); }
+  .mock-toolbar .spacer { flex: 1; }
+  .mock-toolbar .search { padding: 4px 12px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text-secondary); font-size: 12px; width: 240px; }
+  .mock-toolbar .btn { padding: 4px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; border: none; }
+  .mock-toolbar .btn-primary { background: var(--accent); color: #fff; }
+  .mock-toolbar .btn-icon { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+
+  .mock-sidenav { width: 240px; background: var(--surface); border-right: 1px solid var(--border); padding: 8px 0; flex-shrink: 0; overflow-y: auto; }
+  .mock-sidenav .nav-item { padding: 6px 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text-secondary); }
+  .mock-sidenav .nav-item:hover { background: var(--surface-variant); color: var(--text-primary); }
+  .mock-sidenav .nav-item.active { color: var(--accent); background: var(--surface-variant); border-left: 3px solid var(--accent); padding-left: 13px; }
+  .mock-sidenav .nav-section { padding: 12px 16px 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; }
+
+  .mock-content { flex: 1; overflow-y: auto; background: var(--bg); }
+
+  /* List view shared */
+  .filter-bar { padding: 8px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; background: var(--surface); }
+  .filter-chip { padding: 3px 10px; border-radius: 12px; font-size: 11px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; }
+  .filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .filter-chip:hover { background: var(--surface-variant); }
+
+  .ticket-row { display: flex; align-items: center; padding: 0 16px; height: 36px; border-bottom: 1px solid var(--border); cursor: pointer; gap: 8px; }
+  .ticket-row:hover { background: var(--surface-variant); }
+  .type-icon { width: 18px; height: 18px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .type-bug { background: var(--bug); }
+  .type-task { background: var(--task); }
+  .type-story { background: var(--story); }
+  .type-epic { background: var(--epic); }
+  .ticket-id { font-size: 12px; color: var(--text-secondary); font-family: var(--font-code); width: 60px; flex-shrink: 0; }
+  .ticket-title { flex: 1; font-size: 13px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status-badge { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0; }
+  .status-open { background: color-mix(in srgb, var(--open) 15%, transparent); color: var(--open); }
+  .status-progress { background: color-mix(in srgb, var(--in-progress) 15%, transparent); color: var(--in-progress); }
+  .status-blocked { background: color-mix(in srgb, var(--blocked) 15%, transparent); color: var(--blocked); }
+  .status-complete { background: color-mix(in srgb, var(--complete) 15%, transparent); color: var(--complete); }
+  .assignee { font-size: 12px; color: var(--text-secondary); width: 100px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .timestamp { font-size: 11px; color: var(--text-secondary); width: 70px; flex-shrink: 0; text-align: right; }
+  .priority-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .priority-critical { background: var(--error); }
+  .priority-high { background: var(--warning); }
+  .priority-medium { background: #C4A832; }
+  .priority-low { background: var(--text-secondary); opacity: 0.4; }
+
+  /* Detail view shared */
+  .detail-header { padding: 16px 24px; border-bottom: 1px solid var(--border); }
+  .detail-header .breadcrumb { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+  .detail-header .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .detail-header h2 { font-size: 20px; font-weight: 500; }
+  .detail-body { display: flex; flex: 1; overflow: hidden; }
+  .detail-main { flex: 1; padding: 16px 24px; overflow-y: auto; }
+  .detail-sidebar { width: 280px; border-left: 1px solid var(--border); padding: 16px; overflow-y: auto; background: var(--surface); }
+  .detail-sidebar .field { margin-bottom: 12px; }
+  .detail-sidebar .field-label { font-size: 11px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
+  .detail-sidebar .field-value { font-size: 13px; }
+  .code-ref { font-family: var(--font-code); font-size: 12px; padding: 2px 6px; background: var(--surface-variant); border-radius: 3px; color: var(--accent); }
+
+  /* Timeline */
+  .timeline { margin-top: 16px; }
+  .timeline-entry { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .timeline-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-variant); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; color: var(--text-secondary); }
+  .timeline-avatar.agent { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+  .timeline-content { flex: 1; }
+  .timeline-meta { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+  .timeline-meta strong { color: var(--text-primary); font-weight: 500; }
+  .timeline-text { font-size: 13px; line-height: 1.5; }
+  .timeline-event { font-size: 12px; color: var(--text-secondary); padding: 4px 0; display: flex; align-items: center; gap: 8px; }
+
+  /* Direction labels */
+  .direction-info { padding: 16px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .direction-info h2 { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+  .direction-info p { font-size: 13px; color: var(--text-secondary); max-width: 800px; }
+
+  /* Direction-specific */
+  /* D1: Sidebar + Table (VS Code style) */
+  .d1-body { display: flex; flex: 1; overflow: hidden; }
+
+  /* D2: Full-width list (GitHub style) */
+  .d2-list { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* D3: Split Panel */
+  .d3-body { display: flex; flex: 1; overflow: hidden; }
+  .d3-list-panel { width: 420px; border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; }
+  .d3-detail-panel { flex: 1; overflow-y: auto; }
+  .d3-ticket-row { padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .d3-ticket-row:hover { background: var(--surface-variant); }
+  .d3-ticket-row.selected { background: var(--surface-variant); border-left: 3px solid var(--accent); }
+  .d3-ticket-row .row-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .d3-ticket-row .row-bottom { font-size: 11px; color: var(--text-secondary); display: flex; gap: 8px; }
+
+  /* D4: Compact Table (Jira-inspired density) */
+  .d4-row { height: 30px; font-size: 12px; }
+  .d4-row .ticket-title { font-size: 12px; }
+  .d4-header { display: flex; align-items: center; padding: 0 16px; height: 28px; border-bottom: 2px solid var(--border); font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px; gap: 8px; background: var(--surface); }
+
+  /* D5: Card-based hierarchy */
+  .d5-content { padding: 16px 24px; }
+  .epic-card { border: 1px solid var(--border); border-radius: 4px; margin-bottom: 12px; background: var(--bg); }
+  .epic-header { padding: 10px 14px; display: flex; align-items: center; gap: 8px; background: var(--surface); border-bottom: 1px solid var(--border); cursor: pointer; border-radius: 4px 4px 0 0; }
+  .epic-children { padding: 4px 8px; }
+  .story-card { margin: 4px 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 3px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .story-card:hover { background: var(--surface-variant); }
+  .child-count { font-size: 11px; color: var(--text-secondary); margin-left: auto; }
+
+  /* D6: Detail-focused */
+  .d6-body { display: flex; flex: 1; overflow: hidden; }
+  .d6-detail { flex: 1; max-width: 900px; margin: 0 auto; padding: 24px; overflow-y: auto; }
+  .d6-nav-strip { width: 48px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 8px; gap: 4px; }
+  .d6-nav-btn { width: 36px; height: 36px; border-radius: 4px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+  .d6-nav-btn:hover { background: var(--surface-variant); }
+  .d6-nav-btn.active { color: var(--accent); background: var(--surface-variant); }
+</style>
+</head>
+<body>
+
+<nav class="showcase-nav">
+  <h1>SpectraSight Directions</h1>
+  <div class="tabs">
+    <button class="tab active" onclick="showMockup('d1')">D1: Sidebar+Table</button>
+    <button class="tab" onclick="showMockup('d2')">D2: Full-Width</button>
+    <button class="tab" onclick="showMockup('d3')">D3: Split Panel</button>
+    <button class="tab" onclick="showMockup('d4')">D4: Ultra-Dense</button>
+    <button class="tab" onclick="showMockup('d5')">D5: Hierarchy Cards</button>
+    <button class="tab" onclick="showMockup('d6')">D6: Detail-First</button>
+  </div>
+  <button class="theme-toggle" onclick="toggleTheme()">Toggle Dark/Light</button>
+</nav>
+
+<div class="mockup-container">
+
+  <!-- D1: Sidebar + Table (VS Code style) -->
+  <div id="d1" class="mockup active">
+    <div class="direction-info">
+      <h2>Direction 1: Sidebar + Table — VS Code Style</h2>
+      <p>Persistent sidebar for navigation and filtering. Dense table for ticket list. The most VS Code-like layout — sidebar provides structure, main area is pure data. Good for power users who want persistent filter controls.</p>
+    </div>
+    <div class="mock-toolbar">
+      <span class="logo">SpectraSight</span>
+      <input class="search" placeholder="Search tickets... (Ctrl+K)" readonly>
+      <span class="spacer"></span>
+      <button class="btn btn-primary">+ New Ticket</button>
+      <button class="btn btn-icon">☾</button>
+    </div>
+    <div class="d1-body">
+      <div class="mock-sidenav">
+        <div class="nav-section">Views</div>
+        <div class="nav-item active">☰ All Tickets</div>
+        <div class="nav-item">⊙ My Tickets</div>
+        <div class="nav-item">⏳ In Progress</div>
+        <div class="nav-item">⚠ Blocked</div>
+        <div class="nav-section">Types</div>
+        <div class="nav-item">🔴 Bugs</div>
+        <div class="nav-item">🔵 Tasks</div>
+        <div class="nav-item">🟢 Stories</div>
+        <div class="nav-item">🟣 Epics</div>
+        <div class="nav-section">Hierarchy</div>
+        <div class="nav-item">⚡ Patient Validation</div>
+        <div class="nav-item" style="padding-left:28px;">↳ ZIP Validation</div>
+        <div class="nav-item" style="padding-left:28px;">↳ Phone Format</div>
+        <div class="nav-item">⚡ MCP Server</div>
+      </div>
+      <div class="mock-content">
+        <div class="filter-bar">
+          <span style="font-size:12px;color:var(--text-secondary);">24 tickets</span>
+          <span class="spacer" style="flex:1"></span>
+          <span style="font-size:11px;color:var(--text-secondary);">Sort: Updated ▾</span>
+        </div>
+        <div class="ticket-row"><span class="type-icon type-bug">B</span><span class="ticket-id">SS-42</span><span class="ticket-title">ValidateRecord throws &lt;UNDEFINED&gt; on empty ZIP</span><span class="priority-dot priority-critical"></span><span class="status-badge status-progress">In Progress</span><span class="assignee">Alex</span><span class="timestamp">2h ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-story">S</span><span class="ticket-id">SS-38</span><span class="ticket-title">Add ZIP code format validation to PatientValidator</span><span class="priority-dot priority-high"></span><span class="status-badge status-complete">Complete</span><span class="assignee">Spectra</span><span class="timestamp">5h ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-task">T</span><span class="ticket-id">SS-41</span><span class="ticket-title">Write unit tests for ZIP validation edge cases</span><span class="priority-dot priority-medium"></span><span class="status-badge status-open">Open</span><span class="assignee">—</span><span class="timestamp">1d ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-epic">E</span><span class="ticket-id">SS-30</span><span class="ticket-title">Patient Data Validation Overhaul</span><span class="priority-dot priority-high"></span><span class="status-badge status-progress">In Progress</span><span class="assignee">Alex</span><span class="timestamp">3d ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-bug">B</span><span class="ticket-id">SS-45</span><span class="ticket-title">REST API returns 500 on malformed patient ID</span><span class="priority-dot priority-high"></span><span class="status-badge status-blocked">Blocked</span><span class="assignee">Spectra</span><span class="timestamp">4h ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-task">T</span><span class="ticket-id">SS-39</span><span class="ticket-title">Update PatientValidator documentation</span><span class="priority-dot priority-low"></span><span class="status-badge status-open">Open</span><span class="assignee">—</span><span class="timestamp">2d ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-story">S</span><span class="ticket-id">SS-36</span><span class="ticket-title">Add phone number format validation</span><span class="priority-dot priority-medium"></span><span class="status-badge status-open">Open</span><span class="assignee">Alex</span><span class="timestamp">3d ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-task">T</span><span class="ticket-id">SS-44</span><span class="ticket-title">Configure MCP server authentication</span><span class="priority-dot priority-high"></span><span class="status-badge status-complete">Complete</span><span class="assignee">Spectra</span><span class="timestamp">1d ago</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- D2: Full-Width List (GitHub style) -->
+  <div id="d2" class="mockup">
+    <div class="direction-info">
+      <h2>Direction 2: Full-Width List — GitHub Style</h2>
+      <p>No sidebar. Full-width content area with inline filter chips. Cleaner, simpler layout — more GitHub Issues than VS Code. Filters are inline above the list, not in a persistent panel. Maximum horizontal space for ticket data.</p>
+    </div>
+    <div class="mock-toolbar">
+      <span class="logo">SpectraSight</span>
+      <input class="search" placeholder="Search tickets... (Ctrl+K)" readonly>
+      <span class="spacer"></span>
+      <button class="btn btn-primary">+ New Ticket</button>
+      <button class="btn btn-icon">☾</button>
+    </div>
+    <div class="mock-content">
+      <div class="filter-bar">
+        <button class="filter-chip active">All</button>
+        <button class="filter-chip">Bugs</button>
+        <button class="filter-chip">Tasks</button>
+        <button class="filter-chip">Stories</button>
+        <button class="filter-chip">Epics</button>
+        <span style="width:1px;height:20px;background:var(--border);margin:0 4px;"></span>
+        <button class="filter-chip">Open</button>
+        <button class="filter-chip active">In Progress</button>
+        <button class="filter-chip">Blocked</button>
+        <button class="filter-chip">Complete</button>
+        <span style="flex:1"></span>
+        <span style="font-size:12px;color:var(--text-secondary);">8 of 24 tickets</span>
+      </div>
+      <div class="d2-list">
+        <div class="ticket-row"><span class="type-icon type-bug">B</span><span class="ticket-id">SS-42</span><span class="ticket-title">ValidateRecord throws &lt;UNDEFINED&gt; on empty ZIP</span><span class="priority-dot priority-critical"></span><span class="status-badge status-progress">In Progress</span><span class="assignee">Alex</span><span class="timestamp">2h ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-story">S</span><span class="ticket-id">SS-38</span><span class="ticket-title">Add ZIP code format validation to PatientValidator</span><span class="priority-dot priority-high"></span><span class="status-badge status-complete">Complete</span><span class="assignee">Spectra</span><span class="timestamp">5h ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-task">T</span><span class="ticket-id">SS-41</span><span class="ticket-title">Write unit tests for ZIP validation edge cases</span><span class="priority-dot priority-medium"></span><span class="status-badge status-open">Open</span><span class="assignee">—</span><span class="timestamp">1d ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-epic">E</span><span class="ticket-id">SS-30</span><span class="ticket-title">Patient Data Validation Overhaul</span><span class="priority-dot priority-high"></span><span class="status-badge status-progress">In Progress</span><span class="assignee">Alex</span><span class="timestamp">3d ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-bug">B</span><span class="ticket-id">SS-45</span><span class="ticket-title">REST API returns 500 on malformed patient ID</span><span class="priority-dot priority-high"></span><span class="status-badge status-blocked">Blocked</span><span class="assignee">Spectra</span><span class="timestamp">4h ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-task">T</span><span class="ticket-id">SS-39</span><span class="ticket-title">Update PatientValidator documentation</span><span class="priority-dot priority-low"></span><span class="status-badge status-open">Open</span><span class="assignee">—</span><span class="timestamp">2d ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-story">S</span><span class="ticket-id">SS-36</span><span class="ticket-title">Add phone number format validation</span><span class="priority-dot priority-medium"></span><span class="status-badge status-open">Open</span><span class="assignee">Alex</span><span class="timestamp">3d ago</span></div>
+        <div class="ticket-row"><span class="type-icon type-task">T</span><span class="ticket-id">SS-44</span><span class="ticket-title">Configure MCP server authentication</span><span class="priority-dot priority-high"></span><span class="status-badge status-complete">Complete</span><span class="assignee">Spectra</span><span class="timestamp">1d ago</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- D3: Split Panel (Email client style) -->
+  <div id="d3" class="mockup">
+    <div class="direction-info">
+      <h2>Direction 3: Split Panel — Email Client Style</h2>
+      <p>List on the left, detail on the right. Click a ticket to see its detail without leaving the list. Like Outlook or Slack — context always visible. Best for rapid review workflows where you scan multiple tickets quickly.</p>
+    </div>
+    <div class="mock-toolbar">
+      <span class="logo">SpectraSight</span>
+      <input class="search" placeholder="Search tickets... (Ctrl+K)" readonly>
+      <span class="spacer"></span>
+      <button class="btn btn-primary">+ New Ticket</button>
+      <button class="btn btn-icon">☾</button>
+    </div>
+    <div class="d3-body">
+      <div class="d3-list-panel">
+        <div class="filter-bar" style="padding:6px 12px;">
+          <button class="filter-chip active" style="font-size:10px;padding:2px 8px;">All</button>
+          <button class="filter-chip" style="font-size:10px;padding:2px 8px;">Open</button>
+          <button class="filter-chip" style="font-size:10px;padding:2px 8px;">In Progress</button>
+          <button class="filter-chip" style="font-size:10px;padding:2px 8px;">Blocked</button>
+        </div>
+        <div class="d3-ticket-row selected">
+          <div class="row-top"><span class="type-icon type-story">S</span><span style="font-size:12px;font-family:var(--font-code);color:var(--text-secondary);">SS-38</span><span class="status-badge status-complete" style="font-size:9px;">Complete</span></div>
+          <div style="font-size:13px;margin-bottom:4px;">Add ZIP code format validation</div>
+          <div class="row-bottom"><span>Spectra</span><span>·</span><span>5h ago</span></div>
+        </div>
+        <div class="d3-ticket-row">
+          <div class="row-top"><span class="type-icon type-bug">B</span><span style="font-size:12px;font-family:var(--font-code);color:var(--text-secondary);">SS-42</span><span class="status-badge status-progress" style="font-size:9px;">In Progress</span></div>
+          <div style="font-size:13px;margin-bottom:4px;">ValidateRecord throws &lt;UNDEFINED&gt; on empty ZIP</div>
+          <div class="row-bottom"><span>Alex</span><span>·</span><span>2h ago</span></div>
+        </div>
+        <div class="d3-ticket-row">
+          <div class="row-top"><span class="type-icon type-bug">B</span><span style="font-size:12px;font-family:var(--font-code);color:var(--text-secondary);">SS-45</span><span class="status-badge status-blocked" style="font-size:9px;">Blocked</span></div>
+          <div style="font-size:13px;margin-bottom:4px;">REST API returns 500 on malformed patient ID</div>
+          <div class="row-bottom"><span>Spectra</span><span>·</span><span>4h ago</span></div>
+        </div>
+        <div class="d3-ticket-row">
+          <div class="row-top"><span class="type-icon type-task">T</span><span style="font-size:12px;font-family:var(--font-code);color:var(--text-secondary);">SS-41</span><span class="status-badge status-open" style="font-size:9px;">Open</span></div>
+          <div style="font-size:13px;margin-bottom:4px;">Write unit tests for ZIP validation</div>
+          <div class="row-bottom"><span>Unassigned</span><span>·</span><span>1d ago</span></div>
+        </div>
+      </div>
+      <div class="d3-detail-panel" style="padding:16px 24px;">
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;"><a style="color:var(--accent);text-decoration:none;">SS-30 Patient Validation</a> › <a style="color:var(--accent);text-decoration:none;">SS-38</a></div>
+        <h2 style="font-size:18px;font-weight:500;margin-bottom:12px;">Add ZIP code format validation to PatientValidator</h2>
+        <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+          <span class="status-badge status-complete">Complete</span>
+          <span style="font-size:12px;color:var(--text-secondary);">Assigned to <strong style="color:var(--text-primary);">Spectra</strong></span>
+          <span class="code-ref">HS.Integration.PatientValidator</span>
+          <span class="code-ref">::ValidateRecord()</span>
+        </div>
+        <p style="font-size:13px;line-height:1.6;margin-bottom:16px;">Add format validation for US ZIP codes (5-digit and ZIP+4 formats) to the existing PatientValidator class. Reject records with invalid ZIP formats and add appropriate error messaging.</p>
+        <div class="timeline">
+          <div class="timeline-entry"><div class="timeline-avatar agent">S</div><div class="timeline-content"><div class="timeline-meta"><strong>Spectra</strong> · 5h ago</div><div class="timeline-text">Implemented ZIP validation with regex pattern matching for both 5-digit and ZIP+4 formats. Added 12 unit tests covering edge cases including empty strings, partial ZIPs, and international formats.</div></div></div>
+          <div class="timeline-event">↻ <strong>Spectra</strong> changed status from <span class="status-badge status-progress" style="font-size:9px;">In Progress</span> to <span class="status-badge status-complete" style="font-size:9px;">Complete</span> · 5h ago</div>
+          <div class="timeline-event">↻ <strong>Spectra</strong> changed status to <span class="status-badge status-progress" style="font-size:9px;">In Progress</span> · 7h ago</div>
+          <div class="timeline-entry"><div class="timeline-avatar">A</div><div class="timeline-content"><div class="timeline-meta"><strong>Alex</strong> · 1d ago</div><div class="timeline-text">Please handle the ZIP+4 format as well. Some of our records use the extended format.</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- D4: Ultra-Dense Table -->
+  <div id="d4" class="mockup">
+    <div class="direction-info">
+      <h2>Direction 4: Ultra-Dense Table — Maximum Data</h2>
+      <p>Maximum information density with column headers, sortable columns, and 30px row height. Like a spreadsheet or Jira's dense view. Best for users who want to see as many tickets as possible on screen at once. Includes visible column headers for sorting.</p>
+    </div>
+    <div class="mock-toolbar">
+      <span class="logo">SpectraSight</span>
+      <input class="search" placeholder="Search tickets... (Ctrl+K)" readonly>
+      <span class="spacer"></span>
+      <span style="font-size:12px;color:var(--text-secondary);">24 tickets</span>
+      <button class="btn btn-primary" style="font-size:11px;padding:3px 10px;">+ New</button>
+      <button class="btn btn-icon" style="width:28px;height:28px;font-size:12px;">☾</button>
+    </div>
+    <div class="mock-content">
+      <div class="filter-bar" style="padding:4px 16px;">
+        <button class="filter-chip" style="font-size:10px;padding:2px 8px;">Type ▾</button>
+        <button class="filter-chip" style="font-size:10px;padding:2px 8px;">Status ▾</button>
+        <button class="filter-chip" style="font-size:10px;padding:2px 8px;">Assignee ▾</button>
+        <button class="filter-chip" style="font-size:10px;padding:2px 8px;">Priority ▾</button>
+      </div>
+      <div class="d4-header">
+        <span style="width:18px;"></span>
+        <span style="width:60px;">ID</span>
+        <span style="flex:1;">Title</span>
+        <span style="width:8px;"></span>
+        <span style="width:90px;">Status</span>
+        <span style="width:100px;">Assignee</span>
+        <span style="width:80px;">Parent</span>
+        <span style="width:70px;text-align:right;">Updated</span>
+      </div>
+      <div class="ticket-row d4-row"><span class="type-icon type-bug" style="width:16px;height:16px;font-size:9px;">B</span><span class="ticket-id" style="font-size:11px;">SS-42</span><span class="ticket-title">ValidateRecord throws &lt;UNDEFINED&gt; on empty ZIP</span><span class="priority-dot priority-critical" style="width:6px;height:6px;"></span><span class="status-badge status-progress" style="font-size:9px;">In Progress</span><span class="assignee" style="font-size:11px;">Alex</span><span style="font-size:11px;color:var(--accent);width:80px;">SS-38</span><span class="timestamp" style="font-size:10px;">2h ago</span></div>
+      <div class="ticket-row d4-row"><span class="type-icon type-story" style="width:16px;height:16px;font-size:9px;">S</span><span class="ticket-id" style="font-size:11px;">SS-38</span><span class="ticket-title">Add ZIP code format validation to PatientValidator</span><span class="priority-dot priority-high" style="width:6px;height:6px;"></span><span class="status-badge status-complete" style="font-size:9px;">Complete</span><span class="assignee" style="font-size:11px;">Spectra</span><span style="font-size:11px;color:var(--accent);width:80px;">SS-30</span><span class="timestamp" style="font-size:10px;">5h ago</span></div>
+      <div class="ticket-row d4-row"><span class="type-icon type-task" style="width:16px;height:16px;font-size:9px;">T</span><span class="ticket-id" style="font-size:11px;">SS-41</span><span class="ticket-title">Write unit tests for ZIP validation edge cases</span><span class="priority-dot priority-medium" style="width:6px;height:6px;"></span><span class="status-badge status-open" style="font-size:9px;">Open</span><span class="assignee" style="font-size:11px;">—</span><span style="font-size:11px;color:var(--accent);width:80px;">SS-38</span><span class="timestamp" style="font-size:10px;">1d ago</span></div>
+      <div class="ticket-row d4-row"><span class="type-icon type-epic" style="width:16px;height:16px;font-size:9px;">E</span><span class="ticket-id" style="font-size:11px;">SS-30</span><span class="ticket-title">Patient Data Validation Overhaul</span><span class="priority-dot priority-high" style="width:6px;height:6px;"></span><span class="status-badge status-progress" style="font-size:9px;">In Progress</span><span class="assignee" style="font-size:11px;">Alex</span><span style="font-size:11px;width:80px;">—</span><span class="timestamp" style="font-size:10px;">3d ago</span></div>
+      <div class="ticket-row d4-row"><span class="type-icon type-bug" style="width:16px;height:16px;font-size:9px;">B</span><span class="ticket-id" style="font-size:11px;">SS-45</span><span class="ticket-title">REST API returns 500 on malformed patient ID</span><span class="priority-dot priority-high" style="width:6px;height:6px;"></span><span class="status-badge status-blocked" style="font-size:9px;">Blocked</span><span class="assignee" style="font-size:11px;">Spectra</span><span style="font-size:11px;color:var(--accent);width:80px;">SS-30</span><span class="timestamp" style="font-size:10px;">4h ago</span></div>
+      <div class="ticket-row d4-row"><span class="type-icon type-task" style="width:16px;height:16px;font-size:9px;">T</span><span class="ticket-id" style="font-size:11px;">SS-39</span><span class="ticket-title">Update PatientValidator documentation</span><span class="priority-dot priority-low" style="width:6px;height:6px;"></span><span class="status-badge status-open" style="font-size:9px;">Open</span><span class="assignee" style="font-size:11px;">—</span><span style="font-size:11px;color:var(--accent);width:80px;">SS-38</span><span class="timestamp" style="font-size:10px;">2d ago</span></div>
+      <div class="ticket-row d4-row"><span class="type-icon type-story" style="width:16px;height:16px;font-size:9px;">S</span><span class="ticket-id" style="font-size:11px;">SS-36</span><span class="ticket-title">Add phone number format validation</span><span class="priority-dot priority-medium" style="width:6px;height:6px;"></span><span class="status-badge status-open" style="font-size:9px;">Open</span><span class="assignee" style="font-size:11px;">Alex</span><span style="font-size:11px;color:var(--accent);width:80px;">SS-30</span><span class="timestamp" style="font-size:10px;">3d ago</span></div>
+      <div class="ticket-row d4-row"><span class="type-icon type-task" style="width:16px;height:16px;font-size:9px;">T</span><span class="ticket-id" style="font-size:11px;">SS-44</span><span class="ticket-title">Configure MCP server authentication</span><span class="priority-dot priority-high" style="width:6px;height:6px;"></span><span class="status-badge status-complete" style="font-size:9px;">Complete</span><span class="assignee" style="font-size:11px;">Spectra</span><span style="font-size:11px;width:80px;">—</span><span class="timestamp" style="font-size:10px;">1d ago</span></div>
+    </div>
+  </div>
+
+  <!-- D5: Hierarchy Cards -->
+  <div id="d5" class="mockup">
+    <div class="direction-info">
+      <h2>Direction 5: Hierarchy Cards — Epic-First View</h2>
+      <p>Organize by hierarchy — Epics as collapsible cards containing their Stories and Tasks. Good for understanding project structure at a glance. Less suited for flat triage but excellent for understanding "what's under this Epic?"</p>
+    </div>
+    <div class="mock-toolbar">
+      <span class="logo">SpectraSight</span>
+      <input class="search" placeholder="Search tickets... (Ctrl+K)" readonly>
+      <span class="spacer"></span>
+      <button class="filter-chip active">Hierarchy</button>
+      <button class="filter-chip">Flat List</button>
+      <button class="btn btn-primary">+ New Ticket</button>
+      <button class="btn btn-icon">☾</button>
+    </div>
+    <div class="mock-content">
+      <div class="d5-content">
+        <div class="epic-card">
+          <div class="epic-header">
+            <span class="type-icon type-epic">E</span>
+            <span style="font-family:var(--font-code);font-size:12px;color:var(--text-secondary);">SS-30</span>
+            <span style="font-weight:500;">Patient Data Validation Overhaul</span>
+            <span class="status-badge status-progress">In Progress</span>
+            <span style="margin-left:auto;font-size:12px;color:var(--text-secondary);">3/5 complete</span>
+          </div>
+          <div class="epic-children">
+            <div class="story-card">
+              <span class="type-icon type-story">S</span>
+              <span class="ticket-id">SS-38</span>
+              <span style="flex:1;">Add ZIP code format validation</span>
+              <span class="status-badge status-complete">Complete</span>
+              <span class="assignee">Spectra</span>
+              <span class="child-count">2 tasks</span>
+            </div>
+            <div class="story-card">
+              <span class="type-icon type-story">S</span>
+              <span class="ticket-id">SS-36</span>
+              <span style="flex:1;">Add phone number format validation</span>
+              <span class="status-badge status-open">Open</span>
+              <span class="assignee">Alex</span>
+              <span class="child-count">1 task</span>
+            </div>
+            <div class="story-card">
+              <span class="type-icon type-bug">B</span>
+              <span class="ticket-id">SS-42</span>
+              <span style="flex:1;">ValidateRecord throws &lt;UNDEFINED&gt; on empty ZIP</span>
+              <span class="status-badge status-progress">In Progress</span>
+              <span class="assignee">Alex</span>
+            </div>
+            <div class="story-card">
+              <span class="type-icon type-bug">B</span>
+              <span class="ticket-id">SS-45</span>
+              <span style="flex:1;">REST API returns 500 on malformed patient ID</span>
+              <span class="status-badge status-blocked">Blocked</span>
+              <span class="assignee">Spectra</span>
+            </div>
+          </div>
+        </div>
+        <div class="epic-card">
+          <div class="epic-header">
+            <span class="type-icon type-epic">E</span>
+            <span style="font-family:var(--font-code);font-size:12px;color:var(--text-secondary);">SS-25</span>
+            <span style="font-weight:500;">MCP Server Implementation</span>
+            <span class="status-badge status-progress">In Progress</span>
+            <span style="margin-left:auto;font-size:12px;color:var(--text-secondary);">1/3 complete</span>
+          </div>
+          <div class="epic-children">
+            <div class="story-card">
+              <span class="type-icon type-task">T</span>
+              <span class="ticket-id">SS-44</span>
+              <span style="flex:1;">Configure MCP server authentication</span>
+              <span class="status-badge status-complete">Complete</span>
+              <span class="assignee">Spectra</span>
+            </div>
+            <div class="story-card">
+              <span class="type-icon type-story">S</span>
+              <span class="ticket-id">SS-26</span>
+              <span style="flex:1;">Implement ticket CRUD via MCP tools</span>
+              <span class="status-badge status-progress">In Progress</span>
+              <span class="assignee">Spectra</span>
+              <span class="child-count">4 tasks</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- D6: Detail-First (Ticket as main view) -->
+  <div id="d6" class="mockup">
+    <div class="direction-info">
+      <h2>Direction 6: Detail-First — Ticket as Primary View</h2>
+      <p>The ticket detail IS the main view. Narrow icon strip for navigation replaces the sidebar. List is accessed via the nav strip. Optimized for deep work on a single ticket rather than scanning across many. Good if users spend most time in ticket detail.</p>
+    </div>
+    <div class="mock-toolbar">
+      <span class="logo">SpectraSight</span>
+      <span style="font-size:12px;color:var(--text-secondary);">SS-38 · Add ZIP code format validation</span>
+      <span class="spacer"></span>
+      <button class="btn btn-icon" style="font-size:11px;">← Prev</button>
+      <button class="btn btn-icon" style="font-size:11px;">Next →</button>
+      <button class="btn btn-primary">+ New</button>
+      <button class="btn btn-icon">☾</button>
+    </div>
+    <div class="d6-body">
+      <div class="d6-nav-strip">
+        <button class="d6-nav-btn">☰</button>
+        <button class="d6-nav-btn active">◉</button>
+        <button class="d6-nav-btn">⊕</button>
+        <button class="d6-nav-btn">⚙</button>
+      </div>
+      <div class="d6-detail">
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">
+          <a style="color:var(--accent);text-decoration:none;cursor:pointer;">SS-30 Patient Validation Overhaul</a> › SS-38
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <span class="type-icon type-story">S</span>
+          <h2 style="font-size:20px;font-weight:500;">Add ZIP code format validation to PatientValidator</h2>
+        </div>
+        <div style="display:flex;gap:16px;margin-bottom:20px;padding:12px;background:var(--surface);border-radius:4px;flex-wrap:wrap;">
+          <div><span style="font-size:11px;color:var(--text-secondary);display:block;">Status</span><span class="status-badge status-complete">Complete</span></div>
+          <div><span style="font-size:11px;color:var(--text-secondary);display:block;">Assignee</span><span style="font-size:13px;">Spectra</span></div>
+          <div><span style="font-size:11px;color:var(--text-secondary);display:block;">Priority</span><span style="font-size:13px;">High</span></div>
+          <div><span style="font-size:11px;color:var(--text-secondary);display:block;">Code References</span><span class="code-ref">HS.Integration.PatientValidator::ValidateRecord()</span></div>
+        </div>
+        <div style="margin-bottom:20px;">
+          <h3 style="font-size:14px;font-weight:500;margin-bottom:8px;">Description</h3>
+          <p style="font-size:13px;line-height:1.6;">Add format validation for US ZIP codes (5-digit and ZIP+4 formats) to the existing PatientValidator class. Reject records with invalid ZIP formats and add appropriate error messaging.</p>
+        </div>
+        <div>
+          <h3 style="font-size:14px;font-weight:500;margin-bottom:12px;">Activity</h3>
+          <div class="timeline">
+            <div class="timeline-entry"><div class="timeline-avatar agent">S</div><div class="timeline-content"><div class="timeline-meta"><strong>Spectra</strong> · 5h ago</div><div class="timeline-text">Implemented ZIP validation with regex pattern matching for both 5-digit and ZIP+4 formats. Added 12 unit tests covering edge cases including empty strings, partial ZIPs, and international formats.</div></div></div>
+            <div class="timeline-event">↻ <strong>Spectra</strong> changed status from <span class="status-badge status-progress" style="font-size:9px;">In Progress</span> to <span class="status-badge status-complete" style="font-size:9px;">Complete</span> · 5h ago</div>
+            <div class="timeline-event">↻ <strong>Spectra</strong> changed status to <span class="status-badge status-progress" style="font-size:9px;">In Progress</span> · 7h ago</div>
+            <div class="timeline-entry"><div class="timeline-avatar">A</div><div class="timeline-content"><div class="timeline-meta"><strong>Alex</strong> · 1d ago</div><div class="timeline-text">Please handle the ZIP+4 format as well. Some of our records use the extended format.</div></div></div>
+            <div class="timeline-event">↻ <strong>Alex</strong> created this ticket · 2d ago</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showMockup(id) {
+  document.querySelectorAll('.mockup').forEach(m => m.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+function toggleTheme() {
+  document.body.classList.toggle('dark');
+}
+</script>
+</body>
+</html>
