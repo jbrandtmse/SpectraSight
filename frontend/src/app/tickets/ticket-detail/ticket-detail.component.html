@@ -1,5 +1,11 @@
 @if (ticketService.selectedTicket(); as ticket) {
   <div class="detail-panel" tabindex="0">
+    <!-- Hierarchy breadcrumb -->
+    <ss-hierarchy-breadcrumb
+      [ticket]="ticket"
+      (ancestorClicked)="navigateToTicket($event)">
+    </ss-hierarchy-breadcrumb>
+
     <!-- Header: type icon, ID, close button -->
     <div class="detail-header">
       <ss-type-icon [type]="ticket.type" [size]="20"></ss-type-icon>
@@ -58,6 +64,33 @@
         (valueChanged)="onFieldChanged('description', $event)">
       </app-inline-edit>
     </div>
+
+    <!-- Children list -->
+    @if (ticket.children?.length) {
+      <div class="detail-section children-section">
+        <span class="detail-section-label">Children</span>
+        <div class="children-list">
+          @for (child of ticket.children; track child.id) {
+            <a class="child-row" (click)="navigateToTicket(child.id)" (keydown.enter)="navigateToTicket(child.id)" tabindex="0">
+              <ss-type-icon [type]="child.type" [size]="16"></ss-type-icon>
+              <span class="child-title">{{ child.title }}</span>
+              <ss-status-badge [status]="child.status" [compact]="true"></ss-status-badge>
+            </a>
+          }
+        </div>
+        <button mat-button class="add-subtask-btn" (click)="onAddSubtask()">
+          <mat-icon>add</mat-icon>
+          Add sub-task
+        </button>
+      </div>
+    } @else if (ticket.type !== 'bug') {
+      <div class="detail-section">
+        <button mat-button class="add-subtask-btn" (click)="onAddSubtask()">
+          <mat-icon>add</mat-icon>
+          Add sub-task
+        </button>
+      </div>
+    }
 
     <!-- Type-specific fields -->
     @if (ticket.type === 'bug') {

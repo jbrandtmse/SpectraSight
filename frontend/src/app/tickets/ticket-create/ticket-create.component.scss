@@ -43,6 +43,20 @@
   margin-top: var(--ss-sm);
 }
 
+.parent-option-id {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ss-text-secondary);
+  font-family: var(--ss-font-mono);
+}
+
+.hierarchy-warning {
+  font-size: 12px;
+  color: var(--ss-status-blocked, #e53935);
+  margin-top: calc(var(--ss-sm) * -1);
+  margin-bottom: var(--ss-sm);
+}
+
 .create-actions {
   display: flex;
   justify-content: flex-end;

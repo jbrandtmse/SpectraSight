@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, HostListener } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, HostListener, output } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,9 +7,11 @@ import { MatDialog } from '@angular/material/dialog';
 import { TicketService } from '../ticket.service';
 import { Ticket } from '../ticket.model';
 import { TypeIconComponent } from '../../shared/type-icon/type-icon.component';
+import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { InlineEditComponent } from '../../shared/inline-edit/inline-edit.component';
 import { FieldDropdownComponent } from '../../shared/field-dropdown/field-dropdown.component';
 import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
+import { HierarchyBreadcrumbComponent } from '../../shared/hierarchy-breadcrumb/hierarchy-breadcrumb.component';
 import { ConfirmDeleteDialogComponent } from '../confirm-delete-dialog/confirm-delete-dialog.component';
 
 @Component({
@@ -21,9 +23,11 @@ import { ConfirmDeleteDialogComponent } from '../confirm-delete-dialog/confirm-d
     MatButtonModule,
     MatTooltipModule,
     TypeIconComponent,
+    StatusBadgeComponent,
     InlineEditComponent,
     FieldDropdownComponent,
     RelativeTimePipe,
+    HierarchyBreadcrumbComponent,
   ],
   templateUrl: './ticket-detail.component.html',
   styleUrl: './ticket-detail.component.scss',
@@ -32,6 +36,8 @@ export class TicketDetailComponent {
   ticketService = inject(TicketService);
   private router = inject(Router);
   private dialog = inject(MatDialog);
+
+  addSubtaskRequested = output<string>();
 
   statusOptions = ['Open', 'In Progress', 'Blocked', 'Complete'];
   priorityOptions = ['Low', 'Medium', 'High', 'Critical'];
@@ -76,6 +82,18 @@ export class TicketDetailComponent {
         this.router.navigate(['/tickets']);
       }
     });
+  }
+
+  navigateToTicket(id: string): void {
+    this.ticketService.selectTicket(id);
+    this.router.navigate(['/tickets', id]);
+  }
+
+  onAddSubtask(): void {
+    const ticket = this.ticketService.selectedTicket();
+    if (ticket) {
+      this.addSubtaskRequested.emit(ticket.id);
+    }
   }
 
   asAny(ticket: Ticket): Record<string, unknown> {

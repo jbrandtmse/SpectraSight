@@ -2,6 +2,19 @@ export type TicketType = 'bug' | 'task' | 'story' | 'epic';
 export type TicketStatus = 'Open' | 'In Progress' | 'Blocked' | 'Complete';
 export type TicketPriority = 'Low' | 'Medium' | 'High' | 'Critical';
 
+export interface TicketRef {
+  id: string;
+  title: string;
+  type: TicketType;
+}
+
+export interface TicketChild {
+  id: string;
+  title: string;
+  status: TicketStatus;
+  type: TicketType;
+}
+
 export interface Ticket {
   id: string;
   type: TicketType;
@@ -11,6 +24,8 @@ export interface Ticket {
   priority: TicketPriority;
   assignee?: string;
   parentId?: string;
+  parent?: TicketRef;
+  children?: TicketChild[];
   createdAt: string;
   updatedAt: string;
 }
@@ -48,4 +63,5 @@ export interface CreateTicketRequest {
   status?: TicketStatus;
   priority?: TicketPriority;
   assignee?: string;
+  parentId?: string;
 }

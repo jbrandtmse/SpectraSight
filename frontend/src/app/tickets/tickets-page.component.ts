@@ -17,11 +17,14 @@ import { TicketService } from './ticket.service';
       <div detailPanel class="detail-container">
         @if (creating()) {
           <app-ticket-create
+            [prefillParentId]="creatingParentId()"
             (created)="onCreated()"
             (cancelled)="onCancelled()">
           </app-ticket-create>
         } @else if (ticketService.selectedTicket()) {
-          <app-ticket-detail></app-ticket-detail>
+          <app-ticket-detail
+            (addSubtaskRequested)="onAddSubtask($event)">
+          </app-ticket-detail>
         } @else {
           <div class="detail-placeholder">
             <p class="muted">Select a ticket from the list</p>
@@ -55,10 +58,12 @@ export class TicketsPageComponent implements OnInit {
   private route = inject(ActivatedRoute);
 
   creating = signal(false);
+  creatingParentId = signal<string | null>(null);
 
   @HostListener('document:keydown.control.n', ['$event'])
   onCtrlN(event: Event): void {
     event.preventDefault();
+    this.creatingParentId.set(null);
     this.creating.set(true);
   }
 
@@ -72,14 +77,22 @@ export class TicketsPageComponent implements OnInit {
   }
 
   onNewTicket(): void {
+    this.creatingParentId.set(null);
+    this.creating.set(true);
+  }
+
+  onAddSubtask(parentId: string): void {
+    this.creatingParentId.set(parentId);
     this.creating.set(true);
   }
 
   onCreated(): void {
     this.creating.set(false);
+    this.creatingParentId.set(null);
   }
 
   onCancelled(): void {
     this.creating.set(false);
+    this.creatingParentId.set(null);
   }
 }

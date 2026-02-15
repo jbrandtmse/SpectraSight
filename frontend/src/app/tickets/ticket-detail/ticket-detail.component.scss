@@ -64,6 +64,45 @@
   margin-bottom: var(--ss-xs);
 }
 
+.children-section {
+  border-top: 1px solid var(--ss-border, #D4D4D4);
+  padding-top: var(--ss-lg);
+}
+
+.children-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.child-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ss-sm);
+  padding: 6px var(--ss-sm);
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+
+.child-row:hover {
+  background: var(--ss-hover, rgba(0, 0, 0, 0.04));
+}
+
+.child-title {
+  flex: 1;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.add-subtask-btn {
+  margin-top: var(--ss-sm);
+  font-size: 12px;
+}
+
 .detail-timestamps {
   border-top: 1px solid var(--ss-border, #D4D4D4);
   padding-top: var(--ss-lg);

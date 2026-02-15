@@ -35,6 +35,36 @@
       }
     </mat-form-field>
 
+    <!-- Parent (optional autocomplete) -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Parent (optional)</mat-label>
+      <input
+        matInput
+        formControlName="parentSearch"
+        [matAutocomplete]="parentAuto"
+        (input)="onParentInput($event)"
+        autocomplete="off" />
+      @if (selectedParent()) {
+        <button matSuffix mat-icon-button (click)="clearParent()" aria-label="Clear parent">
+          <mat-icon>close</mat-icon>
+        </button>
+      }
+      <mat-autocomplete #parentAuto="matAutocomplete" (optionSelected)="onParentSelected($event.option.value)">
+        @for (t of filteredParents(); track t.id) {
+          <mat-option [value]="t">
+            <div class="type-option">
+              <ss-type-icon [type]="t.type" [size]="16"></ss-type-icon>
+              <span>{{ t.title }}</span>
+              <span class="parent-option-id">{{ t.id }}</span>
+            </div>
+          </mat-option>
+        }
+      </mat-autocomplete>
+    </mat-form-field>
+    @if (hierarchyWarning(); as warning) {
+      <div class="hierarchy-warning">{{ warning }}</div>
+    }
+
     <!-- Optional fields -->
     <div class="optional-section">
       <mat-form-field appearance="outline" class="full-width">

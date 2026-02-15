@@ -36,6 +36,25 @@ ClassMethod CreateTicket() As %Status
             Quit
         }
 
+        // Validate hierarchy if parentId provided
+        Set tParentObj = ""
+        If tBody.%IsDefined("parentId") {
+            Set tParentIdStr = tBody.%Get("parentId")
+            If tParentIdStr '= "" {
+                Set tParentInternalId = ##class(SpectraSight.Util.TicketID).Parse(tParentIdStr)
+                If tParentInternalId = "" {
+                    Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Invalid parent ticket ID format")
+                    Quit
+                }
+                Set tSC = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tParentInternalId, tType)
+                If $$$ISERR(tSC) {
+                    Set tSC = ##class(SpectraSight.REST.Response).BadRequest($System.Status.GetErrorText(tSC))
+                    Quit
+                }
+                Set tParentObj = ##class(SpectraSight.Model.Ticket).%OpenId(tParentInternalId)
+            }
+        }
+
         // Create new instance
         Set tTicket = $CLASSMETHOD(tClassName, "%New")
 
@@ -86,6 +105,11 @@ ClassMethod CreateTicket() As %Status
         } ElseIf tLowerType = "epic" {
             If tBody.%IsDefined("startDate") Set tTicket.StartDate = tBody.%Get("startDate")
             If tBody.%IsDefined("targetDate") Set tTicket.TargetDate = tBody.%Get("targetDate")
+        }
+
+        // Set parent if validated above
+        If tParentObj '= "" {
+            Set tTicket.Parent = tParentObj
         }
 
         // Save
@@ -275,7 +299,7 @@ ClassMethod ListTickets() As %Status
             Set tTicketId = tResult2.%Get("ID")
             Set tTicket = ##class(SpectraSight.Model.Ticket).%OpenId(tTicketId)
             If tTicket '= "" {
-                Set tObj = ..BuildTicketResponse(tTicket)
+                Set tObj = ..BuildTicketResponse(tTicket, 0)
                 Do tArray.%Push(tObj)
             }
         }
@@ -345,6 +369,31 @@ ClassMethod UpdateTicket(pId As %String) As %Status
         }
         If tBody.%IsDefined("assignee") {
             Set tTicket.Assignee = tBody.%Get("assignee")
+        }
+
+        // Update parent if provided
+        If tBody.%IsDefined("parentId") {
+            Set tNewParentIdStr = tBody.%Get("parentId")
+            If (tNewParentIdStr = "") || (tNewParentIdStr = "null") {
+                // Remove parent (un-link from hierarchy)
+                Set tTicket.Parent = ""
+            } Else {
+                Set tNewParentInternalId = ##class(SpectraSight.Util.TicketID).Parse(tNewParentIdStr)
+                If tNewParentInternalId = "" {
+                    Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Invalid parent ticket ID format")
+                    Quit
+                }
+                Set tChildType = ..GetTicketType(tTicket)
+                Set tSC = ##class(SpectraSight.Util.Validation).ValidateHierarchy(tNewParentInternalId, tChildType)
+                If $$$ISERR(tSC) {
+                    Set tSC = ##class(SpectraSight.REST.Response).BadRequest($System.Status.GetErrorText(tSC))
+                    Quit
+                }
+                Set tParentObj = ##class(SpectraSight.Model.Ticket).%OpenId(tNewParentInternalId)
+                If tParentObj '= "" {
+                    Set tTicket.Parent = tParentObj
+                }
+            }
         }
 
         // Update type-specific fields
@@ -437,7 +486,8 @@ ClassMethod DeleteTicket(pId As %String) As %Status
 }
 
 /// Build a %DynamicObject response from a ticket object
-ClassMethod BuildTicketResponse(pTicket As SpectraSight.Model.Ticket) As %DynamicObject
+/// pIncludeChildren: if true, include children array and parent object (used for detail view)
+ClassMethod BuildTicketResponse(pTicket As SpectraSight.Model.Ticket, pIncludeChildren As %Boolean = 1) As %DynamicObject
 {
     Set tObj = ##class(%DynamicObject).%New()
     Try {
@@ -450,6 +500,14 @@ ClassMethod BuildTicketResponse(pTicket As SpectraSight.Model.Ticket) As %Dynami
         Do tObj.%Set("assignee", pTicket.Assignee)
         If (pTicket.Parent '= "") {
             Do tObj.%Set("parentId", ##class(SpectraSight.Util.TicketID).Format(pTicket.Parent.%Id()))
+            // Include parent object with id, title, type
+            If pIncludeChildren {
+                Set tParentObj = ##class(%DynamicObject).%New()
+                Do tParentObj.%Set("id", ##class(SpectraSight.Util.TicketID).Format(pTicket.Parent.%Id()))
+                Do tParentObj.%Set("title", pTicket.Parent.Title)
+                Do tParentObj.%Set("type", ..GetTicketType(pTicket.Parent))
+                Do tObj.%Set("parent", tParentObj)
+            }
         }
         Do tObj.%Set("createdAt", pTicket.CreatedAt)
         Do tObj.%Set("updatedAt", pTicket.UpdatedAt)
@@ -470,9 +528,31 @@ ClassMethod BuildTicketResponse(pTicket As SpectraSight.Model.Ticket) As %Dynami
             Do tObj.%Set("startDate", pTicket.StartDate)
             Do tObj.%Set("targetDate", pTicket.TargetDate)
         }
+
+        // Include children array for detail view
+        If pIncludeChildren {
+            Set tChildren = ##class(%DynamicArray).%New()
+            Set tChildStmt = ##class(%SQL.Statement).%New()
+            Set tSC2 = tChildStmt.%Prepare("SELECT ID FROM SpectraSight_Model.Ticket WHERE Parent = ?")
+            If $$$ISOK(tSC2) {
+                Set tChildRS = tChildStmt.%Execute(pTicket.%Id())
+                While tChildRS.%Next() {
+                    Set tChild = ##class(SpectraSight.Model.Ticket).%OpenId(tChildRS.ID)
+                    If tChild '= "" {
+                        Set tChildObj = ##class(%DynamicObject).%New()
+                        Do tChildObj.%Set("id", ##class(SpectraSight.Util.TicketID).Format(tChild.%Id()))
+                        Do tChildObj.%Set("title", tChild.Title)
+                        Do tChildObj.%Set("status", tChild.Status)
+                        Do tChildObj.%Set("type", ..GetTicketType(tChild))
+                        Do tChildren.%Push(tChildObj)
+                    }
+                }
+            }
+            Do tObj.%Set("children", tChildren)
+        }
     }
     Catch ex {
-        // Log error but return partially built object
+        Set ^ClaudeDebug("REST", "BuildTicketResponse", "error") = ex.DisplayString()
     }
     Quit tObj
 }

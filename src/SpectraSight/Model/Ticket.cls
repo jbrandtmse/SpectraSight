@@ -21,6 +21,8 @@ Index StatusIdx On Status;
 
 Index AssigneeIdx On Assignee;
 
+Index ParentIdx On Parent;
+
 Method %OnNew(initvalue As %String = "") As %Status
 {
     Set tSC = $$$OK

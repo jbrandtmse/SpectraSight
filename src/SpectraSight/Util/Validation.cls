@@ -62,6 +62,46 @@ ClassMethod ValidateRequired(pValue As %String, pFieldName As %String) As %Statu
     Quit tSC
 }
 
+/// Validate parent-child hierarchy rules
+/// Epic can contain: Story, Bug
+/// Story can contain: Task, Bug
+/// Task can contain: Bug only
+/// Bug cannot have children
+ClassMethod ValidateHierarchy(pParentId As %Integer, pChildType As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        If pParentId '= "" {
+            Set tParent = ##class(SpectraSight.Model.Ticket).%OpenId(pParentId)
+            If tParent = "" {
+                Set tSC = $$$ERROR(5001, "INVALID_HIERARCHY: Parent ticket not found")
+            } Else {
+                Set tParentType = ##class(SpectraSight.REST.TicketHandler).GetTicketType(tParent)
+                Set tLowerChild = $ZCONVERT(pChildType, "L")
+                If tParentType = "epic" {
+                    If (tLowerChild '= "story") && (tLowerChild '= "bug") {
+                        Set tSC = $$$ERROR(5001, "INVALID_HIERARCHY: Epic can only contain Story or Bug, not "_pChildType)
+                    }
+                } ElseIf tParentType = "story" {
+                    If (tLowerChild '= "task") && (tLowerChild '= "bug") {
+                        Set tSC = $$$ERROR(5001, "INVALID_HIERARCHY: Story can only contain Task or Bug, not "_pChildType)
+                    }
+                } ElseIf tParentType = "task" {
+                    If tLowerChild '= "bug" {
+                        Set tSC = $$$ERROR(5001, "INVALID_HIERARCHY: Task can only contain Bug, not "_pChildType)
+                    }
+                } ElseIf tParentType = "bug" {
+                    Set tSC = $$$ERROR(5001, "INVALID_HIERARCHY: Bug cannot have children")
+                }
+            }
+        }
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    Quit tSC
+}
+
 /// Map a lowercase type string to the full class name
 ClassMethod GetClassForType(pType As %String, Output pClassName As %String) As %Status
 {
