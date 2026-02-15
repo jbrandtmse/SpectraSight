@@ -112,7 +112,7 @@ describe('TicketsPageComponent', () => {
 
   it('should show ticket-detail when a ticket is selected', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets') && !r.url.includes('/activity'));
     req.flush({
       data: [{ id: 'SS-1', type: 'bug', title: 'Test', status: 'Open', priority: 'High', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }],
       total: 1, page: 1, pageSize: 100, totalPages: 1,
@@ -120,6 +120,10 @@ describe('TicketsPageComponent', () => {
 
     ticketService.selectTicket('SS-1');
     fixture.detectChanges();
+
+    // Flush activity request from timeline component
+    const activityReqs = httpMock.match(r => r.url.includes('/activity'));
+    activityReqs.forEach(r => r.flush({ data: [] }));
 
     const detail = fixture.nativeElement.querySelector('app-ticket-detail');
     expect(detail).toBeTruthy();

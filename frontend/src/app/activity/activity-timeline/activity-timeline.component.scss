@@ -1,0 +1,142 @@
+.timeline-section {
+  border-top: 1px solid var(--ss-border, #D4D4D4);
+  padding-top: var(--ss-lg);
+  margin-bottom: var(--ss-xl);
+}
+
+.timeline-section-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ss-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--ss-sm);
+}
+
+.timeline-empty {
+  font-size: 13px;
+  color: var(--ss-text-muted, #6B6B6B);
+  margin: var(--ss-sm) 0;
+}
+
+// Skeleton loading
+.timeline-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ss-sm);
+}
+
+.skeleton-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--ss-sm) 0;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 4px;
+  background: var(--ss-skeleton-bg, #E5E5E5);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-short {
+  width: 40%;
+}
+
+.skeleton-long {
+  width: 70%;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+// Timeline feed
+.timeline-feed {
+  position: relative;
+  padding-left: 16px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 8px;
+    bottom: 8px;
+    width: 1px;
+    background: var(--ss-border, #D4D4D4);
+  }
+}
+
+.timeline-entry {
+  position: relative;
+  padding: 6px 0;
+  display: flex;
+  gap: var(--ss-sm);
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -16px;
+  top: 12px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ss-border, #D4D4D4);
+  border: 2px solid var(--ss-surface, #FFFFFF);
+}
+
+.timeline-content {
+  flex: 1;
+  min-width: 0;
+  background: var(--ss-timeline-entry-bg, rgba(0, 0, 0, 0.02));
+  border-radius: 6px;
+  padding: var(--ss-sm) var(--ss-md, 12px);
+}
+
+.timeline-action {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ss-text-primary);
+  display: inline;
+}
+
+.actor-name {
+  font-weight: 600;
+}
+
+.code-ref {
+  font-family: var(--ss-font-mono);
+  font-size: 12px;
+  background: var(--ss-code-bg, rgba(0, 0, 0, 0.05));
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.timeline-timestamp {
+  display: block;
+  font-size: 11px;
+  color: var(--ss-text-muted, #6B6B6B);
+  margin-top: 2px;
+}
+
+// Comment styling
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: var(--ss-sm);
+}
+
+.comment-header .timeline-timestamp {
+  display: inline;
+  margin-top: 0;
+}
+
+.comment-body {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+}

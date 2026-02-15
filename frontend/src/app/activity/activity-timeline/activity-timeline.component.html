@@ -1,0 +1,71 @@
+@if (activityService.loading()) {
+  <!-- Loading skeleton -->
+  <div class="timeline-section">
+    <span class="timeline-section-label">Activity</span>
+    <div class="timeline-skeleton">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="skeleton-entry">
+          <div class="skeleton-line skeleton-short"></div>
+          <div class="skeleton-line skeleton-long"></div>
+        </div>
+      }
+    </div>
+  </div>
+} @else if (activityService.activities().length === 0) {
+  <!-- Empty state -->
+  <div class="timeline-section">
+    <span class="timeline-section-label">Activity</span>
+    <p class="timeline-empty">No activity yet</p>
+  </div>
+} @else {
+  <!-- Activity feed -->
+  <div class="timeline-section">
+    <span class="timeline-section-label">Activity</span>
+    <div class="timeline-feed" role="feed" aria-label="Ticket activity">
+      @for (activity of activityService.activities(); track activity.id) {
+        <div class="timeline-entry" role="article">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-action">
+              @if (isStatusChange(activity)) {
+                <span class="actor-name">{{ activity.actorName }}</span>
+                @if (activity.type === 'statusChange') {
+                  @if (activity.fromStatus) {
+                    <span> changed status from </span>
+                    <ss-status-badge [status]="asStatus(activity.fromStatus)" [compact]="true"></ss-status-badge>
+                    <span> to </span>
+                  } @else {
+                    <span> set status to </span>
+                  }
+                  <ss-status-badge [status]="asStatus(activity.toStatus)" [compact]="true"></ss-status-badge>
+                }
+              } @else if (isAssignmentChange(activity)) {
+                <span class="actor-name">{{ activity.actorName }}</span>
+                @if (activity.type === 'assignmentChange') {
+                  <span> reassigned from <strong>{{ activity.fromAssignee || 'Unassigned' }}</strong> to <strong>{{ activity.toAssignee || 'Unassigned' }}</strong></span>
+                }
+              } @else if (isCodeReferenceChange(activity)) {
+                <span class="actor-name">{{ activity.actorName }}</span>
+                @if (activity.type === 'codeReferenceChange') {
+                  <span> {{ activity.action }} code reference </span>
+                  <code class="code-ref">{{ getCodeRefDisplay(activity) }}</code>
+                }
+              } @else if (isComment(activity)) {
+                <div class="comment-header">
+                  <span class="actor-name">{{ activity.actorName }}</span>
+                  <time class="timeline-timestamp" [attr.datetime]="activity.timestamp" [title]="activity.timestamp">{{ activity.timestamp | relativeTime }}</time>
+                </div>
+                @if (activity.type === 'comment') {
+                  <p class="comment-body">{{ activity.body }}</p>
+                }
+              }
+            </div>
+            @if (!isComment(activity)) {
+              <time class="timeline-timestamp" [attr.datetime]="activity.timestamp" [title]="activity.timestamp">{{ activity.timestamp | relativeTime }}</time>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}

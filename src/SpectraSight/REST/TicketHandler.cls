@@ -605,6 +605,87 @@ ClassMethod RemoveCodeReference(pId As %String, pRefId As %String) As %Status
     Quit tSC
 }
 
+/// GET /api/tickets/:id/activity - List activity entries for a ticket
+ClassMethod ListActivity(pId As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        Set tInternalId = ##class(SpectraSight.Util.TicketID).Parse(pId)
+        If tInternalId = "" {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest("Invalid ticket ID format")
+            Quit
+        }
+
+        Set tTicket = ##class(SpectraSight.Model.Ticket).%OpenId(tInternalId)
+        If tTicket = "" {
+            Set tSC = ##class(SpectraSight.REST.Response).NotFound("Ticket "_##class(SpectraSight.Util.TicketID).Format(tInternalId)_" not found")
+            Quit
+        }
+
+        // Query all activity entries for this ticket, ordered oldest first
+        Set tStatement = ##class(%SQL.Statement).%New()
+        Set tSC2 = tStatement.%Prepare("SELECT %ID FROM SpectraSight_Model.Activity WHERE Ticket = ? ORDER BY Timestamp ASC")
+        If $$$ISERR(tSC2) {
+            Set tSC = ##class(SpectraSight.REST.Response).ServerError("Failed to prepare activity query")
+            Quit
+        }
+
+        Set tResult = tStatement.%Execute(tInternalId)
+        Set tArray = ##class(%DynamicArray).%New()
+
+        While tResult.%Next() {
+            Set tActivity = ##class(SpectraSight.Model.Activity).%OpenId(tResult.%Get("ID"))
+            If tActivity '= "" {
+                Set tEntry = ..BuildActivityEntry(tActivity)
+                If tEntry.%Get("type") '= "" {
+                    Do tArray.%Push(tEntry)
+                }
+            }
+        }
+
+        Set tSC = ##class(SpectraSight.REST.Response).Success(tArray)
+    }
+    Catch ex {
+        Set tSC = ##class(SpectraSight.REST.Response).ServerError("An unexpected error occurred while listing activity")
+    }
+    Quit tSC
+}
+
+/// Build a %DynamicObject for a single activity entry based on its subclass type
+ClassMethod BuildActivityEntry(pActivity As SpectraSight.Model.Activity) As %DynamicObject
+{
+    Set tEntry = ##class(%DynamicObject).%New()
+    Try {
+        Do tEntry.%Set("id", pActivity.%Id(), "number")
+        Do tEntry.%Set("actorName", pActivity.ActorName)
+        Do tEntry.%Set("actorType", pActivity.ActorType)
+        Do tEntry.%Set("timestamp", pActivity.Timestamp)
+
+        Set tClassName = $CLASSNAME(pActivity)
+        If tClassName = "SpectraSight.Model.StatusChange" {
+            Do tEntry.%Set("type", "statusChange")
+            Do tEntry.%Set("fromStatus", pActivity.FromStatus)
+            Do tEntry.%Set("toStatus", pActivity.ToStatus)
+        } ElseIf tClassName = "SpectraSight.Model.AssignmentChange" {
+            Do tEntry.%Set("type", "assignmentChange")
+            Do tEntry.%Set("fromAssignee", pActivity.FromAssignee)
+            Do tEntry.%Set("toAssignee", pActivity.ToAssignee)
+        } ElseIf tClassName = "SpectraSight.Model.CodeReferenceChange" {
+            Do tEntry.%Set("type", "codeReferenceChange")
+            Do tEntry.%Set("className", pActivity.ClassName)
+            Do tEntry.%Set("methodName", pActivity.MethodName)
+            Do tEntry.%Set("action", pActivity.Action)
+        } ElseIf tClassName = "SpectraSight.Model.Comment" {
+            Do tEntry.%Set("type", "comment")
+            Do tEntry.%Set("body", pActivity.Body)
+        }
+    }
+    Catch ex {
+        Set ^ClaudeDebug("REST", "BuildActivityEntry", "error") = ex.DisplayString()
+    }
+    Quit tEntry
+}
+
 /// Build a %DynamicObject response from a ticket object
 /// pIncludeChildren: if true, include children array and parent object (used for detail view)
 ClassMethod BuildTicketResponse(pTicket As SpectraSight.Model.Ticket, pIncludeChildren As %Boolean = 1) As %DynamicObject

@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, HostListener, output } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, HostListener, output, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -14,6 +14,7 @@ import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
 import { HierarchyBreadcrumbComponent } from '../../shared/hierarchy-breadcrumb/hierarchy-breadcrumb.component';
 import { ConfirmDeleteDialogComponent } from '../confirm-delete-dialog/confirm-delete-dialog.component';
 import { CodeReferenceFieldComponent } from '../../code-references/code-reference-field/code-reference-field.component';
+import { ActivityTimelineComponent } from '../../activity/activity-timeline/activity-timeline.component';
 import { CodeReference } from '../ticket.model';
 
 @Component({
@@ -31,6 +32,7 @@ import { CodeReference } from '../ticket.model';
     RelativeTimePipe,
     HierarchyBreadcrumbComponent,
     CodeReferenceFieldComponent,
+    ActivityTimelineComponent,
   ],
   templateUrl: './ticket-detail.component.html',
   styleUrl: './ticket-detail.component.scss',
@@ -40,6 +42,7 @@ export class TicketDetailComponent {
   private router = inject(Router);
   private dialog = inject(MatDialog);
   addSubtaskRequested = output<string>();
+  activityRefreshTrigger = signal(0);
 
   statusOptions = ['Open', 'In Progress', 'Blocked', 'Complete'];
   priorityOptions = ['Low', 'Medium', 'High', 'Critical'];
@@ -66,6 +69,9 @@ export class TicketDetailComponent {
         coerced = isNaN(parsed) ? null : parsed;
       }
       this.ticketService.updateTicketField(ticket.id, field, coerced);
+      if (field === 'status' || field === 'assignee') {
+        this.activityRefreshTrigger.update((n) => n + 1);
+      }
     }
   }
 
@@ -111,6 +117,7 @@ export class TicketDetailComponent {
     if (ticket) {
       this.ticketService.getTicket(ticket.id).subscribe((updated) => {
         this.ticketService.updateTicketInList(updated);
+        this.activityRefreshTrigger.update((n) => n + 1);
       });
     }
   }

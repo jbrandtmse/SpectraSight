@@ -73,6 +73,12 @@
       (referenceRemoved)="onCodeReferenceRemoved($event)">
     </ss-code-reference>
 
+    <!-- Activity Timeline -->
+    <ss-activity-timeline
+      [ticketId]="ticket.id"
+      [refreshTrigger]="activityRefreshTrigger()">
+    </ss-activity-timeline>
+
     <!-- Children list -->
     @if (ticket.children?.length) {
       <div class="detail-section children-section">

@@ -112,10 +112,13 @@ describe('TicketDetailComponent', () => {
 
   function selectTicketFromList(tickets: Ticket[], ticket: Ticket): void {
     ticketService.loadTickets();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets') && !r.url.includes('/activity'));
     req.flush({ data: tickets, total: tickets.length, page: 1, pageSize: 100, totalPages: 1 });
     ticketService.selectTicket(ticket.id);
     fixture.detectChanges();
+    // Flush activity request triggered by ActivityTimelineComponent effect
+    const activityReqs = httpMock.match(r => r.url.includes('/activity'));
+    activityReqs.forEach(r => r.flush({ data: [] }));
   }
 
   it('should create', () => {
