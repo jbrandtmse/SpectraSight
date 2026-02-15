@@ -1,7 +1,6 @@
-import { Component, ChangeDetectionStrategy, inject, signal, OnInit, ElementRef, ViewChildren, QueryList } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, output, OnInit, ElementRef, ViewChildren, QueryList } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { TicketService } from '../ticket.service';
 import { TicketRowComponent } from './ticket-row.component';
 import { Ticket } from '../ticket.model';
@@ -17,7 +16,8 @@ import { Ticket } from '../ticket.model';
 export class TicketListComponent implements OnInit {
   ticketService = inject(TicketService);
   private router = inject(Router);
-  private snackBar = inject(MatSnackBar);
+
+  newTicketRequested = output<void>();
 
   @ViewChildren('rowRef', { read: ElementRef }) rowRefs!: QueryList<ElementRef>;
 
@@ -39,7 +39,7 @@ export class TicketListComponent implements OnInit {
   }
 
   onNewTicket(): void {
-    this.snackBar.open('Coming soon (Story 1.6)', 'Dismiss', { duration: 3000 });
+    this.newTicketRequested.emit();
   }
 
   onKeydown(event: KeyboardEvent): void {

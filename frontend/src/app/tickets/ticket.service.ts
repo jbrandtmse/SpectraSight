@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { environment } from '../../environments/environment';
-import { Ticket } from './ticket.model';
+import { Ticket, CreateTicketRequest } from './ticket.model';
 import { ApiListResponse, ApiResponse } from '../shared/models/api-response.model';
 
 @Injectable({ providedIn: 'root' })
@@ -97,6 +97,36 @@ export class TicketService {
 
   updateTicketField(id: string, field: string, value: unknown): void {
     this.updateTicket(id, { [field]: value } as Partial<Ticket>);
+  }
+
+  createTicket(data: CreateTicketRequest): Observable<Ticket> {
+    return this.http
+      .post<ApiResponse<Ticket>>(`${environment.apiBaseUrl}/tickets`, data)
+      .pipe(
+        map((response) => {
+          const ticket = response.data;
+          this.ticketsSignal.update((tickets) => [ticket, ...tickets]);
+          this.selectTicket(ticket.id);
+          this.snackBar.open(`Ticket ${ticket.id} created`, '', { duration: 3000 });
+          return ticket;
+        })
+      );
+  }
+
+  deleteTicket(id: string): void {
+    this.http
+      .delete(`${environment.apiBaseUrl}/tickets/${id}`)
+      .subscribe({
+        next: () => {
+          this.ticketsSignal.update((tickets) => tickets.filter((t) => t.id !== id));
+          this.selectTicket(null);
+          this.snackBar.open('Ticket deleted', '', { duration: 3000 });
+        },
+        error: (err) => {
+          const message = err.error?.error?.message || 'Failed to delete ticket';
+          this.snackBar.open(message, 'Dismiss', { duration: 0, panelClass: ['ss-error-snackbar'] });
+        },
+      });
   }
 
   selectTicket(id: string | null): void {

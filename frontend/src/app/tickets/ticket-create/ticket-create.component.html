@@ -1,0 +1,86 @@
+<div class="create-panel">
+  <div class="create-header">
+    <span class="create-title">New Ticket</span>
+    <span class="spacer"></span>
+    <button mat-icon-button (click)="onCancel()" aria-label="Close creation form">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="create-form">
+    <!-- Title (required) -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Title</mat-label>
+      <input matInput formControlName="title" autocomplete="off" />
+      @if (form.controls.title.hasError('required') && form.controls.title.touched) {
+        <mat-error>Title is required</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- Type (required) -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Type</mat-label>
+      <mat-select formControlName="type">
+        @for (t of typeOptions; track t) {
+          <mat-option [value]="t">
+            <div class="type-option">
+              <ss-type-icon [type]="t" [size]="16"></ss-type-icon>
+              <span>{{ t | titlecase }}</span>
+            </div>
+          </mat-option>
+        }
+      </mat-select>
+      @if (form.controls.type.hasError('required') && form.controls.type.touched) {
+        <mat-error>Type is required</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- Optional fields -->
+    <div class="optional-section">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Status</mat-label>
+        <mat-select formControlName="status">
+          @for (s of statusOptions; track s) {
+            <mat-option [value]="s">{{ s }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Priority</mat-label>
+        <mat-select formControlName="priority">
+          <mat-option value="">None</mat-option>
+          @for (p of priorityOptions; track p) {
+            <mat-option [value]="p">{{ p }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Assignee</mat-label>
+        <input matInput formControlName="assignee" autocomplete="off" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Description</mat-label>
+        <textarea matInput formControlName="description" rows="3"></textarea>
+      </mat-form-field>
+    </div>
+
+    <!-- Actions -->
+    <div class="create-actions">
+      <button mat-button type="button" (click)="onCancel()">Cancel</button>
+      <button
+        mat-flat-button
+        color="primary"
+        type="submit"
+        [disabled]="form.invalid || submitting()">
+        @if (submitting()) {
+          Creating...
+        } @else {
+          Create
+        }
+      </button>
+    </div>
+  </form>
+</div>

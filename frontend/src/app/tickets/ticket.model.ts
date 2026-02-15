@@ -40,3 +40,12 @@ export interface EpicTicket extends Ticket {
   startDate?: string;
   targetDate?: string;
 }
+
+export interface CreateTicketRequest {
+  type: TicketType;
+  title: string;
+  description?: string;
+  status?: TicketStatus;
+  priority?: TicketPriority;
+  assignee?: string;
+}

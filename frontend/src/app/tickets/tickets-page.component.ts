@@ -1,20 +1,26 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, OnInit, HostListener } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { SplitPanelComponent } from './split-panel/split-panel.component';
 import { TicketListComponent } from './ticket-list/ticket-list.component';
 import { TicketDetailComponent } from './ticket-detail/ticket-detail.component';
+import { TicketCreateComponent } from './ticket-create/ticket-create.component';
 import { TicketService } from './ticket.service';
 
 @Component({
   selector: 'app-tickets-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SplitPanelComponent, TicketListComponent, TicketDetailComponent],
+  imports: [SplitPanelComponent, TicketListComponent, TicketDetailComponent, TicketCreateComponent],
   template: `
     <ss-split-panel>
-      <app-ticket-list listPanel></app-ticket-list>
+      <app-ticket-list listPanel (newTicketRequested)="onNewTicket()"></app-ticket-list>
       <div detailPanel class="detail-container">
-        @if (ticketService.selectedTicket()) {
+        @if (creating()) {
+          <app-ticket-create
+            (created)="onCreated()"
+            (cancelled)="onCancelled()">
+          </app-ticket-create>
+        } @else if (ticketService.selectedTicket()) {
           <app-ticket-detail></app-ticket-detail>
         } @else {
           <div class="detail-placeholder">
@@ -48,6 +54,14 @@ export class TicketsPageComponent implements OnInit {
   ticketService = inject(TicketService);
   private route = inject(ActivatedRoute);
 
+  creating = signal(false);
+
+  @HostListener('document:keydown.control.n', ['$event'])
+  onCtrlN(event: Event): void {
+    event.preventDefault();
+    this.creating.set(true);
+  }
+
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
       const id = params.get('id');
@@ -55,5 +69,17 @@ export class TicketsPageComponent implements OnInit {
         this.ticketService.selectTicket(id);
       }
     });
+  }
+
+  onNewTicket(): void {
+    this.creating.set(true);
+  }
+
+  onCreated(): void {
+    this.creating.set(false);
+  }
+
+  onCancelled(): void {
+    this.creating.set(false);
   }
 }

@@ -76,3 +76,9 @@
 .timestamp-separator {
   color: var(--ss-text-muted, #6B6B6B);
 }
+
+.detail-delete {
+  margin-top: var(--ss-xl);
+  padding-top: var(--ss-lg);
+  border-top: 1px solid var(--ss-border, #D4D4D4);
+}

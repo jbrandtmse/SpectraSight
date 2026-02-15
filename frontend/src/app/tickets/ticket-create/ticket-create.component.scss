@@ -1,0 +1,51 @@
+.create-panel {
+  padding: var(--ss-xl);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.create-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--ss-lg);
+}
+
+.create-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ss-text-primary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.create-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ss-sm);
+}
+
+.full-width {
+  width: 100%;
+}
+
+.type-option {
+  display: flex;
+  align-items: center;
+  gap: var(--ss-sm);
+}
+
+.optional-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ss-sm);
+  margin-top: var(--ss-sm);
+}
+
+.create-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ss-sm);
+  margin-top: var(--ss-lg);
+}

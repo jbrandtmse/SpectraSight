@@ -171,5 +171,10 @@
       <span class="timestamp-separator">&middot;</span>
       <span [matTooltip]="ticket.updatedAt">Updated: {{ ticket.updatedAt | relativeTime }}</span>
     </div>
+
+    <!-- Delete action -->
+    <div class="detail-delete">
+      <button mat-button color="warn" (click)="onDelete()">Delete</button>
+    </div>
   </div>
 }
