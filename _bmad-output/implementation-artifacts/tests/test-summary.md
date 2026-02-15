@@ -148,8 +148,77 @@
 
 ---
 
+## Story 1.4: Ticket List View
+
+**Date:** 2026-02-15
+**Test Framework:** Karma + Jasmine (Angular CLI default)
+**Test Files:** 7 new spec files
+
+## Generated Tests
+
+### Ticket Service
+
+- [x] `ticket.service.spec.ts` - TicketService: creation, initial empty state, loadTickets success with sort/pageSize params, loadTickets error handling, generic error fallback, selectTicket + selectedTicket computed, deselect on null, getTicket by id, optimistic update + server replace, revert on error, no update for unknown id, updateTicketField convenience wrapper, refreshTickets (14 tests)
+
+### Shared Components
+
+- [x] `type-icon.component.spec.ts` - TypeIconComponent: creation, bug/task/story/epic icon names, bug/task/story/epic color variables, size via style binding, aria-label set to type (11 tests)
+- [x] `status-badge.component.spec.ts` - StatusBadgeComponent: creation, label text, Open/InProgress/Blocked/Complete color variables, compact class toggle, aria-label (9 tests)
+- [x] `relative-time.pipe.spec.ts` - RelativeTimePipe: creation, null/undefined returns empty, "just now", "Xm ago", "Xh ago", "Yesterday", "Xd ago", "Mon DD" format (9 tests)
+
+### Ticket List Components
+
+- [x] `ticket-list.component.spec.ts` - TicketListComponent: creation, loadTickets on init, skeleton rows while loading, empty state with message + New Ticket button, renders ticket rows, listbox role + aria-label, focusedIndex starts at 0, ArrowDown/ArrowUp navigation with clamping, Enter selects + navigates, Escape deselects, keyboard ignored when empty, onTicketSelected updates selection + focusedIndex, tabindex for keyboard focus (16 tests)
+- [x] `ticket-row.component.spec.ts` - TicketRowComponent: creation, renders title/icon/badge/assignee/timestamp, 36px height, selected/focused class toggle, click emits ticketSelected, role="option", aria-selected, empty assignee (15 tests)
+- [x] `tickets-page.component.spec.ts` - TicketsPageComponent: creation, selectTicket from route param, no select without id, contains split panel + ticket list, placeholder text when no selection (6 tests)
+
+## Coverage
+
+### By Acceptance Criteria
+
+| AC | Test Coverage | Tests |
+|----|---------------|-------|
+| 1. Dense 36px rows with type icon, title, status, assignee, timestamp | Row rendering, height, all sub-components | ticket-row.component.spec, type-icon.component.spec, status-badge.component.spec, relative-time.pipe.spec |
+| 2. Sorted by most recently updated | loadTickets params verify sort=-updatedAt | ticket.service.spec |
+| 3. Type icons: bug=red, task=blue, story=green, epic=purple | Icon names + color variables for all 4 types | type-icon.component.spec |
+| 4. Status colors: Open=gray, InProgress=blue, Blocked=amber, Complete=green | Color variables for all 4 statuses | status-badge.component.spec |
+| 5. Click selection with accent border | Selected class + click emission | ticket-row.component.spec |
+| 6. Arrow/Enter/Escape keyboard nav | ArrowDown, ArrowUp, Enter, Escape handling | ticket-list.component.spec |
+| 7. Skeleton loading rows | 8 skeleton rows rendered during loading | ticket-list.component.spec |
+| 8. Empty state with message + New Ticket button | Empty state rendering | ticket-list.component.spec |
+| 9. Angular Signals for state | Signal-based service tests (readonly, computed) | ticket.service.spec |
+
+### By Component
+
+| Component | Tests | Coverage |
+|-----------|-------|----------|
+| TicketService | 14 | loadTickets, getTicket, updateTicket (optimistic + revert), selectTicket, refreshTickets |
+| TypeIconComponent | 11 | All 4 type icons + colors, size binding, aria-label |
+| StatusBadgeComponent | 9 | All 4 status colors, compact mode, aria-label |
+| RelativeTimePipe | 9 | All time ranges: just now, minutes, hours, yesterday, days, date |
+| TicketListComponent | 16 | Loading, empty, keyboard nav, selection, routing |
+| TicketRowComponent | 15 | Rendering, selection, focus, click, accessibility |
+| TicketsPageComponent | 6 | Route param, split panel integration, placeholder |
+
+### Summary Statistics
+
+- **Total tests:** 80 (all new)
+- **Passed:** 80
+- **Failed:** 0
+- **New spec files:** 7
+- **Combined project total (Stories 1.2-1.4):** 143 tests, all passing
+
+## Notes
+
+- TypeIconComponent and StatusBadgeComponent use `input.required<T>()` (Angular 18 signal inputs), so tests use a test host component wrapper to provide the required inputs.
+- TicketListComponent tests flush HTTP responses in `afterEach`-compatible manner via a helper function.
+- The `NG0205 Injector destroyed` warning from Angular router teardown appears during runs but does not affect test results.
+- Optimistic update revert behavior verified by checking ticket array reverts to original values after server error.
+
+---
+
 ## Next Steps
 
 - Full integration tests via HTTP (curl/REST client) when CI environment is configured
 - Add edge case tests for concurrent updates when needed
-- E2E tests for login flow and split panel drag interaction when Cypress/Playwright is set up
+- E2E tests for login flow, keyboard navigation, and split panel drag interaction when Cypress/Playwright is set up

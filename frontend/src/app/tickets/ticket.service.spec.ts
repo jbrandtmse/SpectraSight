@@ -162,9 +162,12 @@ describe('TicketService', () => {
     const loadReq = httpMock.expectOne(r => r.url.includes('/api/tickets') && r.method === 'GET');
     loadReq.flush({ data: MOCK_TICKETS, total: 3, page: 1, pageSize: 100, totalPages: 1 });
 
+    const ticketsBefore = service.tickets();
     service.updateTicket('nonexistent', { title: 'Nothing' });
     // No PUT request should be made
     httpMock.expectNone(r => r.method === 'PUT');
+    // Tickets should remain unchanged
+    expect(service.tickets()).toEqual(ticketsBefore);
   });
 
   it('should updateTicketField as a convenience wrapper', () => {
