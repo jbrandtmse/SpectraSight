@@ -192,7 +192,8 @@ ClassMethod ListTickets() As %Status
                 Set tOneType = $ZCONVERT($ZSTRIP($LIST(tTypeList, tI), "<>W"), "L")
                 Set tSC2 = ##class(SpectraSight.Util.Validation).GetClassForType(tOneType, .tFilterClass)
                 If $$$ISOK(tSC2) {
-                    Set tTableName = $TRANSLATE(tFilterClass, ".", "_")
+                    Set tTableName = $PIECE(tFilterClass, ".", 1, *-1)
+                    Set tTableName = $TRANSLATE(tTableName, ".", "_")_"."_$PIECE(tFilterClass, ".", *)
                     Set tTypeClauses = tTypeClauses_$SELECT(tTypeClauses="":"", 1:" OR ")_"%ID IN (SELECT %ID FROM "_tTableName_")"
                 } Else {
                     Set tTypeValid = 0

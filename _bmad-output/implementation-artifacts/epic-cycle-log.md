@@ -161,3 +161,63 @@
 - 2 MEDIUM: Missing output tests, dialog title documentation
 
 **User Input Required:** None
+
+## Story 2.1: Ticket Hierarchy & Navigation
+
+**Status:** COMPLETE
+**Commits:**
+- `6130c9a` — feat(2.1): implement Ticket Hierarchy & Navigation
+- `1d3f0fa` — test(2.1): add automated tests for Ticket Hierarchy & Navigation
+
+**Files Touched:**
+- `src/SpectraSight/Model/Ticket.cls` — Added parent property
+- `src/SpectraSight/REST/TicketHandler.cls` — Parent/child endpoints, hierarchy validation in CRUD
+- `src/SpectraSight/Util/Validation.cls` — ValidateHierarchy method (Epic>Story>Task rules)
+- `frontend/src/app/shared/hierarchy-breadcrumb/` — New breadcrumb component
+- `frontend/src/app/tickets/ticket-create/` — Parent autocomplete field
+- `frontend/src/app/tickets/ticket-detail/` — Children list, breadcrumb, add-subtask
+- `frontend/src/app/tickets/ticket.model.ts` — Parent/children type definitions
+- `frontend/src/app/tickets/tickets-page.component.ts` — creatingParentId signal
+- `src/SpectraSight/Test/TestHierarchy.cls` — 14 IRIS hierarchy tests
+- Frontend spec files — 37 new Angular tests
+
+**Key Design Decisions:**
+- Hierarchy validation in Validation.cls: Epic->Story, Story->Task, Bug->any parent
+- Breadcrumb component loads ancestor chain via recursive parent lookups
+- Parent autocomplete with hierarchy rule warning (computed signal)
+
+**Issues Auto-Resolved:**
+- 2 HIGH: Bare Quit inside Try block refactored; duplicate parentId parse/open consolidated
+- 3 MEDIUM: Empty catch block logging, non-reactive hierarchy warning, hardcoded breadcrumb width
+- 2 LOW: Add-subtask hidden for Bugs, unused method removed
+
+**User Input Required:** None
+
+## Story 2.2: List Filtering, Sorting & Search
+
+**Status:** COMPLETE
+**Commits:**
+- `67efc94` — feat(2.2): implement List Filtering, Sorting & Search
+- `83eb383` — test(2.2): add automated tests for List Filtering, Sorting & Search
+
+**Files Touched:**
+- `frontend/src/app/shared/filter-bar/` — New filter bar component (ts/html/scss/spec)
+- `frontend/src/app/tickets/ticket.model.ts` — FilterState interface
+- `frontend/src/app/tickets/ticket.service.ts` — Filter state signal, setFilters(), debounced search
+- `frontend/src/app/tickets/tickets-page.component.ts` — Filter bar integration, URL state sync, "/" shortcut
+- `frontend/src/app/tickets/ticket-list/ticket-list.component.ts` — Sort column headers, filtered empty state
+- `frontend/src/app/tickets/ticket-list/ticket-row.component.html` — Priority column
+- `src/SpectraSight/REST/TicketHandler.cls` — Multi-value type/status filters, ExecuteWithParams helper
+- `src/SpectraSight/Test/TestFilter.cls` — IRIS filter/sort/search tests
+
+**Key Design Decisions:**
+- Filter bar with multi-select type/status chips, priority/assignee dropdowns, debounced search
+- URL state management via Router.navigate + ActivatedRoute.queryParamMap for browser history
+- "/" keyboard shortcut to focus search (skips when in input/textarea)
+- Comma-separated multi-value filters with OR for type subqueries, IN for status
+
+**Issues Auto-Resolved:**
+- 4 issues fixed during code review
+- 1 SQL bug: table name translation fixed (schema-qualified name instead of replacing all dots)
+
+**User Input Required:** None
