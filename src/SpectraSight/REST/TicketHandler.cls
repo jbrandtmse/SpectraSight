@@ -105,7 +105,7 @@ ClassMethod CreateTicket() As %Status
         Set tSC = ##class(SpectraSight.REST.Response).Created(tResponse)
     }
     Catch ex {
-        Set tSC = ##class(SpectraSight.REST.Response).ServerError(ex.DisplayString())
+        Set tSC = ##class(SpectraSight.REST.Response).ServerError("An unexpected error occurred while creating the ticket")
     }
     Quit tSC
 }
@@ -129,7 +129,7 @@ ClassMethod GetTicket(pId As %String) As %Status
         Set tSC = ##class(SpectraSight.REST.Response).Success(tResponse)
     }
     Catch ex {
-        Set tSC = ##class(SpectraSight.REST.Response).ServerError(ex.DisplayString())
+        Set tSC = ##class(SpectraSight.REST.Response).ServerError("An unexpected error occurred while retrieving the ticket")
     }
     Quit tSC
 }
@@ -283,7 +283,7 @@ ClassMethod ListTickets() As %Status
         Set tSC = ##class(SpectraSight.REST.Response).PaginatedList(tArray, tTotal, tPage, tPageSize)
     }
     Catch ex {
-        Set tSC = ##class(SpectraSight.REST.Response).ServerError(ex.DisplayString())
+        Set tSC = ##class(SpectraSight.REST.Response).ServerError("An unexpected error occurred while listing tickets")
     }
     Quit tSC
 }
@@ -385,7 +385,7 @@ ClassMethod UpdateTicket(pId As %String) As %Status
         Set tSC = ##class(SpectraSight.REST.Response).Success(tResponse)
     }
     Catch ex {
-        Set tSC = ##class(SpectraSight.REST.Response).ServerError(ex.DisplayString())
+        Set tSC = ##class(SpectraSight.REST.Response).ServerError("An unexpected error occurred while updating the ticket")
     }
     Quit tSC
 }
@@ -431,7 +431,7 @@ ClassMethod DeleteTicket(pId As %String) As %Status
         Set tSC = ##class(SpectraSight.REST.Response).SuccessNoContent()
     }
     Catch ex {
-        Set tSC = ##class(SpectraSight.REST.Response).ServerError(ex.DisplayString())
+        Set tSC = ##class(SpectraSight.REST.Response).ServerError("An unexpected error occurred while deleting the ticket")
     }
     Quit tSC
 }
