@@ -80,37 +80,63 @@ ClassMethod GetResult(pTestName As %String) As %String [ SqlProc ]
 }
 
 /// Test TicketID.Format, Parse, and IsValid methods
+/// Updated for project-aware TicketID behavior (Story 5.1): Parse resolves
+/// prefix-based IDs via Project + SequenceNumber lookup, not raw internal IDs.
 ClassMethod TestTicketIDFormat() As %Status
 {
     Set tSC = $$$OK
+    Set tProjectId = ""
+    Set tBugId = ""
     Try {
-        // Format tests
-        Set tVal1 = ##class(SpectraSight.Util.TicketID).Format(1)
-        If tVal1 '= "SS-1" Set tSC = $$$ERROR(5001, "Format(1) expected SS-1, got: "_tVal1) Quit
+        // Create a project and ticket for Parse/IsValid tests
+        Set tProject = ##class(SpectraSight.Model.Project).%New()
+        Set tProject.Name = "TicketID Format Test"
+        Set tProject.Prefix = "TF"
+        Set tSC = tProject.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tProjectId = tProject.%Id()
 
-        Set tVal42 = ##class(SpectraSight.Util.TicketID).Format(42)
-        If tVal42 '= "SS-42" Set tSC = $$$ERROR(5001, "Format(42) expected SS-42, got: "_tVal42) Quit
+        Set tBug = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug.Title = "Format Test Bug"
+        Set tBug.Project = tProject
+        Set tBug.SequenceNumber = 1
+        Set tSC = tBug.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tBugId = tBug.%Id()
 
-        // Parse tests
-        Set tParsed1 = ##class(SpectraSight.Util.TicketID).Parse("SS-42")
-        If tParsed1 '= 42 Set tSC = $$$ERROR(5001, "Parse(SS-42) expected 42, got: "_tParsed1) Quit
+        // Format: ticket with project returns "TF-1"
+        Set tVal = ##class(SpectraSight.Util.TicketID).Format(tBugId)
+        If tVal '= "TF-1" Set tSC = $$$ERROR(5001, "Format expected TF-1, got: "_tVal) Quit
 
-        Set tParsed2 = ##class(SpectraSight.Util.TicketID).Parse("42")
-        If tParsed2 '= 42 Set tSC = $$$ERROR(5001, "Parse(42) expected 42, got: "_tParsed2) Quit
+        // Parse: "TF-1" resolves to the bug's internal ID
+        Set tParsed1 = ##class(SpectraSight.Util.TicketID).Parse("TF-1")
+        If tParsed1 '= +tBugId Set tSC = $$$ERROR(5001, "Parse(TF-1) expected "_tBugId_", got: "_tParsed1) Quit
 
+        // Parse: plain numeric ID still works
+        Set tParsed2 = ##class(SpectraSight.Util.TicketID).Parse(tBugId)
+        If tParsed2 '= +tBugId Set tSC = $$$ERROR(5001, "Parse("_tBugId_") expected "_tBugId_", got: "_tParsed2) Quit
+
+        // Parse: invalid string returns empty
         Set tParsed3 = ##class(SpectraSight.Util.TicketID).Parse("invalid")
         If tParsed3 '= "" Set tSC = $$$ERROR(5001, "Parse(invalid) expected empty, got: "_tParsed3) Quit
 
-        // IsValid tests
-        Set tValid1 = ##class(SpectraSight.Util.TicketID).IsValid("SS-1")
-        If tValid1 '= 1 Set tSC = $$$ERROR(5001, "IsValid(SS-1) expected 1, got: "_tValid1) Quit
+        // IsValid: existing ticket returns true
+        Set tValid1 = ##class(SpectraSight.Util.TicketID).IsValid("TF-1")
+        If tValid1 '= 1 Set tSC = $$$ERROR(5001, "IsValid(TF-1) expected 1, got: "_tValid1) Quit
 
+        // IsValid: non-existent returns false
         Set tValid2 = ##class(SpectraSight.Util.TicketID).IsValid("abc")
         If tValid2 '= 0 Set tSC = $$$ERROR(5001, "IsValid(abc) expected 0, got: "_tValid2) Quit
+
+        // IsValid: unknown prefix returns false
+        Set tValid3 = ##class(SpectraSight.Util.TicketID).IsValid("ZZ-999")
+        If tValid3 '= 0 Set tSC = $$$ERROR(5001, "IsValid(ZZ-999) expected 0, got: "_tValid3) Quit
     }
     Catch ex {
         Set tSC = ex.AsStatus()
     }
+    If tBugId '= "" Do ##class(SpectraSight.Model.Bug).%DeleteId(tBugId)
+    If tProjectId '= "" Do ##class(SpectraSight.Model.Project).%DeleteId(tProjectId)
     Quit tSC
 }
 
@@ -562,9 +588,14 @@ ClassMethod TestDeleteWithCleanup() As %Status
 }
 
 /// Test TicketID edge cases: empty, SS- without digits, SS-0, 0, SS-abc
+/// Updated for project-aware TicketID behavior (Story 5.1): Parse resolves
+/// prefix-based IDs via Project + SequenceNumber lookup. "SS-0" and "SS-99999"
+/// no longer return raw numbers — they return empty when no matching ticket exists.
 ClassMethod TestTicketIDEdgeCases() As %Status
 {
     Set tSC = $$$OK
+    Set tProjectId = ""
+    Set tBugId = ""
     Try {
         // Empty string
         Set tEmpty = ##class(SpectraSight.Util.TicketID).Parse("")
@@ -578,11 +609,11 @@ ClassMethod TestTicketIDEdgeCases() As %Status
         Set tAlpha = ##class(SpectraSight.Util.TicketID).Parse("SS-abc")
         If tAlpha '= "" Set tSC = $$$ERROR(5001, "Parse('SS-abc') expected empty, got: "_tAlpha) Quit
 
-        // SS-0 (zero is valid)
+        // SS-0: no ticket has SequenceNumber 0, returns empty
         Set tZero = ##class(SpectraSight.Util.TicketID).Parse("SS-0")
-        If tZero '= 0 Set tSC = $$$ERROR(5001, "Parse('SS-0') expected 0, got: "_tZero) Quit
+        If tZero '= "" Set tSC = $$$ERROR(5001, "Parse('SS-0') expected empty (no ticket with seq 0), got: "_tZero) Quit
 
-        // Plain 0
+        // Plain 0 still returns 0 (plain numeric IDs pass through)
         Set tPlainZero = ##class(SpectraSight.Util.TicketID).Parse("0")
         If tPlainZero '= 0 Set tSC = $$$ERROR(5001, "Parse('0') expected 0, got: "_tPlainZero) Quit
 
@@ -594,21 +625,47 @@ ClassMethod TestTicketIDEdgeCases() As %Status
         Set tValidDash = ##class(SpectraSight.Util.TicketID).IsValid("SS-")
         If tValidDash '= 0 Set tSC = $$$ERROR(5001, "IsValid('SS-') expected 0, got: "_tValidDash) Quit
 
-        // Format large number
+        // Format for non-existent ticket ID falls back to "SS-{id}"
         Set tLarge = ##class(SpectraSight.Util.TicketID).Format(99999)
         If tLarge '= "SS-99999" Set tSC = $$$ERROR(5001, "Format(99999) expected SS-99999, got: "_tLarge) Quit
 
-        // Parse large number
+        // Parse "SS-99999": no ticket with SequenceNumber 99999 in SS project, returns empty
         Set tParseLarge = ##class(SpectraSight.Util.TicketID).Parse("SS-99999")
-        If tParseLarge '= 99999 Set tSC = $$$ERROR(5001, "Parse('SS-99999') expected 99999, got: "_tParseLarge) Quit
+        If tParseLarge '= "" Set tSC = $$$ERROR(5001, "Parse('SS-99999') expected empty (no matching ticket), got: "_tParseLarge) Quit
 
         // SS-3.5 (decimal should be rejected - not an integer)
         Set tDecimal = ##class(SpectraSight.Util.TicketID).Parse("SS-3.5")
         If tDecimal '= "" Set tSC = $$$ERROR(5001, "Parse('SS-3.5') expected empty, got: "_tDecimal) Quit
+
+        // Create real project + ticket to test positive Parse with actual data
+        Set tProject = ##class(SpectraSight.Model.Project).%New()
+        Set tProject.Name = "Edge Case Test"
+        Set tProject.Prefix = "EC"
+        Set tSC = tProject.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tProjectId = tProject.%Id()
+
+        Set tBug = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug.Title = "Edge Case Bug"
+        Set tBug.Project = tProject
+        Set tBug.SequenceNumber = 42
+        Set tSC = tBug.%Save()
+        If $$$ISERR(tSC) Quit
+        Set tBugId = tBug.%Id()
+
+        // Parse "EC-42" should resolve to the bug's internal ID
+        Set tParsedReal = ##class(SpectraSight.Util.TicketID).Parse("EC-42")
+        If tParsedReal '= +tBugId Set tSC = $$$ERROR(5001, "Parse('EC-42') expected "_tBugId_", got: "_tParsedReal) Quit
+
+        // Parse "EC-999" (non-existent SequenceNumber in existing project) returns empty
+        Set tParsedMiss = ##class(SpectraSight.Util.TicketID).Parse("EC-999")
+        If tParsedMiss '= "" Set tSC = $$$ERROR(5001, "Parse('EC-999') expected empty, got: "_tParsedMiss) Quit
     }
     Catch ex {
         Set tSC = ex.AsStatus()
     }
+    If tBugId '= "" Do ##class(SpectraSight.Model.Bug).%DeleteId(tBugId)
+    If tProjectId '= "" Do ##class(SpectraSight.Model.Project).%DeleteId(tProjectId)
     Quit tSC
 }
 

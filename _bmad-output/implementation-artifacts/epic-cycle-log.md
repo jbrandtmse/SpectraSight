@@ -406,3 +406,124 @@
 - 3 MEDIUM: README not updated with new tools, stale QA test descriptions, incomplete tool name verification
 
 **User Input Required:** None
+
+## Story 5.1: Project Data Model & Default Project
+
+**Status:** COMPLETE
+**Commits:**
+- `5cbd331` — feat(5.1): implement Project data model and default project
+- `92afbbd` — test(5.1): add automated tests for Project Data Model & Default Project
+
+**Files Touched:**
+- `src/SpectraSight/Model/Project.cls` — NEW: Project %Persistent class with prefix, sequence counter, timestamps
+- `src/SpectraSight/Model/Ticket.cls` — Added Project reference, SequenceNumber properties, storage values 10-11
+- `src/SpectraSight/Util/TicketID.cls` — Rewritten for multi-project prefix support with backward compatibility
+- `src/SpectraSight/Util/Setup.cls` — Added EnsureDefaultProject migration method
+- `src/SpectraSight/REST/TicketHandler.cls` — Project assignment in CreateTicket (atomic locking), projectId/projectPrefix in BuildTicketResponse
+- `src/SpectraSight/Test/TestProject.cls` — 6 unit tests for Project model
+- `src/SpectraSight/Test/TestProjectIntegration.cls` — 11 integration tests (prefix validation, TicketID, response fields, migration, sequencing)
+
+**Key Design Decisions:**
+- Atomic sequence counter via LOCK +^SpectraSight.Model.ProjectD for concurrent safety
+- Backward-compatible TicketID: falls back to SS-{ID} for tickets without Project/SequenceNumber
+- EnsureDefaultProject migration assigns existing tickets to SS project with SequenceNumber = internal ID
+- Prefix validation in %OnBeforeSave: uppercase alphanumeric, 2-10 chars
+
+**Issues Auto-Resolved:**
+- 3 HIGH: Prefix validation missing, lock-not-released path, silenced %Save errors
+- 2 MEDIUM: Inconsistent error handling in migration, missing sequenceNumber in response
+
+**User Input Required:** None
+
+## Story 5.2: Project-Scoped Ticket Numbering
+
+**Status:** COMPLETE
+**Commits:**
+- `bf3b547` — feat(5.2): verify project-scoped ticket numbering and add integration tests
+
+**Files Touched:**
+- `src/SpectraSight/Test/TestProjectIntegration.cls` — Added 4 new tests (sequential numbering, independent numbering, default project assignment, CRUD round-trip)
+
+**Key Design Decisions:**
+- No production code changes needed — Story 5.1 fully implemented all functionality
+- Code review skipped (test-only changes, production code already reviewed in 5.1)
+- 4 integration tests added to verify all 7 ACs
+
+**Issues Auto-Resolved:** None (verification story)
+
+**User Input Required:** None
+
+## Story 5.3: Project REST API & MCP Tools
+
+**Status:** COMPLETE
+**Commits:**
+- `9d012c5` — feat(5.3): implement Project REST API & MCP Tools
+- `5cf2170` — test(5.3): add automated tests for Project REST API & MCP Tools
+
+**Files Touched:**
+- `src/SpectraSight/REST/ProjectHandler.cls` — NEW: Full CRUD handler (ListProjects, CreateProject, GetProject, UpdateProject, DeleteProject)
+- `src/SpectraSight/REST/Dispatch.cls` — Added 5 project routes (/projects, /projects/:id)
+- `src/SpectraSight/REST/Response.cls` — Added Conflict(409) and Forbidden(403) convenience methods + 403 in GetHttpStatusText
+- `src/SpectraSight/REST/TicketHandler.cls` — Added project filter to ListTickets (accepts prefix string or numeric ID)
+- `mcp-server/src/types.ts` — Updated TICKET_ID_PATTERN from /^SS-\d+$/ to /^[A-Z]{2,10}-\d+$/
+- `mcp-server/src/tools/projects.ts` — NEW: list_projects and create_project MCP tools
+- `mcp-server/src/tools/tickets.ts` — Added project param to list_tickets, updated ID format descriptions
+- `mcp-server/src/index.ts` — Registered project tools
+- `mcp-server/src/tools/connection.ts` — TOOL_COUNT 10 → 12
+- `src/SpectraSight/Test/TestProjectREST.cls` — NEW: 20 QA tests
+
+**Key Design Decisions:**
+- ProjectHandler follows exact same Abstract class pattern as TicketHandler
+- BuildProjectResponse includes ticketCount (SQL aggregate) for UI display
+- Project filter resolves prefix via SQL lookup, falls back to -1 for unknown prefix (empty results)
+- Default SS project protected from deletion via 403 Forbidden
+- Prefix immutability enforced at handler level (400 if body contains prefix field)
+- MCP TICKET_ID_PATTERN broadened to accept any 2-10 char uppercase prefix
+
+**Issues Auto-Resolved:** Code review fixes applied
+
+**User Input Required:** None
+
+## Story 5.4: Project Configuration UI & List Filter
+
+**Status:** COMPLETE
+**Feat Commit:** `ab74b07` — feat(5.4): implement Project Configuration UI & List Filter
+**Test Commit:** `879fc3a` — test(5.4): add automated tests for Project Configuration UI & List Filter
+**Completed:** 2026-02-16
+
+**Files Touched:**
+- `frontend/src/app/core/settings/projects/project.model.ts` — NEW: Project interfaces
+- `frontend/src/app/core/settings/projects/project.service.ts` — NEW: Project HTTP + signals
+- `frontend/src/app/core/settings/projects/project.service.spec.ts` — NEW: 7 unit tests
+- `frontend/src/app/core/settings/projects/project-list.component.ts` — NEW: Project CRUD UI
+- `frontend/src/app/core/settings/projects/project-list.component.html` — NEW: Template
+- `frontend/src/app/core/settings/projects/project-list.component.scss` — NEW: Styles
+- `frontend/src/app/core/settings/projects/project-list.component.spec.ts` — NEW: 12 unit tests
+- `frontend/src/app/core/settings/settings.component.ts` — Converted to tabbed layout
+- `frontend/src/app/core/settings/settings.component.spec.ts` — NEW: 2 unit tests
+- `frontend/src/app/tickets/ticket.model.ts` — Added project to FilterState
+- `frontend/src/app/shared/filter-bar/filter-bar.component.ts` — Added project filter signal/input
+- `frontend/src/app/shared/filter-bar/filter-bar.component.html` — Added project dropdown
+- `frontend/src/app/shared/filter-bar/filter-bar.component.spec.ts` — Added project filter tests
+- `frontend/src/app/tickets/tickets-page.component.ts` — Wired project service + filter
+- `frontend/src/app/tickets/tickets-page.component.spec.ts` — Updated for project service
+- `frontend/src/app/tickets/ticket.service.ts` — Added project param to loadTickets
+- `frontend/src/app/tickets/ticket.service.spec.ts` — Added project param test
+- `frontend/angular.json` — Budget increase for MatTabsModule
+
+**Key Design Decisions:**
+- Settings page uses mat-tab-group (General + Projects tabs), extensible for Users tab in Epic 6
+- ProjectListComponent uses signal-driven inline forms (no reactive forms) — consistent with filter-bar pattern
+- Project dropdown is first filter element per UX spec, single-select with "All Projects" default
+- URL sync uses ?project=DATA prefix format matching backend API expectation
+- Delete guards: default project (SS) always disabled, projects with tickets disabled with tooltip
+
+**Issues Auto-Resolved:** 3 HIGH (missing error handlers on subscribe), 2 MEDIUM (mat-error without FormControl, MatSnackBar inject)
+
+**User Input Required:** None
+
+---
+
+## Epic 5: Multi-Project Support — COMPLETE
+
+All 4 stories done. Epic 5 delivered project model, scoped ticket numbering, REST API + MCP tools, and configuration UI with list filter.

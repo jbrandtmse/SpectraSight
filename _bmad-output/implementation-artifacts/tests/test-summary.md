@@ -908,9 +908,316 @@ These tests were written for the pre-5.1 TicketID behavior where `Parse` treated
 
 ---
 
+## Story 5.3: Project REST API & MCP Tools
+
+**Date:** 2026-02-16
+**Test Framework:** IRIS ObjectScript custom runner (`%RegisteredObject` + SqlProc pattern)
+**Test File:** `src/SpectraSight/Test/TestProjectREST.cls` (new -- 20 tests)
+
+## Generated Tests
+
+### API Tests (IRIS ObjectScript)
+
+#### BuildProjectResponse Tests (AC #3)
+
+- [x] `TestBuildProjectResponse` - BuildProjectResponse returns all 8 expected fields (id, name, prefix, owner, sequenceCounter, ticketCount, createdAt, updatedAt) with correct values
+- [x] `TestBuildProjectResponseFields` - Verifies JSON type correctness: id is "number", sequenceCounter is "number", ticketCount is "number" (via JSON round-trip)
+- [x] `TestBuildProjectResponseTicketCount` - ticketCount reflects actual ticket count: 0 with no tickets, 1 after adding a ticket
+
+#### Create Project Validation Tests (AC #1, #7)
+
+- [x] `TestCreateProjectValidation` - Required field enforcement: empty prefix rejected by %OnBeforeSave validation
+- [x] `TestCreateProjectPrefixUppercase` - $ZCONVERT(prefix, "U") uppercases prefix before save (simulates handler logic); stored prefix verified as uppercase
+- [x] `TestCreateProjectDuplicatePrefix` - Unique index (PrefixIdx) rejects duplicate prefix; error text verified to contain "unique" or "PrefixIdx" pattern matching handler logic
+- [x] `TestCreateProjectNameLength` - 255-char name saves successfully; handler checks $LENGTH > 255 before save
+
+#### Update Project Tests (AC #4)
+
+- [x] `TestUpdateProjectImmutablePrefix` - %IsDefined("prefix") detection: body with "prefix" field is detected, body without "prefix" passes; simulates handler's immutability guard
+- [x] `TestUpdateProjectFields` - Name and Owner updates persist correctly; Prefix remains unchanged after updates
+
+#### Delete Project Tests (AC #5, #6)
+
+- [x] `TestDeleteProjectWithTickets` - SQL COUNT(*) correctly detects tickets for project (count > 0); simulates handler's 409 Conflict guard
+- [x] `TestDeleteDefaultProject` - Prefix = "SS" check correctly identifies default project; simulates handler's 403 Forbidden guard
+- [x] `TestDeleteProjectSuccess` - Project with zero tickets deletes successfully; verified via %OpenId returning empty after deletion
+
+#### List Projects Tests (AC #2)
+
+- [x] `TestListProjectsOrder` - SQL ORDER BY Prefix returns projects in alphabetical order (AA, MM, ZZ from out-of-order creation)
+
+#### Response.cls Tests (AC #5, #6)
+
+- [x] `TestResponseConflict` - GetHttpStatusText(409) returns "409 Conflict"
+- [x] `TestResponseForbidden` - GetHttpStatusText(403) returns "403 Forbidden"
+- [x] `TestGetHttpStatusText403And409` - Full regression: 200, 400, 403, 404, 409, 500 all return correct status text strings
+
+#### ListTickets Project Filter Tests (AC #10, #11)
+
+- [x] `TestListTicketsProjectFilterByPrefix` - Prefix resolution: "FP" resolves to project ID via SQL lookup; ticket count filtered correctly (1 project ticket found, other ticket excluded)
+- [x] `TestListTicketsProjectFilterByNumericId` - Numeric project ID used directly as filter; +tFilter = tFilter numeric check verified; filtered query returns correct count
+- [x] `TestListTicketsProjectFilterUnknownPrefix` - Non-existent prefix returns no results from project lookup; -1 sentinel ID matches 0 tickets
+
+#### Multi-Project Ticket ID Pattern Test (AC #8, #9, MCP types.ts)
+
+- [x] `TestTicketIdPatternMultiProject` - Creates project with "MP" prefix + ticket, verifies Parse("MP-1") resolves to correct internal ID, Format round-trip returns "MP-1", unknown prefix returns empty, $MATCH validates prefix format [A-Z]{2,10} (valid: "DATA", invalid: "X", "ABCDEFGHIJK", "data")
+
+## Coverage
+
+### By Acceptance Criteria
+
+| AC | Description | Test Coverage | Tests |
+|----|-------------|---------------|-------|
+| 1 | POST /api/projects creates project | Validation, prefix uppercase, name length, duplicate prefix | TestCreateProjectValidation, TestCreateProjectPrefixUppercase, TestCreateProjectNameLength, TestCreateProjectDuplicatePrefix |
+| 2 | GET /api/projects returns all projects | SQL ORDER BY Prefix | TestListProjectsOrder |
+| 3 | GET /api/projects/:id returns project details | BuildProjectResponse all fields + types + ticketCount | TestBuildProjectResponse, TestBuildProjectResponseFields, TestBuildProjectResponseTicketCount |
+| 4 | PUT /api/projects/:id updates name/owner, prefix immutable | Immutability guard, field persistence | TestUpdateProjectImmutablePrefix, TestUpdateProjectFields |
+| 5 | DELETE /api/projects/:id with zero tickets | Delete success, ticket count guard, Conflict response | TestDeleteProjectSuccess, TestDeleteProjectWithTickets, TestResponseConflict |
+| 6 | DELETE default SS project returns 403 | SS prefix guard, Forbidden response | TestDeleteDefaultProject, TestResponseForbidden |
+| 7 | Duplicate prefix returns 400 | Unique index enforcement | TestCreateProjectDuplicatePrefix |
+| 8 | MCP list_projects tool | REST endpoint validation (list endpoint tested via SQL) | TestListProjectsOrder |
+| 9 | MCP create_project tool | REST endpoint validation (create logic tested) | TestCreateProjectValidation, TestCreateProjectPrefixUppercase |
+| 10 | GET /api/tickets with project filter | Prefix resolution, numeric ID, unknown prefix | TestListTicketsProjectFilterByPrefix, TestListTicketsProjectFilterByNumericId, TestListTicketsProjectFilterUnknownPrefix |
+| 11 | MCP list_tickets project parameter | Same filter logic as AC #10 | TestListTicketsProjectFilterByPrefix, TestListTicketsProjectFilterByNumericId |
+
+### By Component
+
+| Component | Tests | Coverage |
+|-----------|-------|----------|
+| ProjectHandler.BuildProjectResponse | 3 | All 8 fields, JSON numeric types, dynamic ticketCount |
+| ProjectHandler create logic | 4 | Required fields, prefix uppercase, duplicate, name length |
+| ProjectHandler update logic | 2 | Immutable prefix guard, name/owner update persistence |
+| ProjectHandler delete logic | 3 | Zero-ticket success, ticket-count guard, SS-project guard |
+| ProjectHandler list logic | 1 | SQL ORDER BY Prefix |
+| Response.cls (new methods) | 3 | Conflict(), Forbidden(), GetHttpStatusText 403/409 regression |
+| TicketHandler.ListTickets project filter | 3 | Prefix resolution, numeric ID, unknown prefix sentinel |
+| TicketID multi-project pattern | 1 | Parse/Format round-trip, prefix regex validation |
+
+### Summary Statistics
+
+- **New IRIS tests (QA-generated):** 20 (all passed)
+- **Regression: TestREST.RunAll:** 31 passed, 2 failed (pre-existing: TestTicketIDFormat + TestTicketIDEdgeCases, from Story 5.1 TicketID rewrite)
+- **Regression: TestProject:** 6 passed, 0 failed
+- **Regression: TestProjectIntegration:** 15 passed, 0 failed
+- **No new regressions introduced**
+- **Combined project total (Stories 1.2-5.3):** 448 tests (428 prior + 20 new)
+
+## Files Created
+
+- `src/SpectraSight/Test/TestProjectREST.cls` (new -- 20 Project REST API tests)
+
+## Notes
+
+- REST handler methods (ListProjects, CreateProject, GetProject, UpdateProject, DeleteProject) depend on `%request` and `%response` process-private variables and cannot be called directly in unit tests. Testing exercises the underlying logic: BuildProjectResponse, SQL queries, model operations, validation guards, and response utility methods.
+- MCP tools (list_projects, create_project, list_tickets with project filter) are thin wrappers over REST endpoints. Their Zod validation (prefix regex, name length) was verified at the code review stage. The backend logic they exercise is tested here.
+- The project filter in ListTickets is tested at the SQL level (prefix resolution, numeric ID, unknown prefix sentinel), matching the same code paths used in the handler.
+- Test data isolation: Each test creates its own Project/Ticket data and deletes it in cleanup, ensuring no cross-test contamination.
+- The `TestTicketIdPatternMultiProject` test uses `$MATCH` to verify the regex pattern `^[A-Z]{2,10}$` that mirrors the MCP `TICKET_ID_PATTERN /^[A-Z]{2,10}-\d+$/`.
+
+### MCP Server Tests (TypeScript/Vitest) — QA Phase 2
+
+**Date:** 2026-02-16
+**Test Framework:** Vitest (Node.js)
+**New Test Files:** `mcp-server/src/__tests__/tools/projects.test.ts`, `mcp-server/src/__tests__/qa-story-5-3.test.ts`
+**Updated Test Files:** `connection.test.ts`, `qa-story-4-2.test.ts`, `qa-story-4-3.test.ts`
+**Updated Source File:** `mcp-server/README.md` (tool count 10 -> 12, list_projects + create_project documented)
+
+#### New Tests — projects.test.ts (21 tests)
+
+- [x] Registers list_projects and create_project tools (count = 2)
+- [x] list_projects: correct description
+- [x] list_projects: calls GET /projects with no parameters
+- [x] list_projects: returns projects as JSON content
+- [x] list_projects: returns formatted error on API failure
+- [x] create_project: correct description
+- [x] create_project: calls POST /projects with name and prefix
+- [x] create_project: includes optional owner when provided
+- [x] create_project: does not include owner when not provided
+- [x] create_project: returns created project as JSON content
+- [x] create_project: returns formatted error on API failure (duplicate prefix)
+- [x] Zod: rejects prefix shorter than 2 characters
+- [x] Zod: rejects prefix longer than 10 characters
+- [x] Zod: rejects lowercase prefix
+- [x] Zod: rejects prefix with numbers
+- [x] Zod: accepts valid 2-letter uppercase prefix
+- [x] Zod: accepts valid 10-letter uppercase prefix
+- [x] Zod: rejects empty name
+- [x] Zod: rejects name longer than 255 characters
+- [x] Zod: accepts valid name
+- [x] Zod: owner is optional
+
+#### New Tests — qa-story-5-3.test.ts (26 tests)
+
+**TICKET_ID_PATTERN multi-project support (10 tests):**
+- [x] Accepts SS-42, DATA-1, AB-99, ABCDEFGHIJ-1
+- [x] Rejects A-1, ABCDEFGHIJK-1, data-1, SS-, -42, 12-34
+
+**Ticket tools multi-project ticket_id validation (4 tests):**
+- [x] get_ticket accepts DATA-1, update_ticket accepts DATA-42, delete_ticket accepts MYPROJ-99, parent_id accepts DATA-10
+
+**list_tickets project parameter (4 tests):**
+- [x] Passes project prefix in query params
+- [x] Passes numeric project ID in query params
+- [x] Does not include project when not provided
+- [x] ListTicketsSchema has project field as optional string
+
+**Total tool count is 12 (3 tests):**
+- [x] All 6 registration modules produce exactly 12 tools
+- [x] Includes list_projects and create_project in registered tools
+- [x] test_connection message includes "All 12 tools available"
+
+**index.ts registration (2 tests):**
+- [x] Imports registerProjectTools from ./tools/projects.js
+- [x] Calls registerProjectTools(server, apiClient)
+
+**README documentation (3 tests):**
+- [x] Documents list_projects tool
+- [x] Documents create_project tool
+- [x] Shows correct tool count of 12 in example output
+
+#### Updated Pre-existing Tests
+
+- `connection.test.ts`: Updated expected message from "10 tools" to "12 tools"
+- `qa-story-4-2.test.ts`: Updated tool list to include 12 tools (added list_projects, create_project), added registerProjectTools import
+- `qa-story-4-3.test.ts`: Updated total tool count from 10 to 12 (6 modules), added registerProjectTools import, updated README assertion
+
+#### MCP Test Coverage by Story 5.3 Acceptance Criteria
+
+| AC | Description | MCP Tests |
+|----|-------------|-----------|
+| 8 | MCP list_projects tool | projects.test.ts: registration, GET /projects, JSON response, error handling |
+| 9 | MCP create_project tool | projects.test.ts: POST /projects, Zod validation (prefix, name, owner), error handling |
+| 10 | list_tickets project filter | qa-story-5-3: project param in query, prefix/numeric ID, omitted when not set |
+| 11 | MCP list_tickets project param | qa-story-5-3: ListTicketsSchema project field, passthrough to API |
+| -- | TICKET_ID_PATTERN multi-project | qa-story-5-3: 10 pattern tests (accept/reject), 4 Zod validation tests |
+| -- | TOOL_COUNT 10->12 | qa-story-5-3: 12 tools total, test_connection message |
+| -- | README documentation | qa-story-5-3: list_projects, create_project, "12 tools" |
+| -- | index.ts registration | qa-story-5-3: import + call verification |
+
+#### MCP Test Summary Statistics
+
+- **New MCP tests (QA-generated):** 47 (21 projects.test.ts + 26 qa-story-5-3.test.ts)
+- **Updated pre-existing tests:** 4 (tool count adjustments in 3 files)
+- **Total MCP tests:** 204 (all passing)
+- **README updated:** tool count 10 -> 12, added list_projects + create_project to Available Tools table
+
+### Combined Story 5.3 Test Totals
+
+- **IRIS ObjectScript tests:** 20 (TestProjectREST.cls — all passing)
+- **MCP TypeScript tests:** 47 new + 4 updated (projects.test.ts + qa-story-5-3.test.ts — all passing)
+- **Combined Story 5.3 total:** 67 new tests, 204 MCP tests passing, 0 regressions
+
+---
+
+## Story 5.4: Project Configuration UI & List Filter
+
+**Date:** 2026-02-16
+**Test Framework:** Angular Jasmine/Karma (ChromeHeadless)
+**QA Agent:** Claude Opus 4.6
+
+### Assessment
+
+Story 5.4 is a **frontend-only** story. No backend/IRIS changes were made (REST API and MCP tools were completed in Story 5.3). The developer created 21 Angular unit tests across 3 new spec files during development. QA identified gaps in the project filter integration tests and added 9 additional tests.
+
+### Tests Added by QA
+
+#### FilterBarComponent — Project Filter Tests (7 new tests)
+
+File: `frontend/src/app/shared/filter-bar/filter-bar.component.spec.ts`
+
+- [x] `should set project filter on onProjectChange` — Verifies signal and emitted FilterState
+- [x] `should clear project filter when empty string is passed` — Verifies project removed from emitted state
+- [x] `should initialize project from initialFilters` — Verifies project signal hydrated from input
+- [x] `should include project in hasActiveFilters` — Verifies computed includes project
+- [x] `should include project in activeFilterChips with name and prefix` — Verifies chip label format "Name (PREFIX)"
+- [x] `should remove project filter via chip` — Verifies removeFilter handles 'project' category
+- [x] `should clear project filter on clearAll` — Verifies clearAll resets selectedProject
+
+#### TicketService — Project Filter Parameter Tests (2 new tests)
+
+File: `frontend/src/app/tickets/ticket.service.spec.ts`
+
+- [x] `should pass project parameter from filter state` — Verifies `?project=DATA` added to HTTP request
+- [x] `should not include project param when not set` — Verifies no `project` param when filter omitted
+
+### Pre-existing Developer Tests (21 tests, verified passing)
+
+#### ProjectService (7 tests) — `project.service.spec.ts`
+- [x] Service creation
+- [x] Load projects — GET, signal update, loading state
+- [x] Loading state management
+- [x] Error handling on load failure
+- [x] Create project — POST + reload + snackbar
+- [x] Update project — PUT + reload + snackbar
+- [x] Delete project — DELETE + reload + snackbar
+
+#### ProjectListComponent (12 tests) — `project-list.component.spec.ts`
+- [x] Component creation
+- [x] Load projects on init
+- [x] Sort with SS first
+- [x] Identify default project
+- [x] Delete guard: default project
+- [x] Delete guard: project with tickets
+- [x] Allow delete: empty non-default project
+- [x] Toggle create form
+- [x] Prefix format validation (short, long, valid)
+- [x] Prefix uniqueness validation
+- [x] Toggle edit mode
+- [x] Uppercase prefix transform
+
+#### SettingsComponent (2 tests) — `settings.component.spec.ts`
+- [x] Component creation
+- [x] Tab group with General and Projects tabs
+
+#### TicketsPageComponent — Project Integration (2 pre-existing tests)
+- [x] Load projects on init + projectOptions computed
+- [x] Include project in URL sync
+
+### Coverage
+
+#### By Acceptance Criteria
+
+| AC | Description | Tests |
+|----|-------------|-------|
+| #1 | Project list with name, prefix, owner, ticket count, created date | ProjectListComponent: creation, load, sort |
+| #2 | Inline creation form with validation | ProjectListComponent: toggle form, prefix validation, uniqueness |
+| #3 | Edit with read-only prefix | ProjectListComponent: edit mode toggle |
+| #4 | Default project (SS) listed first, delete disabled | ProjectListComponent: sort SS first, isDefault, delete guard |
+| #5 | Project with tickets delete disabled | ProjectListComponent: canDelete, deleteTooltip |
+| #6 | Project dropdown as first filter | FilterBarComponent: project filter tests (7 new) |
+| #7 | Project selection filters ticket list | TicketService: project param test, TicketsPage: filtersChanged |
+| #8 | "All Projects" default shows all tickets | FilterBarComponent: clearAll, empty project param not sent |
+| #9 | Project filter state in URL | TicketsPageComponent: URL sync test |
+
+#### Test Totals
+
+- **Developer tests:** 21
+- **QA tests added:** 9
+- **Total for Story 5.4:** 30
+- **Full test suite:** 436 tests, 435 pass, 1 pre-existing failure (auth.guard.spec.ts — unrelated)
+
+### IRIS/Backend Tests
+
+No IRIS ObjectScript tests needed. Story 5.4 is entirely frontend (Angular). The backend Project REST API and ticket project filter were tested in Story 5.3 QA (see above).
+
+### Notes
+
+- The 1 pre-existing test failure (`authGuard should redirect to /login when not authenticated`) is in `auth.guard.spec.ts` and is unrelated to this story. It expects a `UrlTree` return but the guard returns a `Boolean`.
+- No E2E tests were generated — the project does not yet have Playwright/Cypress configured.
+
+---
+
+## Project Test Totals (Stories 1.2-5.4)
+
+- **IRIS ObjectScript tests:** 67+ (TestREST, TestHierarchy, TestFilter, TestProject, TestProjectIntegration, TestProjectREST)
+- **Angular tests:** 436 (435 pass, 1 pre-existing failure in auth.guard.spec.ts)
+- **MCP TypeScript tests:** 204 (all passing)
+- **Combined total:** 707+ tests
+
 ## Next Steps
 
 - Full integration tests via HTTP (curl/REST client) when CI environment is configured
 - Update TestREST.TestTicketIDFormat and TestREST.TestTicketIDEdgeCases for project-aware TicketID behavior
 - Add edge case tests for concurrent updates when needed
 - E2E tests for login flow, keyboard navigation, and split panel drag interaction when Cypress/Playwright is set up
+- Fix pre-existing auth.guard.spec.ts failure (guard returns Boolean instead of UrlTree)
