@@ -12,6 +12,10 @@ export class AuthService {
 
   isLoggedIn = signal(false);
 
+  constructor() {
+    this.restoreSession();
+  }
+
   login(username: string, password: string): Observable<boolean> {
     this.username = username;
     this.password = password;
@@ -24,6 +28,8 @@ export class AuthService {
       .pipe(
         map(() => {
           this.isLoggedIn.set(true);
+          sessionStorage.setItem('ss_user', username);
+          sessionStorage.setItem('ss_pass', password);
           return true;
         }),
         catchError(() => {
@@ -49,9 +55,21 @@ export class AuthService {
     return this.username;
   }
 
+  private restoreSession(): void {
+    const user = sessionStorage.getItem('ss_user');
+    const pass = sessionStorage.getItem('ss_pass');
+    if (user && pass) {
+      this.username = user;
+      this.password = pass;
+      this.isLoggedIn.set(true);
+    }
+  }
+
   private clearCredentials(): void {
     this.username = '';
     this.password = '';
+    sessionStorage.removeItem('ss_user');
+    sessionStorage.removeItem('ss_pass');
     this.isLoggedIn.set(false);
   }
 }

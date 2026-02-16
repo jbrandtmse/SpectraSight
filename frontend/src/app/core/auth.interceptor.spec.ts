@@ -10,6 +10,7 @@ describe('authInterceptor', () => {
   let authService: AuthService;
 
   beforeEach(() => {
+    sessionStorage.clear();
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),

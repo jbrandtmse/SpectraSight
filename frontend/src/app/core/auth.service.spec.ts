@@ -8,6 +8,7 @@ describe('AuthService', () => {
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
+    sessionStorage.clear();
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
@@ -28,7 +29,7 @@ describe('AuthService', () => {
     expect(service.isLoggedIn()).toBeFalse();
   });
 
-  it('should store credentials in memory on successful login', () => {
+  it('should store credentials in sessionStorage on successful login', () => {
     service.login('admin', 'secret').subscribe((result) => {
       expect(result).toBeTrue();
       expect(service.isAuthenticated()).toBeTrue();
@@ -70,12 +71,41 @@ describe('AuthService', () => {
     expect(service.getUsername()).toBe('');
   });
 
-  it('should not use localStorage for credentials', () => {
-    const spy = spyOn(localStorage, 'setItem');
+  it('should persist credentials to sessionStorage not localStorage', () => {
+    const localSpy = spyOn(localStorage, 'setItem');
     service.login('admin', 'pass').subscribe();
     const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
     req.flush({});
 
-    expect(spy).not.toHaveBeenCalled();
+    expect(localSpy).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem('ss_user')).toBe('admin');
+    expect(sessionStorage.getItem('ss_pass')).toBe('pass');
+  });
+
+  it('should restore session from sessionStorage on construction', () => {
+    sessionStorage.setItem('ss_user', 'restored_user');
+    sessionStorage.setItem('ss_pass', 'restored_pass');
+
+    const freshService = TestBed.inject(AuthService);
+    // Force re-construction by creating a new instance
+    (freshService as any).username = '';
+    (freshService as any).password = '';
+    freshService.isLoggedIn.set(false);
+    (freshService as any).restoreSession();
+
+    expect(freshService.isAuthenticated()).toBeTrue();
+    expect(freshService.getUsername()).toBe('restored_user');
+    expect(freshService.getAuthHeader()).toBe('Basic ' + btoa('restored_user:restored_pass'));
+  });
+
+  it('should clear sessionStorage on logout', () => {
+    service.login('admin', 'pass').subscribe();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({});
+
+    expect(sessionStorage.getItem('ss_user')).toBe('admin');
+    service.logout();
+    expect(sessionStorage.getItem('ss_user')).toBeNull();
+    expect(sessionStorage.getItem('ss_pass')).toBeNull();
   });
 });
