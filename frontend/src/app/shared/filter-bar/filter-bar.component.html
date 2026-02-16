@@ -1,4 +1,15 @@
 <div class="filter-bar" role="search" aria-label="Filter tickets">
+  <!-- Project filter -->
+  <mat-form-field class="filter-bar__select" appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Project</mat-label>
+    <mat-select [value]="selectedProject()" (selectionChange)="onProjectChange($event.value)">
+      <mat-option value="">All Projects</mat-option>
+      @for (p of projects(); track p.prefix) {
+        <mat-option [value]="p.prefix">{{ p.name }} ({{ p.prefix }})</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
   <!-- Search input -->
   <mat-form-field class="filter-bar__search" appearance="outline" subscriptSizing="dynamic">
     <mat-icon matPrefix>search</mat-icon>

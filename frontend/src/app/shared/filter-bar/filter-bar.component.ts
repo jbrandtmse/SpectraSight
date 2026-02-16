@@ -36,6 +36,7 @@ import { debounceTime, takeUntil } from 'rxjs/operators';
   styleUrl: './filter-bar.component.scss',
 })
 export class FilterBarComponent implements OnInit, OnDestroy {
+  projects = input<{ name: string; prefix: string }[]>([]);
   assignees = input<string[]>([]);
   initialFilters = input<FilterState>({});
 
@@ -44,6 +45,7 @@ export class FilterBarComponent implements OnInit, OnDestroy {
   @ViewChild('searchInput') searchInputRef!: ElementRef<HTMLInputElement>;
 
   searchText = signal('');
+  selectedProject = signal('');
   selectedTypes = signal<string[]>([]);
   selectedStatuses = signal<string[]>([]);
   selectedPriority = signal('');
@@ -59,6 +61,7 @@ export class FilterBarComponent implements OnInit, OnDestroy {
 
   readonly hasActiveFilters = computed(() => {
     return (
+      this.selectedProject() !== '' ||
       this.selectedTypes().length > 0 ||
       this.selectedStatuses().length > 0 ||
       this.selectedPriority() !== '' ||
@@ -69,6 +72,11 @@ export class FilterBarComponent implements OnInit, OnDestroy {
 
   readonly activeFilterChips = computed(() => {
     const chips: { label: string; category: string; value: string }[] = [];
+    if (this.selectedProject()) {
+      const proj = this.projects().find((p) => p.prefix === this.selectedProject());
+      const label = proj ? `${proj.name} (${proj.prefix})` : this.selectedProject();
+      chips.push({ label, category: 'project', value: this.selectedProject() });
+    }
     for (const t of this.selectedTypes()) {
       chips.push({ label: t, category: 'type', value: t });
     }
@@ -89,6 +97,7 @@ export class FilterBarComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const initial = this.initialFilters();
+    if (initial.project) this.selectedProject.set(initial.project);
     if (initial.type?.length) this.selectedTypes.set(initial.type);
     if (initial.status?.length) this.selectedStatuses.set(initial.status);
     if (initial.priority) this.selectedPriority.set(initial.priority);
@@ -109,6 +118,11 @@ export class FilterBarComponent implements OnInit, OnDestroy {
 
   onSearchInput(value: string): void {
     this.searchInput$.next(value);
+  }
+
+  onProjectChange(prefix: string): void {
+    this.selectedProject.set(prefix);
+    this.emitFilters();
   }
 
   clearSearch(): void {
@@ -158,6 +172,9 @@ export class FilterBarComponent implements OnInit, OnDestroy {
 
   removeFilter(chip: { category: string; value: string }): void {
     switch (chip.category) {
+      case 'project':
+        this.selectedProject.set('');
+        break;
       case 'type':
         this.selectedTypes.update((t) => t.filter((v) => v !== chip.value));
         break;
@@ -178,6 +195,7 @@ export class FilterBarComponent implements OnInit, OnDestroy {
   }
 
   clearAll(): void {
+    this.selectedProject.set('');
     this.searchText.set('');
     this.selectedTypes.set([]);
     this.selectedStatuses.set([]);
@@ -199,6 +217,7 @@ export class FilterBarComponent implements OnInit, OnDestroy {
 
   private emitFilters(): void {
     const state: FilterState = {};
+    if (this.selectedProject()) state.project = this.selectedProject();
     if (this.selectedTypes().length) state.type = this.selectedTypes();
     if (this.selectedStatuses().length) state.status = this.selectedStatuses();
     if (this.selectedPriority()) state.priority = this.selectedPriority();

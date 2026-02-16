@@ -76,6 +76,9 @@ export class TicketService {
     if (state.search) {
       params = params.set('search', state.search);
     }
+    if (state.project) {
+      params = params.set('project', state.project);
+    }
 
     this.http
       .get<ApiListResponse<Ticket>>(

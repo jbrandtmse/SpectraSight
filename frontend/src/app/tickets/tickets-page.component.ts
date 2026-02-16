@@ -8,6 +8,7 @@ import { TicketDetailComponent } from './ticket-detail/ticket-detail.component';
 import { TicketCreateComponent } from './ticket-create/ticket-create.component';
 import { FilterBarComponent } from '../shared/filter-bar/filter-bar.component';
 import { TicketService } from './ticket.service';
+import { ProjectService } from '../core/settings/projects/project.service';
 import { FilterState } from './ticket.model';
 
 @Component({
@@ -17,6 +18,7 @@ import { FilterState } from './ticket.model';
   imports: [SplitPanelComponent, TicketListComponent, TicketDetailComponent, TicketCreateComponent, FilterBarComponent],
   template: `
     <ss-filter-bar
+      [projects]="projectOptions()"
       [assignees]="distinctAssignees()"
       [initialFilters]="initialFilters()"
       (filtersChanged)="onFiltersChanged($event)">
@@ -69,6 +71,7 @@ import { FilterState } from './ticket.model';
 })
 export class TicketsPageComponent implements OnInit, OnDestroy {
   ticketService = inject(TicketService);
+  private projectService = inject(ProjectService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private destroy$ = new Subject<void>();
@@ -78,6 +81,10 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
   creating = signal(false);
   creatingParentId = signal<string | null>(null);
   initialFilters = signal<FilterState>({});
+
+  readonly projectOptions = computed(() => {
+    return this.projectService.projects().map((p) => ({ name: p.name, prefix: p.prefix }));
+  });
 
   readonly distinctAssignees = computed(() => {
     const tickets = this.ticketService.tickets();
@@ -104,6 +111,8 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.projectService.loadProjects();
+
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const id = params.get('id');
       if (id) {
@@ -114,6 +123,7 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
     // Read initial filters from query params
     const qp = this.route.snapshot.queryParamMap;
     const initial: FilterState = {};
+    if (qp.get('project')) initial.project = qp.get('project')!;
     if (qp.get('type')) initial.type = qp.get('type')!.split(',');
     if (qp.get('status')) initial.status = qp.get('status')!.split(',');
     if (qp.get('priority')) initial.priority = qp.get('priority')!;
@@ -130,6 +140,7 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
     // Subscribe to query param changes (browser back/forward)
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((qpm) => {
       const filters: FilterState = {};
+      if (qpm.get('project')) filters.project = qpm.get('project')!;
       if (qpm.get('type')) filters.type = qpm.get('type')!.split(',');
       if (qpm.get('status')) filters.status = qpm.get('status')!.split(',');
       if (qpm.get('priority')) filters.priority = qpm.get('priority')!;
@@ -185,6 +196,7 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
 
   private syncFiltersToUrl(filters: FilterState): void {
     const queryParams: Record<string, string | null> = {
+      project: filters.project || null,
       type: filters.type?.length ? filters.type.join(',') : null,
       status: filters.status?.length ? filters.status.join(',') : null,
       priority: filters.priority || null,

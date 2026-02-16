@@ -16,6 +16,9 @@ describe('TicketsPageComponent', () => {
   let paramMapSubject: Subject<ParamMap>;
   let queryParamMapSubject: Subject<ParamMap>;
 
+  const emptyProjectsResponse = { data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 };
+  const emptyTicketsResponse = { data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 };
+
   beforeEach(async () => {
     paramMapSubject = new Subject<ParamMap>();
     queryParamMapSubject = new Subject<ParamMap>();
@@ -51,19 +54,29 @@ describe('TicketsPageComponent', () => {
     httpMock.verify();
   });
 
+  /** Flush the /api/projects request triggered on init. */
+  function flushProjectsRequest(): void {
+    const req = httpMock.expectOne(r => r.url.includes('/api/projects'));
+    req.flush(emptyProjectsResponse);
+  }
+
+  /** Flush both the /api/projects and /api/tickets requests triggered on init. */
+  function flushInitRequests(): void {
+    flushProjectsRequest();
+    const ticketReq = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    ticketReq.flush(emptyTicketsResponse);
+  }
+
   it('should create', () => {
     fixture.detectChanges();
-    // Flush the loadTickets call from the child TicketListComponent
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
     expect(component).toBeTruthy();
   });
 
   it('should select ticket from route param on init', () => {
     const selectSpy = spyOn(ticketService, 'selectTicket');
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     paramMapSubject.next(convertToParamMap({ id: '42' }));
     expect(selectSpy).toHaveBeenCalledWith('42');
@@ -72,8 +85,7 @@ describe('TicketsPageComponent', () => {
   it('should not call selectTicket when no id in route params', () => {
     const selectSpy = spyOn(ticketService, 'selectTicket');
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     paramMapSubject.next(convertToParamMap({}));
     expect(selectSpy).not.toHaveBeenCalled();
@@ -81,8 +93,7 @@ describe('TicketsPageComponent', () => {
 
   it('should contain the split panel', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
     fixture.detectChanges();
 
     const splitPanel = fixture.nativeElement.querySelector('ss-split-panel');
@@ -91,8 +102,7 @@ describe('TicketsPageComponent', () => {
 
   it('should contain the ticket list in the split panel', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
     fixture.detectChanges();
 
     const ticketList = fixture.nativeElement.querySelector('app-ticket-list');
@@ -101,8 +111,7 @@ describe('TicketsPageComponent', () => {
 
   it('should show placeholder when no ticket selected', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
     fixture.detectChanges();
 
     const placeholder = fixture.nativeElement.querySelector('.muted');
@@ -112,6 +121,7 @@ describe('TicketsPageComponent', () => {
 
   it('should show ticket-detail when a ticket is selected', () => {
     fixture.detectChanges();
+    flushProjectsRequest();
     const req = httpMock.expectOne(r => r.url.includes('/api/tickets') && !r.url.includes('/activity'));
     req.flush({
       data: [{ id: 'SS-1', type: 'bug', title: 'Test', status: 'Open', priority: 'High', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }],
@@ -134,15 +144,13 @@ describe('TicketsPageComponent', () => {
   // Story 1.6: creating signal and creation form integration
   it('should start with creating = false', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
     expect(component.creating()).toBeFalse();
   });
 
   it('should set creating to true on onNewTicket()', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     component.onNewTicket();
     expect(component.creating()).toBeTrue();
@@ -150,8 +158,7 @@ describe('TicketsPageComponent', () => {
 
   it('should show ticket-create when creating is true', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     component.creating.set(true);
     fixture.detectChanges();
@@ -164,8 +171,7 @@ describe('TicketsPageComponent', () => {
 
   it('should set creating to false on onCreated()', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     component.creating.set(true);
     component.onCreated();
@@ -174,8 +180,7 @@ describe('TicketsPageComponent', () => {
 
   it('should set creating to false on onCancelled()', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     component.creating.set(true);
     component.onCancelled();
@@ -185,8 +190,7 @@ describe('TicketsPageComponent', () => {
   // AC #1: Ctrl+N keyboard shortcut
   it('should set creating to true on Ctrl+N', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     const event = new KeyboardEvent('keydown', { key: 'n', ctrlKey: true });
     Object.defineProperty(event, 'preventDefault', { value: jasmine.createSpy('preventDefault') });
@@ -199,15 +203,13 @@ describe('TicketsPageComponent', () => {
   // Story 2.1: Pre-filled parent from detail view (AC #11)
   it('should start with creatingParentId as null', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
     expect(component.creatingParentId()).toBeNull();
   });
 
   it('should set creatingParentId and creating on onAddSubtask', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     component.onAddSubtask('SS-5');
     expect(component.creating()).toBeTrue();
@@ -216,8 +218,7 @@ describe('TicketsPageComponent', () => {
 
   it('should clear creatingParentId on onNewTicket', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     component.onAddSubtask('SS-5');
     component.onNewTicket();
@@ -227,8 +228,7 @@ describe('TicketsPageComponent', () => {
 
   it('should clear creatingParentId on onCreated', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     component.onAddSubtask('SS-5');
     component.onCreated();
@@ -238,8 +238,7 @@ describe('TicketsPageComponent', () => {
 
   it('should clear creatingParentId on onCancelled', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     component.onAddSubtask('SS-5');
     component.onCancelled();
@@ -249,8 +248,7 @@ describe('TicketsPageComponent', () => {
 
   it('should clear creatingParentId on Ctrl+N', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     component.creatingParentId.set('SS-5');
     const event = new KeyboardEvent('keydown', { key: 'n', ctrlKey: true });
@@ -262,8 +260,7 @@ describe('TicketsPageComponent', () => {
   // Story 2.2: Filter bar integration
   it('should contain the filter bar', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
     fixture.detectChanges();
 
     const filterBar = fixture.nativeElement.querySelector('ss-filter-bar');
@@ -272,6 +269,7 @@ describe('TicketsPageComponent', () => {
 
   it('should compute distinct assignees from tickets', () => {
     fixture.detectChanges();
+    flushProjectsRequest();
     const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
     req.flush({
       data: [
@@ -287,8 +285,7 @@ describe('TicketsPageComponent', () => {
 
   it('should call setFilters on filtersChanged event', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     const setFiltersSpy = spyOn(ticketService, 'setFilters');
     component.onFiltersChanged({ type: ['bug'] });
@@ -298,8 +295,7 @@ describe('TicketsPageComponent', () => {
 
   it('should update service filters and sync filter bar on sort change from list', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
 
     const setFiltersSpy = spyOn(ticketService, 'setFilters');
     component.onSortChanged('title');
@@ -310,8 +306,7 @@ describe('TicketsPageComponent', () => {
   // Story 2.2: "/" keyboard shortcut (AC #9)
   it('should prevent default and focus search on "/" key', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
     fixture.detectChanges();
 
     const event = new KeyboardEvent('keydown', { key: '/' });
@@ -323,8 +318,7 @@ describe('TicketsPageComponent', () => {
 
   it('should not focus search on "/" when input is already focused', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
-    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    flushInitRequests();
     fixture.detectChanges();
 
     // Focus an input element
@@ -339,5 +333,38 @@ describe('TicketsPageComponent', () => {
     // Should NOT prevent default since input is focused
     expect(event.preventDefault).not.toHaveBeenCalled();
     document.body.removeChild(input);
+  });
+
+  // Story 5.4: Project filter integration
+  it('should load projects on init', () => {
+    fixture.detectChanges();
+    const projReq = httpMock.expectOne(r => r.url.includes('/api/projects'));
+    projReq.flush({
+      data: [
+        { id: 1, name: 'SpectraSight', prefix: 'SS', owner: '', sequenceCounter: 10, ticketCount: 5, createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+      ],
+      total: 1, page: 1, pageSize: 100, totalPages: 1,
+    });
+    const ticketReq = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    ticketReq.flush(emptyTicketsResponse);
+
+    expect(component.projectOptions().length).toBe(1);
+    expect(component.projectOptions()[0]).toEqual({ name: 'SpectraSight', prefix: 'SS' });
+  });
+
+  it('should include project in URL sync', () => {
+    fixture.detectChanges();
+    flushInitRequests();
+
+    const router = TestBed.inject(Router);
+    const navigateSpy = spyOn(router, 'navigate');
+    component.onFiltersChanged({ project: 'DATA' });
+
+    const ticketReq = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    ticketReq.flush(emptyTicketsResponse);
+
+    expect(navigateSpy).toHaveBeenCalledWith([], jasmine.objectContaining({
+      queryParams: jasmine.objectContaining({ project: 'DATA' }),
+    }));
   });
 });

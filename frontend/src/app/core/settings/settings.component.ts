@@ -1,21 +1,34 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatTabsModule } from '@angular/material/tabs';
 import { ThemeService } from '../theme.service';
+import { ProjectListComponent } from './projects/project-list.component';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatSlideToggleModule],
+  imports: [MatSlideToggleModule, MatTabsModule, ProjectListComponent],
   template: `
     <div class="settings-container">
       <h2>Settings</h2>
-      <mat-slide-toggle
-        [checked]="themeService.isDark()"
-        (change)="themeService.toggle()"
-        labelPosition="before">
-        Dark Mode
-      </mat-slide-toggle>
+      <mat-tab-group>
+        <mat-tab label="General">
+          <div class="settings-tab-content">
+            <mat-slide-toggle
+              [checked]="themeService.isDark()"
+              (change)="themeService.toggle()"
+              labelPosition="before">
+              Dark Mode
+            </mat-slide-toggle>
+          </div>
+        </mat-tab>
+        <mat-tab label="Projects">
+          <div class="settings-tab-content">
+            <app-project-list></app-project-list>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
     </div>
   `,
   styles: [`
@@ -25,6 +38,9 @@ import { ThemeService } from '../theme.service';
     h2 {
       margin-bottom: var(--ss-lg);
       color: var(--ss-text-primary);
+    }
+    .settings-tab-content {
+      padding: var(--ss-lg) 0;
     }
   `],
 })

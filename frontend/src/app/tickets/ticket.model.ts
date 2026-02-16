@@ -66,6 +66,7 @@ export interface EpicTicket extends Ticket {
 }
 
 export interface FilterState {
+  project?: string;
   type?: string[];
   status?: string[];
   priority?: string;
