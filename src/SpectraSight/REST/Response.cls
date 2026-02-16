@@ -103,6 +103,18 @@ ClassMethod BadRequest(pMessage As %String) As %Status
     Quit ..Error("BAD_REQUEST", pMessage, 400)
 }
 
+/// Convenience: 409 Conflict
+ClassMethod Conflict(pMessage As %String) As %Status
+{
+    Quit ..Error("CONFLICT", pMessage, 409)
+}
+
+/// Convenience: 403 Forbidden
+ClassMethod Forbidden(pMessage As %String) As %Status
+{
+    Quit ..Error("FORBIDDEN", pMessage, 403)
+}
+
 /// Convenience: 500 Internal Server Error
 ClassMethod ServerError(pMessage As %String = "Internal server error") As %Status
 {
@@ -124,6 +136,8 @@ ClassMethod GetHttpStatusText(pStatusCode As %Integer) As %String
             Set tResult = "400 Bad Request"
         } ElseIf pStatusCode = 401 {
             Set tResult = "401 Unauthorized"
+        } ElseIf pStatusCode = 403 {
+            Set tResult = "403 Forbidden"
         } ElseIf pStatusCode = 404 {
             Set tResult = "404 Not Found"
         } ElseIf pStatusCode = 409 {

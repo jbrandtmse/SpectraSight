@@ -9,6 +9,7 @@ import { registerCommentTools } from "./tools/comments.js";
 import { registerCodeReferenceTools } from "./tools/code-references.js";
 import { registerActivityTools } from "./tools/activity.js";
 import { registerConnectionTools } from "./tools/connection.js";
+import { registerProjectTools } from "./tools/projects.js";
 
 async function main(): Promise<void> {
   const config = getConfig();
@@ -23,6 +24,7 @@ async function main(): Promise<void> {
   registerCommentTools(server, apiClient);
   registerCodeReferenceTools(server, apiClient);
   registerActivityTools(server, apiClient);
+  registerProjectTools(server, apiClient);
   registerConnectionTools(server, apiClient, config);
 
   const transport = new StdioServerTransport();

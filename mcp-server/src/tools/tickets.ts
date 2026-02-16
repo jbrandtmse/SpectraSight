@@ -16,7 +16,7 @@ const CreateTicketSchema = {
   status: TicketStatusEnum.optional().describe("Ticket status: Open, In Progress, Blocked, or Complete"),
   priority: TicketPriorityEnum.optional().describe("Ticket priority: Low, Medium, High, or Critical"),
   assignee: z.string().optional().describe("Assigned user"),
-  parent_id: z.string().regex(TICKET_ID_PATTERN, "Parent ticket ID must match format SS-{number} (e.g., SS-1)").optional().describe("Parent ticket ID (e.g., SS-1)"),
+  parent_id: z.string().regex(TICKET_ID_PATTERN, "Parent ticket ID must match format {PREFIX}-{number} (e.g., SS-1)").optional().describe("Parent ticket ID (e.g., SS-1)"),
   // Bug-specific fields
   severity: SeverityEnum.optional().describe("Bug severity: Low, Medium, High, or Critical"),
   steps_to_reproduce: z.string().optional().describe("Steps to reproduce the bug"),
@@ -34,17 +34,17 @@ const CreateTicketSchema = {
 };
 
 const GetTicketSchema = {
-  ticket_id: z.string().regex(TICKET_ID_PATTERN, "Ticket ID must match format SS-{number} (e.g., SS-42)").describe("Ticket ID (e.g., SS-42)"),
+  ticket_id: z.string().regex(TICKET_ID_PATTERN, "Ticket ID must match format {PREFIX}-{number} (e.g., SS-42)").describe("Ticket ID (e.g., SS-42)"),
 };
 
 const UpdateTicketSchema = {
-  ticket_id: z.string().regex(TICKET_ID_PATTERN, "Ticket ID must match format SS-{number} (e.g., SS-42)").describe("Ticket ID to update (e.g., SS-42)"),
+  ticket_id: z.string().regex(TICKET_ID_PATTERN, "Ticket ID must match format {PREFIX}-{number} (e.g., SS-42)").describe("Ticket ID to update (e.g., SS-42)"),
   title: z.string().optional().describe("New title"),
   description: z.string().optional().describe("New description"),
   status: TicketStatusEnum.optional().describe("New status: Open, In Progress, Blocked, or Complete"),
   priority: TicketPriorityEnum.optional().describe("New priority: Low, Medium, High, or Critical"),
   assignee: z.string().optional().describe("New assignee"),
-  parent_id: z.string().regex(TICKET_ID_PATTERN, "Parent ticket ID must match format SS-{number} (e.g., SS-1)").optional().describe("Parent ticket ID (e.g., SS-1)"),
+  parent_id: z.string().regex(TICKET_ID_PATTERN, "Parent ticket ID must match format {PREFIX}-{number} (e.g., SS-1)").optional().describe("Parent ticket ID (e.g., SS-1)"),
   // Bug-specific fields
   severity: SeverityEnum.optional().describe("Bug severity: Low, Medium, High, or Critical"),
   steps_to_reproduce: z.string().optional().describe("Steps to reproduce the bug"),
@@ -62,7 +62,7 @@ const UpdateTicketSchema = {
 };
 
 const DeleteTicketSchema = {
-  ticket_id: z.string().regex(TICKET_ID_PATTERN, "Ticket ID must match format SS-{number} (e.g., SS-42)").describe("Ticket ID to delete (e.g., SS-42)"),
+  ticket_id: z.string().regex(TICKET_ID_PATTERN, "Ticket ID must match format {PREFIX}-{number} (e.g., SS-42)").describe("Ticket ID to delete (e.g., SS-42)"),
 };
 
 const ListTicketsSchema = {
@@ -74,6 +74,7 @@ const ListTicketsSchema = {
   sort: z.string().optional().describe("Sort field (e.g., createdAt, -priority)"),
   page: z.number().optional().describe("Page number (default: 1)"),
   page_size: z.number().optional().describe("Items per page (default: 25)"),
+  project: z.string().optional().describe("Filter by project prefix (e.g., DATA) or project ID"),
 };
 
 export function registerTicketTools(server: McpServer, apiClient: ApiClient): void {
@@ -209,6 +210,7 @@ export function registerTicketTools(server: McpServer, apiClient: ApiClient): vo
           sort: params.sort,
           page: params.page,
           pageSize: params.page_size,
+          project: params.project,
         };
 
         const data = await apiClient.get("/tickets", queryParams);

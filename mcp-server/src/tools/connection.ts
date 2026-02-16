@@ -4,7 +4,7 @@ import { formatError } from "../errors.js";
 import { Config } from "../config.js";
 
 /** Total number of tools registered by the MCP server (update when adding/removing tools) */
-const TOOL_COUNT = 10;
+const TOOL_COUNT = 12;
 
 export function registerConnectionTools(server: McpServer, apiClient: ApiClient, config: Config): void {
   server.tool(

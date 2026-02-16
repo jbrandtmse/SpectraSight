@@ -1,5 +1,5 @@
-/** Validates ticket IDs match the SS-{number} format (e.g., SS-42) */
-export const TICKET_ID_PATTERN = /^SS-\d+$/;
+/** Validates ticket IDs match the {PREFIX}-{number} format (e.g., SS-42, DATA-1) */
+export const TICKET_ID_PATTERN = /^[A-Z]{2,10}-\d+$/;
 
 export type TicketType = "bug" | "task" | "story" | "epic";
 export type TicketStatus = "Open" | "In Progress" | "Blocked" | "Complete";

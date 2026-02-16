@@ -8,6 +8,11 @@ Parameter UseSession = 1;
 XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 {
 <Routes>
+  <Route Url="/projects/:id" Method="GET" Call="SpectraSight.REST.ProjectHandler:GetProject" />
+  <Route Url="/projects/:id" Method="PUT" Call="SpectraSight.REST.ProjectHandler:UpdateProject" />
+  <Route Url="/projects/:id" Method="DELETE" Call="SpectraSight.REST.ProjectHandler:DeleteProject" />
+  <Route Url="/projects" Method="GET" Call="SpectraSight.REST.ProjectHandler:ListProjects" />
+  <Route Url="/projects" Method="POST" Call="SpectraSight.REST.ProjectHandler:CreateProject" />
   <Route Url="/tickets" Method="GET" Call="SpectraSight.REST.TicketHandler:ListTickets" />
   <Route Url="/tickets" Method="POST" Call="SpectraSight.REST.TicketHandler:CreateTicket" />
   <Route Url="/tickets/:id/comments" Method="POST" Call="SpectraSight.REST.TicketHandler:AddComment" />

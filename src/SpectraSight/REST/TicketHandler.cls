@@ -211,6 +211,7 @@ ClassMethod ListTickets() As %Status
         Set tAssignee = $GET(%request.Data("assignee", 1))
         Set tSearch = $GET(%request.Data("search", 1))
         Set tSort = $GET(%request.Data("sort", 1), "-updatedAt")
+        Set tProjectFilter = $GET(%request.Data("project", 1))
 
         // Enforce min/max
         If tPage < 1 Set tPage = 1
@@ -286,6 +287,35 @@ ClassMethod ListTickets() As %Status
             Set tParamCount = tParamCount + 1
             Set tParams(tParamCount) = "%"_tSearch_"%"
             Set tWhere = tWhere_$SELECT(tWhere="":"", 1:" AND ")_"(Title LIKE ? OR Description LIKE ?)"
+        }
+
+        // Project filter
+        If tProjectFilter '= "" {
+            Set tResolvedProjectId = ""
+            If +tProjectFilter = tProjectFilter {
+                // Numeric — use directly as project ID
+                Set tResolvedProjectId = tProjectFilter
+            } Else {
+                // String — resolve prefix to project ID
+                Set tProjStmt = ##class(%SQL.Statement).%New()
+                Set tSC2 = tProjStmt.%Prepare("SELECT ID FROM SpectraSight_Model.Project WHERE Prefix = ?")
+                If $$$ISOK(tSC2) {
+                    Set tProjRes = tProjStmt.%Execute($ZCONVERT(tProjectFilter, "U"))
+                    If tProjRes.%Next() {
+                        Set tResolvedProjectId = tProjRes.%Get("ID")
+                    }
+                }
+            }
+            If tResolvedProjectId '= "" {
+                Set tParamCount = tParamCount + 1
+                Set tParams(tParamCount) = tResolvedProjectId
+                Set tWhere = tWhere_$SELECT(tWhere="":"", 1:" AND ")_"Project = ?"
+            } Else {
+                // Prefix not found — return empty results
+                Set tParamCount = tParamCount + 1
+                Set tParams(tParamCount) = -1
+                Set tWhere = tWhere_$SELECT(tWhere="":"", 1:" AND ")_"Project = ?"
+            }
         }
 
         Set tWhereClause = ""
