@@ -6,11 +6,13 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { environment } from '../../environments/environment';
 import { Ticket, CreateTicketRequest, FilterState } from './ticket.model';
 import { ApiListResponse, ApiResponse } from '../shared/models/api-response.model';
+import { AuthService } from '../core/auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class TicketService {
   private http = inject(HttpClient);
   private snackBar = inject(MatSnackBar);
+  private auth = inject(AuthService);
 
   private ticketsSignal = signal<Ticket[]>([]);
   private loadingSignal = signal<boolean>(false);
@@ -68,7 +70,8 @@ export class TicketService {
       params = params.set('priority', state.priority);
     }
     if (state.assignee) {
-      params = params.set('assignee', state.assignee);
+      const assignee = state.assignee === 'me' ? this.auth.getUsername() : state.assignee;
+      params = params.set('assignee', assignee);
     }
     if (state.search) {
       params = params.set('search', state.search);
