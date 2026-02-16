@@ -328,6 +328,23 @@ describe('TicketService', () => {
     req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
   });
 
+  // Story 5.4: Project filter parameter
+  it('should pass project parameter from filter state', () => {
+    service.setFilters({ project: 'DATA' });
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req.request.params.get('project')).toBe('DATA');
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+  });
+
+  it('should not include project param when not set', () => {
+    service.setFilters({ type: ['bug'] });
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req.request.params.has('project')).toBeFalse();
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+  });
+
   it('should not include empty filter params in request', () => {
     service.setFilters({});
 

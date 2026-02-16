@@ -205,4 +205,91 @@ describe('FilterBarComponent', () => {
     component.removeFilter({ category: 'search', value: 'test' });
     expect(component.searchText()).toBe('');
   }));
+
+  // Story 5.4: Project filter tests
+  it('should set project filter on onProjectChange', () => {
+    let emitted: FilterState | null = null;
+    component.filtersChanged.subscribe((f: FilterState) => emitted = f);
+
+    component.onProjectChange('DATA');
+    expect(component.selectedProject()).toBe('DATA');
+    expect(emitted).toBeTruthy();
+    expect(emitted!.project).toBe('DATA');
+  });
+
+  it('should clear project filter when empty string is passed', () => {
+    component.onProjectChange('DATA');
+    expect(component.selectedProject()).toBe('DATA');
+
+    let emitted: FilterState | null = null;
+    component.filtersChanged.subscribe((f: FilterState) => emitted = f);
+
+    component.onProjectChange('');
+    expect(component.selectedProject()).toBe('');
+    expect(emitted).toBeTruthy();
+    expect(emitted!.project).toBeUndefined();
+  });
+
+  it('should initialize project from initialFilters', () => {
+    const fixture2 = TestBed.createComponent(FilterBarComponent);
+    const comp2 = fixture2.componentInstance;
+    fixture2.componentRef.setInput('initialFilters', { project: 'DATA' });
+    fixture2.detectChanges();
+
+    expect(comp2.selectedProject()).toBe('DATA');
+
+    fixture2.destroy();
+  });
+
+  it('should include project in hasActiveFilters', () => {
+    expect(component.hasActiveFilters()).toBeFalse();
+    component.onProjectChange('SS');
+    expect(component.hasActiveFilters()).toBeTrue();
+  });
+
+  it('should include project in activeFilterChips with name and prefix', () => {
+    const fixture2 = TestBed.createComponent(FilterBarComponent);
+    const comp2 = fixture2.componentInstance;
+    fixture2.componentRef.setInput('projects', [
+      { name: 'SpectraSight', prefix: 'SS' },
+      { name: 'DataTools', prefix: 'DT' },
+    ]);
+    fixture2.detectChanges();
+
+    comp2.onProjectChange('SS');
+    const chips = comp2.activeFilterChips();
+    expect(chips.length).toBe(1);
+    expect(chips[0].category).toBe('project');
+    expect(chips[0].label).toBe('SpectraSight (SS)');
+    expect(chips[0].value).toBe('SS');
+
+    fixture2.destroy();
+  });
+
+  it('should remove project filter via chip', () => {
+    component.onProjectChange('DATA');
+    expect(component.selectedProject()).toBe('DATA');
+
+    let emitted: FilterState | null = null;
+    component.filtersChanged.subscribe((f: FilterState) => emitted = f);
+
+    component.removeFilter({ category: 'project', value: 'DATA' });
+    expect(component.selectedProject()).toBe('');
+    expect(emitted).toBeTruthy();
+    expect(emitted!.project).toBeUndefined();
+  });
+
+  it('should clear project filter on clearAll', () => {
+    component.onProjectChange('DATA');
+    component.onTypeToggle('bug');
+    expect(component.selectedProject()).toBe('DATA');
+
+    let emitted: FilterState | null = null;
+    component.filtersChanged.subscribe((f: FilterState) => emitted = f);
+
+    component.clearAll();
+    expect(component.selectedProject()).toBe('');
+    expect(emitted).toBeTruthy();
+    expect(emitted!.project).toBeUndefined();
+  });
 });
