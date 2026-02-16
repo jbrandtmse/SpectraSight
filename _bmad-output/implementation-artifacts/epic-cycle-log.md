@@ -374,3 +374,35 @@
 - 3 LOW remaining: README testing section, manual TOOL_COUNT sync, default creds in docs
 
 **User Input Required:** None
+
+## Story 4.3: MCP Full Parity — Type-Specific Fields & Tools
+
+**Status:** COMPLETE
+**Commits:**
+- `34ebafe` — feat(4.3): implement MCP Full Parity — Type-Specific Fields & Tools
+- `b6b6924` — test(4.3): add automated tests for MCP Full Parity — Type-Specific Fields & Tools
+
+**Files Touched:**
+- `mcp-server/src/tools/tickets.ts` — Added type-specific fields to CreateTicketSchema & UpdateTicketSchema (bug, task, story, epic)
+- `mcp-server/src/tools/code-references.ts` — New: add_code_reference, remove_code_reference tools
+- `mcp-server/src/tools/activity.ts` — New: list_activity tool
+- `mcp-server/src/tools/connection.ts` — TOOL_COUNT 7 → 10
+- `mcp-server/src/index.ts` — Register new tool modules (code-references, activity)
+- `mcp-server/README.md` — Documented 3 new tools, updated count references
+- `mcp-server/src/__tests__/tools/code-references.test.ts` — New: 8 unit tests
+- `mcp-server/src/__tests__/tools/activity.test.ts` — New: 6 unit tests
+- `mcp-server/src/__tests__/tools/tickets.test.ts` — 7 new type-specific field mapping tests
+- `mcp-server/src/__tests__/tools/connection.test.ts` — Updated expected tool count to 10
+- `mcp-server/src/__tests__/qa-story-4-2.test.ts` — Fixed stale descriptions, added new tool names
+- `mcp-server/src/__tests__/qa-story-4-3.test.ts` — New: 46 QA tests covering all 10 ACs
+
+**Key Design Decisions:**
+- Type-specific fields added as optional params on create/update (flat schema, not nested by type)
+- Snake_case MCP params mapped to camelCase REST API fields in handler body
+- No backend (IRIS/ObjectScript) changes needed — all REST endpoints already existed
+- Followed exact same pattern from Stories 4.1/4.2: Zod schemas → api-client call → JSON result
+
+**Issues Auto-Resolved:**
+- 3 MEDIUM: README not updated with new tools, stale QA test descriptions, incomplete tool name verification
+
+**User Input Required:** None

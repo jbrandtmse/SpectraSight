@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "spectrasight": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/path/to/SpectraSight/mcp-server/build/index.js"
+      ],
+      "env": {
+        "SPECTRASIGHT_PASSWORD": "your-iris-password"
+      }
+    }
+  }
+}

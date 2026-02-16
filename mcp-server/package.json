@@ -6,6 +6,7 @@
   "bin": {
     "spectrasight-mcp": "build/index.js"
   },
+  "license": "MIT",
   "scripts": {
     "build": "tsc",
     "start": "node build/index.js",

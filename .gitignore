@@ -25,3 +25,18 @@ mcp-server/node_modules/
 # Environment files
 .env
 .env.local
+
+# Credentials
+.mcp.json
+
+# Editor / IDE
+.vscode/
+.claude/settings.local.json
+
+# Coverage
+coverage/
+frontend/coverage/
+
+# Logs
+*.log
+npm-debug.log*
