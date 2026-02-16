@@ -1207,12 +1207,111 @@ No IRIS ObjectScript tests needed. Story 5.4 is entirely frontend (Angular). The
 
 ---
 
-## Project Test Totals (Stories 1.2-5.4)
+## Story 6.1: User Mapping Data Model & REST API
 
-- **IRIS ObjectScript tests:** 67+ (TestREST, TestHierarchy, TestFilter, TestProject, TestProjectIntegration, TestProjectREST)
+**Date:** 2026-02-16
+**Test Framework:** IRIS ObjectScript custom runner (`%RegisteredObject` + SqlProc pattern)
+**Test File:** `src/SpectraSight/Test/TestUserREST.cls` (new -- 17 tests)
+**QA Agent:** Claude Opus 4.6
+
+## Generated Tests
+
+### API Tests (IRIS ObjectScript)
+
+#### BuildUserResponse Tests (AC #5)
+
+- [x] `TestBuildUserResponse` - BuildUserResponse returns all 6 expected fields (id, irisUsername, displayName, isActive, createdAt, updatedAt) with correct values
+- [x] `TestBuildUserResponseFieldTypes` - Verifies JSON type correctness: id is "number", isActive is "boolean" (via JSON round-trip)
+
+#### Create User Validation Tests (AC #1, #2, #8)
+
+- [x] `TestCreateUserRequiredFields` - Required field enforcement: empty irisUsername and empty displayName tested at model level
+- [x] `TestCreateUserUsernameLength` - 128-char irisUsername saves successfully; handler checks $LENGTH > 128 before save
+- [x] `TestCreateUserDisplayNameLength` - 255-char displayName saves successfully; handler checks $LENGTH > 255 before save
+- [x] `TestCreateUserDuplicateUsername` - Unique index (UsernameIdx) rejects duplicate irisUsername; error text verified to contain "unique" or "UsernameIdx" pattern matching handler logic
+
+#### List Users Tests (AC #3, #4)
+
+- [x] `TestListUsersOrder` - SQL ORDER BY DisplayName returns users in alphabetical order (Alice, Mike, Zara from out-of-order creation)
+- [x] `TestListUsersIsActiveFilter` - isActive filter: WHERE IsActive=1 returns 2 active users, WHERE IsActive=0 returns 1 inactive user, no filter returns all 3
+
+#### Get User Tests (AC #5)
+
+- [x] `TestGetUserNotFound` - Non-existent user ID returns empty (simulates handler's 404 logic)
+
+#### Update User Tests (AC #6)
+
+- [x] `TestUpdateUserFields` - DisplayName update persists correctly; IrisUsername remains unchanged
+- [x] `TestUpdateUserIsActive` - IsActive toggles from 1 to 0 and persists correctly
+- [x] `TestUpdateUserRequiresField` - %IsDefined detection: empty body has neither field; body with displayName detected; body with isActive detected; body with both detected
+
+#### Delete User Tests (AC #7)
+
+- [x] `TestDeleteUserSuccess` - User with zero ticket assignments deletes successfully; verified via %OpenId returning empty after deletion
+- [x] `TestDeleteUserWithTickets` - SQL COUNT(*) correctly detects tickets assigned to user's DisplayName (count > 0); simulates handler's 409 Conflict guard
+- [x] `TestDeleteUserNotFound` - Non-existent user ID returns empty (simulates handler's 404 logic)
+
+#### Model Behavior Tests (AC #1)
+
+- [x] `TestIsActiveDefaultTrue` - IsActive defaults to 1 on %OnNew and persists correctly
+- [x] `TestTimestampsAutoSet` - CreatedAt and UpdatedAt auto-set on %OnNew and persist correctly
+
+## Coverage
+
+### By Acceptance Criteria
+
+| AC | Description | Test Coverage | Tests |
+|----|-------------|---------------|-------|
+| 1 | UserMapping class with properties, index, timestamps | Model defaults, timestamps, IsActive | TestIsActiveDefaultTrue, TestTimestampsAutoSet, TestCreateUserRequiredFields |
+| 2 | POST /api/users creates user mapping | Validation, length limits, response | TestCreateUserRequiredFields, TestCreateUserUsernameLength, TestCreateUserDisplayNameLength |
+| 3 | GET /api/users returns all users | SQL ORDER BY DisplayName | TestListUsersOrder |
+| 4 | GET /api/users?isActive=true filter | Active/inactive/all counts | TestListUsersIsActiveFilter |
+| 5 | GET /api/users/:id returns single user | BuildUserResponse all fields + types, 404 logic | TestBuildUserResponse, TestBuildUserResponseFieldTypes, TestGetUserNotFound |
+| 6 | PUT /api/users/:id updates mapping | Field persistence, isActive toggle, requires field | TestUpdateUserFields, TestUpdateUserIsActive, TestUpdateUserRequiresField |
+| 7 | DELETE /api/users/:id with guards | Delete success, ticket assignment conflict, 404 | TestDeleteUserSuccess, TestDeleteUserWithTickets, TestDeleteUserNotFound |
+| 8 | Duplicate irisUsername returns 400 | Unique index enforcement | TestCreateUserDuplicateUsername |
+| 9 | Standard response envelope, Basic Auth | Tested via existing Response.cls tests | N/A (Response.cls verified in Story 5.3 QA) |
+| 10 | Unit tests verify UserMapping CRUD | Model-level tests (dev-authored) | TestUserMapping.cls (5 tests, verified passing) |
+
+### By Component
+
+| Component | Tests | Coverage |
+|-----------|-------|----------|
+| UserHandler.BuildUserResponse | 2 | All 6 fields, JSON number/boolean types |
+| UserHandler create logic | 4 | Required fields, username length, displayName length, duplicate username |
+| UserHandler list logic | 2 | SQL ORDER BY DisplayName, isActive filter (active/inactive/all) |
+| UserHandler get logic | 1 | Non-existent user 404 |
+| UserHandler update logic | 3 | DisplayName persistence, isActive toggle, at-least-one-field guard |
+| UserHandler delete logic | 3 | Zero-assignment success, ticket-assignment conflict, 404 |
+| UserMapping model | 2 | IsActive default, timestamp auto-set |
+
+### Summary Statistics
+
+- **New IRIS tests (QA-generated):** 17 (all passed)
+- **Regression: TestProjectREST.RunAll:** 20 passed, 0 failed (no regressions)
+- **Existing TestUserMapping (dev-authored):** 5 tests, all passing
+- **No new regressions introduced**
+- **Combined project total (Stories 1.2-6.1):** 724+ tests (707 prior + 17 new)
+
+## Files Created
+
+- `src/SpectraSight/Test/TestUserREST.cls` (new -- 17 User REST API tests)
+
+## Notes
+
+- REST handler methods (ListUsers, CreateUser, GetUser, UpdateUser, DeleteUser) depend on `%request` and `%response` process-private variables and cannot be called directly in unit tests. Testing exercises the underlying logic: BuildUserResponse, SQL queries, model operations, validation guards, and %IsDefined detection.
+- The delete guard for ticket assignments uses the DisplayName as the lookup key against the Ticket.Assignee field (which is a string), matching the handler's exact query: `SELECT COUNT(*) FROM SpectraSight_Model.Ticket WHERE Assignee = ?`.
+- Test data isolation: Each test creates its own UserMapping data and deletes it in cleanup, ensuring no cross-test contamination. Test usernames use unique prefixes (e.g., BUILDRESP_TEST, FILTER_ACTIVE1) to avoid conflicts.
+- No frontend tests needed: Story 6.1 is backend-only (no Angular modifications). Frontend user mapping UI is Story 6.2.
+
+---
+
+## Project Test Totals (Stories 1.2-6.1)
+
+- **IRIS ObjectScript tests:** 84+ (TestREST, TestHierarchy, TestFilter, TestProject, TestProjectIntegration, TestProjectREST, TestUserMapping, TestUserREST)
 - **Angular tests:** 436 (435 pass, 1 pre-existing failure in auth.guard.spec.ts)
 - **MCP TypeScript tests:** 204 (all passing)
-- **Combined total:** 707+ tests
+- **Combined total:** 724+ tests
 
 ## Next Steps
 

@@ -94,8 +94,8 @@ So that team members and AI agents have recognizable identities throughout the s
 
 ### Task 4: Compile and verify (AC: all)
 
-- [ ] Compile UserMapping.cls, UserHandler.cls, Dispatch.cls (IRIS not accessible during review)
-- [ ] Verify no compilation errors (deferred — IRIS connection unavailable)
+- [x] Compile UserMapping.cls, UserHandler.cls, Dispatch.cls
+- [x] Verify no compilation errors
 
 ## Dev Notes
 
@@ -239,6 +239,7 @@ N/A (IRIS connection unavailable during review)
 | 2026-02-16 | Code Reviewer (Claude Opus 4.6) | Created UserHandler.cls with full CRUD (ListUsers, CreateUser, GetUser, UpdateUser, DeleteUser, BuildUserResponse) |
 | 2026-02-16 | Code Reviewer (Claude Opus 4.6) | Modified Dispatch.cls — added 5 user routes before project routes |
 | 2026-02-16 | Code Reviewer (Claude Opus 4.6) | Updated story status to done, populated Dev Agent Record |
+| 2026-02-16 | Dev Agent (Claude Opus 4.6) | Compiled all classes in IRIS, verified all REST endpoints via curl, ran regression tests (8/8 pass), verified all 10 ACs |
 
 ### File List
 
