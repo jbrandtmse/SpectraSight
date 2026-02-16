@@ -73,7 +73,7 @@ development_status:
   # Epic 5: Multi-Project Support
   epic-5: in-progress
   5-1-project-data-model-and-default-project: done
-  5-2-project-scoped-ticket-numbering: backlog
+  5-2-project-scoped-ticket-numbering: review
   5-3-project-rest-api-and-mcp-tools: backlog
   5-4-project-configuration-ui-and-list-filter: backlog
   epic-5-retrospective: optional

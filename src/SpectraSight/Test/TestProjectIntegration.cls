@@ -350,6 +350,308 @@ Method TestPrefixValidationValid() As %Status
     Quit $$$OK
 }
 
+/// Test sequential numbering: 3 tickets in same project get SequenceNumbers 1, 2, 3 (AC#6)
+Method TestSequentialNumbering() As %Status
+{
+    Set tProjectId = ""
+    Set tIds(1) = ""
+    Set tIds(2) = ""
+    Set tIds(3) = ""
+    Try {
+        // Create a project
+        Set tProject = ##class(SpectraSight.Model.Project).%New()
+        Set tProject.Name = "Sequential Test"
+        Set tProject.Prefix = "SQ"
+        Set tProject.SequenceCounter = 0
+        Set tSC = tProject.%Save()
+        Do $$$AssertStatusOK(tSC, "Project should save")
+        Set tProjectId = tProject.%Id()
+
+        // Create ticket 1
+        LOCK +^SpectraSight.Model.ProjectD(tProjectId):5
+        Set tProjObj = ##class(SpectraSight.Model.Project).%OpenId(tProjectId)
+        Set tProjObj.SequenceCounter = tProjObj.SequenceCounter + 1
+        Set tTicket1 = ##class(SpectraSight.Model.Task).%New()
+        Set tTicket1.Title = "Seq Test 1"
+        Set tTicket1.Project = tProjObj
+        Set tTicket1.SequenceNumber = tProjObj.SequenceCounter
+        Set tSC = tProjObj.%Save()
+        LOCK -^SpectraSight.Model.ProjectD(tProjectId)
+        Do $$$AssertStatusOK(tSC, "Project save for ticket 1 should succeed")
+        Set tSC = tTicket1.%Save()
+        Do $$$AssertStatusOK(tSC, "Ticket 1 should save")
+        Set tIds(1) = tTicket1.%Id()
+
+        // Create ticket 2
+        LOCK +^SpectraSight.Model.ProjectD(tProjectId):5
+        Set tProjObj = ##class(SpectraSight.Model.Project).%OpenId(tProjectId)
+        Set tProjObj.SequenceCounter = tProjObj.SequenceCounter + 1
+        Set tTicket2 = ##class(SpectraSight.Model.Task).%New()
+        Set tTicket2.Title = "Seq Test 2"
+        Set tTicket2.Project = tProjObj
+        Set tTicket2.SequenceNumber = tProjObj.SequenceCounter
+        Set tSC = tProjObj.%Save()
+        LOCK -^SpectraSight.Model.ProjectD(tProjectId)
+        Do $$$AssertStatusOK(tSC, "Project save for ticket 2 should succeed")
+        Set tSC = tTicket2.%Save()
+        Do $$$AssertStatusOK(tSC, "Ticket 2 should save")
+        Set tIds(2) = tTicket2.%Id()
+
+        // Create ticket 3
+        LOCK +^SpectraSight.Model.ProjectD(tProjectId):5
+        Set tProjObj = ##class(SpectraSight.Model.Project).%OpenId(tProjectId)
+        Set tProjObj.SequenceCounter = tProjObj.SequenceCounter + 1
+        Set tTicket3 = ##class(SpectraSight.Model.Task).%New()
+        Set tTicket3.Title = "Seq Test 3"
+        Set tTicket3.Project = tProjObj
+        Set tTicket3.SequenceNumber = tProjObj.SequenceCounter
+        Set tSC = tProjObj.%Save()
+        LOCK -^SpectraSight.Model.ProjectD(tProjectId)
+        Do $$$AssertStatusOK(tSC, "Project save for ticket 3 should succeed")
+        Set tSC = tTicket3.%Save()
+        Do $$$AssertStatusOK(tSC, "Ticket 3 should save")
+        Set tIds(3) = tTicket3.%Id()
+
+        // Verify sequential numbering
+        Set tLoaded1 = ##class(SpectraSight.Model.Task).%OpenId(tIds(1))
+        Set tLoaded2 = ##class(SpectraSight.Model.Task).%OpenId(tIds(2))
+        Set tLoaded3 = ##class(SpectraSight.Model.Task).%OpenId(tIds(3))
+        Do $$$AssertEquals(tLoaded1.SequenceNumber, 1, "First ticket should be SequenceNumber 1")
+        Do $$$AssertEquals(tLoaded2.SequenceNumber, 2, "Second ticket should be SequenceNumber 2")
+        Do $$$AssertEquals(tLoaded3.SequenceNumber, 3, "Third ticket should be SequenceNumber 3")
+
+        // Verify display IDs
+        Do $$$AssertEquals(##class(SpectraSight.Util.TicketID).Format(tIds(1)), "SQ-1", "First ticket display ID should be SQ-1")
+        Do $$$AssertEquals(##class(SpectraSight.Util.TicketID).Format(tIds(2)), "SQ-2", "Second ticket display ID should be SQ-2")
+        Do $$$AssertEquals(##class(SpectraSight.Util.TicketID).Format(tIds(3)), "SQ-3", "Third ticket display ID should be SQ-3")
+
+        // Verify project counter is at 3
+        Set tFinalProject = ##class(SpectraSight.Model.Project).%OpenId(tProjectId)
+        Do $$$AssertEquals(tFinalProject.SequenceCounter, 3, "Project SequenceCounter should be 3")
+    }
+    Catch ex {
+        Do $$$AssertTrue(0, "Unexpected exception: "_ex.DisplayString())
+    }
+    // Cleanup
+    If tIds(1) '= "" Do ##class(SpectraSight.Model.Task).%DeleteId(tIds(1))
+    If tIds(2) '= "" Do ##class(SpectraSight.Model.Task).%DeleteId(tIds(2))
+    If tIds(3) '= "" Do ##class(SpectraSight.Model.Task).%DeleteId(tIds(3))
+    If tProjectId '= "" Do ##class(SpectraSight.Model.Project).%DeleteId(tProjectId)
+    Quit $$$OK
+}
+
+/// Test independent numbering across projects: 2 projects have separate counters (AC#7)
+Method TestIndependentNumbering() As %Status
+{
+    Set tProj1Id = ""
+    Set tProj2Id = ""
+    Set tTicketIds = ""
+    Try {
+        // Create two projects
+        Set tProj1 = ##class(SpectraSight.Model.Project).%New()
+        Set tProj1.Name = "Project Alpha"
+        Set tProj1.Prefix = "PA"
+        Set tProj1.SequenceCounter = 0
+        Set tSC = tProj1.%Save()
+        Do $$$AssertStatusOK(tSC, "Project Alpha should save")
+        Set tProj1Id = tProj1.%Id()
+
+        Set tProj2 = ##class(SpectraSight.Model.Project).%New()
+        Set tProj2.Name = "Project Beta"
+        Set tProj2.Prefix = "PB"
+        Set tProj2.SequenceCounter = 0
+        Set tSC = tProj2.%Save()
+        Do $$$AssertStatusOK(tSC, "Project Beta should save")
+        Set tProj2Id = tProj2.%Id()
+
+        // Create tickets alternating between projects: PA-1, PB-1, PA-2, PB-2
+        Set tTicketCount = 0
+        For tI = 1:1:4 {
+            Set tTargetProjId = $SELECT(tI#2=1:tProj1Id, 1:tProj2Id)
+            LOCK +^SpectraSight.Model.ProjectD(tTargetProjId):5
+            Set tProjObj = ##class(SpectraSight.Model.Project).%OpenId(tTargetProjId)
+            Set tProjObj.SequenceCounter = tProjObj.SequenceCounter + 1
+            Set tTicket = ##class(SpectraSight.Model.Bug).%New()
+            Set tTicket.Title = "Independent Test "_tI
+            Set tTicket.Project = tProjObj
+            Set tTicket.SequenceNumber = tProjObj.SequenceCounter
+            Set tSC = tProjObj.%Save()
+            LOCK -^SpectraSight.Model.ProjectD(tTargetProjId)
+            Do $$$AssertStatusOK(tSC, "Project save for ticket "_tI_" should succeed")
+            Set tSC = tTicket.%Save()
+            Do $$$AssertStatusOK(tSC, "Ticket "_tI_" should save")
+            Set tTicketCount = tTicketCount + 1
+            Set tTicketIds(tTicketCount) = tTicket.%Id()
+            Set tTicketSeqs(tTicketCount) = tTicket.SequenceNumber
+            Set tTicketProjs(tTicketCount) = tTargetProjId
+        }
+
+        // Verify: PA tickets have seq 1,2 and PB tickets have seq 1,2
+        // Ticket 1 -> PA, seq 1; Ticket 2 -> PB, seq 1; Ticket 3 -> PA, seq 2; Ticket 4 -> PB, seq 2
+        Do $$$AssertEquals(tTicketSeqs(1), 1, "PA first ticket should be seq 1")
+        Do $$$AssertEquals(tTicketSeqs(2), 1, "PB first ticket should be seq 1")
+        Do $$$AssertEquals(tTicketSeqs(3), 2, "PA second ticket should be seq 2")
+        Do $$$AssertEquals(tTicketSeqs(4), 2, "PB second ticket should be seq 2")
+
+        // Verify display IDs
+        Do $$$AssertEquals(##class(SpectraSight.Util.TicketID).Format(tTicketIds(1)), "PA-1", "First PA ticket should be PA-1")
+        Do $$$AssertEquals(##class(SpectraSight.Util.TicketID).Format(tTicketIds(2)), "PB-1", "First PB ticket should be PB-1")
+        Do $$$AssertEquals(##class(SpectraSight.Util.TicketID).Format(tTicketIds(3)), "PA-2", "Second PA ticket should be PA-2")
+        Do $$$AssertEquals(##class(SpectraSight.Util.TicketID).Format(tTicketIds(4)), "PB-2", "Second PB ticket should be PB-2")
+
+        // Verify each project counter
+        Set tFinalProj1 = ##class(SpectraSight.Model.Project).%OpenId(tProj1Id)
+        Set tFinalProj2 = ##class(SpectraSight.Model.Project).%OpenId(tProj2Id)
+        Do $$$AssertEquals(tFinalProj1.SequenceCounter, 2, "PA SequenceCounter should be 2")
+        Do $$$AssertEquals(tFinalProj2.SequenceCounter, 2, "PB SequenceCounter should be 2")
+
+        // Verify Parse resolves correctly across projects
+        Do $$$AssertEquals(##class(SpectraSight.Util.TicketID).Parse("PA-1"), +tTicketIds(1), "PA-1 should resolve to first PA ticket")
+        Do $$$AssertEquals(##class(SpectraSight.Util.TicketID).Parse("PB-2"), +tTicketIds(4), "PB-2 should resolve to second PB ticket")
+    }
+    Catch ex {
+        Do $$$AssertTrue(0, "Unexpected exception: "_ex.DisplayString())
+    }
+    // Cleanup
+    For tI = 1:1:4 {
+        If $GET(tTicketIds(tI)) '= "" Do ##class(SpectraSight.Model.Bug).%DeleteId(tTicketIds(tI))
+    }
+    If tProj1Id '= "" Do ##class(SpectraSight.Model.Project).%DeleteId(tProj1Id)
+    If tProj2Id '= "" Do ##class(SpectraSight.Model.Project).%DeleteId(tProj2Id)
+    Quit $$$OK
+}
+
+/// Test default project assignment: ticket without projectId gets SS project (AC#5)
+Method TestDefaultProjectAssignment() As %Status
+{
+    Set tBugId = ""
+    Try {
+        // Ensure default project exists
+        Do ..CleanupDefaultProject()
+        Set tSC = ##class(SpectraSight.Util.Setup).EnsureDefaultProject()
+        Do $$$AssertStatusOK(tSC, "EnsureDefaultProject should succeed")
+
+        // Get the SS project ID
+        Set tStmt = ##class(%SQL.Statement).%New()
+        Set tSC = tStmt.%Prepare("SELECT ID, SequenceCounter FROM SpectraSight_Model.Project WHERE Prefix = 'SS'")
+        Do $$$AssertStatusOK(tSC, "SQL prepare should succeed")
+        Set tRes = tStmt.%Execute()
+        Do $$$AssertTrue(tRes.%Next(), "SS project should exist")
+        Set tSSProjectId = tRes.%Get("ID")
+        Set tSSCounter = tRes.%Get("SequenceCounter")
+
+        // Simulate CreateTicket without projectId (uses default SS project)
+        LOCK +^SpectraSight.Model.ProjectD(tSSProjectId):5
+        Set tProjObj = ##class(SpectraSight.Model.Project).%OpenId(tSSProjectId)
+        Set tProjObj.SequenceCounter = tProjObj.SequenceCounter + 1
+        Set tBug = ##class(SpectraSight.Model.Bug).%New()
+        Set tBug.Title = "Default Project Test"
+        Set tBug.Project = tProjObj
+        Set tBug.SequenceNumber = tProjObj.SequenceCounter
+        Set tSC = tProjObj.%Save()
+        LOCK -^SpectraSight.Model.ProjectD(tSSProjectId)
+        Do $$$AssertStatusOK(tSC, "Project save should succeed")
+        Set tSC = tBug.%Save()
+        Do $$$AssertStatusOK(tSC, "Bug should save")
+        Set tBugId = tBug.%Id()
+
+        // Verify the ticket is assigned to SS project
+        Set tLoaded = ##class(SpectraSight.Model.Bug).%OpenId(tBugId)
+        Do $$$AssertTrue(tLoaded.Project '= "", "Ticket should have a project")
+        Do $$$AssertEquals(tLoaded.Project.Prefix, "SS", "Ticket should be assigned to SS project")
+        Do $$$AssertEquals(tLoaded.SequenceNumber, tSSCounter + 1, "Ticket SequenceNumber should be counter + 1")
+
+        // Verify display ID uses SS prefix
+        Set tDisplayId = ##class(SpectraSight.Util.TicketID).Format(tBugId)
+        Do $$$AssertEquals(tDisplayId, "SS-"_(tSSCounter + 1), "Display ID should use SS prefix")
+    }
+    Catch ex {
+        Do $$$AssertTrue(0, "Unexpected exception: "_ex.DisplayString())
+    }
+    // Cleanup
+    If tBugId '= "" {
+        Set tStmtC = ##class(%SQL.Statement).%New()
+        If $$$ISOK(tStmtC.%Prepare("UPDATE SpectraSight_Model.Ticket SET Project = NULL WHERE ID = ?")) {
+            Do tStmtC.%Execute(tBugId)
+        }
+        Do ##class(SpectraSight.Model.Bug).%DeleteId(tBugId)
+    }
+    Do ..CleanupDefaultProject()
+    Quit $$$OK
+}
+
+/// Test full CRUD round-trip with project-scoped IDs (AC#4, Task 3)
+Method TestCRUDRoundTripWithProjectIDs() As %Status
+{
+    Set tProjectId = ""
+    Set tTicketId = ""
+    Try {
+        // Create a project
+        Set tProject = ##class(SpectraSight.Model.Project).%New()
+        Set tProject.Name = "CRUD Round Trip"
+        Set tProject.Prefix = "CR"
+        Set tProject.SequenceCounter = 0
+        Set tSC = tProject.%Save()
+        Do $$$AssertStatusOK(tSC, "Project should save")
+        Set tProjectId = tProject.%Id()
+
+        // Create a ticket with sequence number
+        LOCK +^SpectraSight.Model.ProjectD(tProjectId):5
+        Set tProjObj = ##class(SpectraSight.Model.Project).%OpenId(tProjectId)
+        Set tProjObj.SequenceCounter = tProjObj.SequenceCounter + 1
+        Set tTask = ##class(SpectraSight.Model.Task).%New()
+        Set tTask.Title = "CRUD Test Task"
+        Set tTask.Project = tProjObj
+        Set tTask.SequenceNumber = tProjObj.SequenceCounter
+        Set tSC = tProjObj.%Save()
+        LOCK -^SpectraSight.Model.ProjectD(tProjectId)
+        Do $$$AssertStatusOK(tSC, "Project save should succeed")
+        Set tSC = tTask.%Save()
+        Do $$$AssertStatusOK(tSC, "Task should save")
+        Set tTicketId = tTask.%Id()
+
+        // Get the display ID (should be "CR-1")
+        Set tDisplayId = ##class(SpectraSight.Util.TicketID).Format(tTicketId)
+        Do $$$AssertEquals(tDisplayId, "CR-1", "Display ID should be CR-1")
+
+        // Parse the display ID back to internal ID (READ operation prep)
+        Set tParsedId = ##class(SpectraSight.Util.TicketID).Parse(tDisplayId)
+        Do $$$AssertEquals(tParsedId, +tTicketId, "Parse should resolve CR-1 to internal ID")
+
+        // Simulate GET: open by parsed ID
+        Set tLoaded = ##class(SpectraSight.Model.Task).%OpenId(tParsedId)
+        Do $$$AssertTrue(tLoaded '= "", "GET: Ticket should be loadable via parsed ID")
+        Do $$$AssertEquals(tLoaded.Title, "CRUD Test Task", "GET: Title should match")
+
+        // Simulate UPDATE: modify title via parsed ID
+        Set tLoaded.Title = "Updated CRUD Test Task"
+        Set tSC = tLoaded.%Save()
+        Do $$$AssertStatusOK(tSC, "UPDATE: Save should succeed")
+
+        // Verify update persisted
+        Set tReloaded = ##class(SpectraSight.Model.Task).%OpenId(tParsedId)
+        Do $$$AssertEquals(tReloaded.Title, "Updated CRUD Test Task", "UPDATE: Title should be updated")
+        // Display ID should remain unchanged
+        Do $$$AssertEquals(##class(SpectraSight.Util.TicketID).Format(tParsedId), "CR-1", "UPDATE: Display ID should still be CR-1")
+
+        // Simulate DELETE: delete by parsed ID
+        Set tSC = ##class(SpectraSight.Model.Task).%DeleteId(tParsedId)
+        Do $$$AssertStatusOK(tSC, "DELETE: Should succeed via parsed ID")
+        Set tTicketId = ""
+
+        // Verify deleted
+        Set tGone = ##class(SpectraSight.Model.Task).%OpenId(tParsedId)
+        Do $$$AssertTrue(tGone = "", "DELETE: Ticket should no longer exist")
+    }
+    Catch ex {
+        Do $$$AssertTrue(0, "Unexpected exception: "_ex.DisplayString())
+    }
+    // Cleanup
+    If tTicketId '= "" Do ##class(SpectraSight.Model.Task).%DeleteId(tTicketId)
+    If tProjectId '= "" Do ##class(SpectraSight.Model.Project).%DeleteId(tProjectId)
+    Quit $$$OK
+}
+
 /// Helper: clean up default project
 Method CleanupDefaultProject() [ Private ]
 {
