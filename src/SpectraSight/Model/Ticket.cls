@@ -17,11 +17,17 @@ Property CreatedAt As %TimeStamp(%JSONFIELDNAME = "createdAt");
 
 Property UpdatedAt As %TimeStamp(%JSONFIELDNAME = "updatedAt");
 
+Property Project As SpectraSight.Model.Project(%JSONFIELDNAME = "projectId");
+
+Property SequenceNumber As %Integer(%JSONFIELDNAME = "sequenceNumber");
+
 Index StatusIdx On Status;
 
 Index AssigneeIdx On Assignee;
 
 Index ParentIdx On Parent;
+
+Index ProjectIdx On Project;
 
 Method %OnNew(initvalue As %String = "") As %Status
 {
@@ -77,6 +83,12 @@ Storage Default
 </Value>
 <Value name="9">
 <Value>UpdatedAt</Value>
+</Value>
+<Value name="10">
+<Value>Project</Value>
+</Value>
+<Value name="11">
+<Value>SequenceNumber</Value>
 </Value>
 </Data>
 <DataLocation>^SpectraSight.Model.TicketD</DataLocation>

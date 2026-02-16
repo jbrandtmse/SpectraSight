@@ -112,6 +112,45 @@ ClassMethod CreateTicket() As %Status
             Set tTicket.Parent = tParentObj
         }
 
+        // Assign project and sequence number
+        Set tProjectId = ""
+        If tBody.%IsDefined("projectId") && (tBody.%Get("projectId") '= "") {
+            Set tProjectId = tBody.%Get("projectId")
+        } Else {
+            // Look up default project (Prefix="SS")
+            Set tProjStmt = ##class(%SQL.Statement).%New()
+            Set tSC = tProjStmt.%Prepare("SELECT ID FROM SpectraSight_Model.Project WHERE Prefix = 'SS'")
+            If $$$ISOK(tSC) {
+                Set tProjRes = tProjStmt.%Execute()
+                If tProjRes.%Next() {
+                    Set tProjectId = tProjRes.%Get("ID")
+                }
+            }
+        }
+        If tProjectId '= "" {
+            // Atomic increment of sequence counter with lock
+            LOCK +^SpectraSight.Model.ProjectD(tProjectId):5
+            If '$TEST {
+                Set tSC = ##class(SpectraSight.REST.Response).ServerError("Could not acquire sequence lock")
+                Quit
+            }
+            Set tProjectObj = ##class(SpectraSight.Model.Project).%OpenId(tProjectId)
+            If tProjectObj = "" {
+                LOCK -^SpectraSight.Model.ProjectD(tProjectId)
+                Set tSC = ##class(SpectraSight.REST.Response).ServerError("Project not found")
+                Quit
+            }
+            Set tProjectObj.SequenceCounter = tProjectObj.SequenceCounter + 1
+            Set tTicket.SequenceNumber = tProjectObj.SequenceCounter
+            Set tTicket.Project = tProjectObj
+            Set tSC = tProjectObj.%Save()
+            LOCK -^SpectraSight.Model.ProjectD(tProjectId)
+            If $$$ISERR(tSC) {
+                Set tSC = ##class(SpectraSight.REST.Response).ServerError("Failed to update project sequence counter")
+                Quit
+            }
+        }
+
         // Save
         Set tSC = tTicket.%Save()
         If $$$ISERR(tSC) {
@@ -712,6 +751,15 @@ ClassMethod BuildTicketResponse(pTicket As SpectraSight.Model.Ticket, pIncludeCh
         }
         Do tObj.%Set("createdAt", pTicket.CreatedAt)
         Do tObj.%Set("updatedAt", pTicket.UpdatedAt)
+
+        // Project fields
+        If (pTicket.Project '= "") {
+            Do tObj.%Set("projectId", pTicket.Project.%Id())
+            Do tObj.%Set("projectPrefix", pTicket.Project.Prefix)
+        }
+        If (pTicket.SequenceNumber > 0) {
+            Do tObj.%Set("sequenceNumber", pTicket.SequenceNumber, "number")
+        }
 
         // Type-specific fields
         If pTicket.%IsA("SpectraSight.Model.Bug") {

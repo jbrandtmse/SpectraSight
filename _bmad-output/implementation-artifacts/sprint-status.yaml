@@ -69,3 +69,20 @@ development_status:
   4-2-mcp-configuration-and-connection-testing: done
   4-3-mcp-full-parity-type-specific-fields-and-tools: done
   epic-4-retrospective: optional
+
+  # Epic 5: Multi-Project Support
+  epic-5: in-progress
+  5-1-project-data-model-and-default-project: done
+  5-2-project-scoped-ticket-numbering: backlog
+  5-3-project-rest-api-and-mcp-tools: backlog
+  5-4-project-configuration-ui-and-list-filter: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: User Management & Agent Identity
+  epic-6: backlog
+  6-1-user-mapping-data-model-and-rest-api: backlog
+  6-2-user-mapping-configuration-ui: backlog
+  6-3-assignee-dropdowns-from-mapped-users: backlog
+  6-4-mcp-user-identity-selection: backlog
+  6-5-closed-ticket-filtering: backlog
+  epic-6-retrospective: optional
