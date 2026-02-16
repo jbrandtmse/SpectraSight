@@ -492,3 +492,26 @@ So that I can start assigning tickets to the agent with confidence it can operat
 **And** the `api-client.ts` module handles HTTP errors gracefully and translates them to meaningful MCP tool errors
 **And** the project README includes MCP server setup instructions: how to build, configure, and add to an MCP client config
 **And** a `package.json` script is available for building the TypeScript MCP server to JavaScript
+
+### Story 4.3: MCP Full Parity — Type-Specific Fields & Additional Tools
+
+As an AI agent,
+I want to set and update type-specific fields on tickets and manage code references and activity via MCP,
+So that I have full functional parity with the web UI and can operate as an equal teammate.
+
+**Acceptance Criteria:**
+
+**Given** the MCP server from Story 4.1 exists
+**When** an AI agent calls `create_ticket` with type "bug"
+**Then** the tool accepts optional type-specific fields: `severity`, `steps_to_reproduce`, `expected_behavior`, `actual_behavior`
+**And** `create_ticket` with type "task" accepts: `estimated_hours`, `actual_hours`
+**And** `create_ticket` with type "story" accepts: `story_points`, `acceptance_criteria`
+**And** `create_ticket` with type "epic" accepts: `start_date`, `target_date`
+**And** `update_ticket` accepts all type-specific fields for the ticket's type
+**And** `update_ticket` accepts `parent_id` to set or change a ticket's parent
+**And** a new `add_code_reference` tool accepts `ticket_id`, `class_name` (required), and `method_name` (optional) — creates via `POST /api/tickets/:id/code-references`
+**And** a new `remove_code_reference` tool accepts `ticket_id` and `reference_id` — deletes via `DELETE /api/tickets/:id/code-references/:refId`
+**And** a new `list_activity` tool accepts `ticket_id` and returns the full activity timeline via `GET /api/tickets/:id/activity`
+**And** all new tool parameters use snake_case naming and are validated with Zod schemas
+**And** the test_connection tool's TOOL_COUNT is updated to reflect the new total (10)
+**And** MCP operation response times do not exceed 150% of equivalent REST API response times (NFR3)

@@ -6,6 +6,8 @@ import { getConfig } from "./config.js";
 import { ApiClient } from "./api-client.js";
 import { registerTicketTools } from "./tools/tickets.js";
 import { registerCommentTools } from "./tools/comments.js";
+import { registerCodeReferenceTools } from "./tools/code-references.js";
+import { registerActivityTools } from "./tools/activity.js";
 import { registerConnectionTools } from "./tools/connection.js";
 
 async function main(): Promise<void> {
@@ -19,6 +21,8 @@ async function main(): Promise<void> {
 
   registerTicketTools(server, apiClient);
   registerCommentTools(server, apiClient);
+  registerCodeReferenceTools(server, apiClient);
+  registerActivityTools(server, apiClient);
   registerConnectionTools(server, apiClient, config);
 
   const transport = new StdioServerTransport();

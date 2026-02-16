@@ -80,7 +80,7 @@ describe("connection tools", () => {
       expect(mockApiClient.get).toHaveBeenCalledWith("/tickets", { page: "1", pageSize: "1" });
       expect(result.isError).toBeUndefined();
       expect(result.content[0].text).toBe(
-        "Connected to SpectraSight API at http://localhost:52773 — 42 tickets found. All 7 tools available."
+        "Connected to SpectraSight API at http://localhost:52773 — 42 tickets found. All 10 tools available."
       );
     });
 

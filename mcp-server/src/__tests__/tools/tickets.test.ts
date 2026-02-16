@@ -93,6 +93,83 @@ describe("ticket tools", () => {
       const callArgs = (mockApiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
       expect(callArgs).not.toHaveProperty("parent_id");
     });
+
+    it("maps bug-specific fields to camelCase in request body", async () => {
+      (mockApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "SS-3" });
+
+      const handler = tools.get("create_ticket")!.handler;
+      await handler({
+        title: "Login crash",
+        type: "bug",
+        severity: "High",
+        steps_to_reproduce: "1. Open app\n2. Click login",
+        expected_behavior: "Login form appears",
+        actual_behavior: "App crashes",
+      });
+
+      const callArgs = (mockApiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+      expect(callArgs.severity).toBe("High");
+      expect(callArgs.stepsToReproduce).toBe("1. Open app\n2. Click login");
+      expect(callArgs.expectedBehavior).toBe("Login form appears");
+      expect(callArgs.actualBehavior).toBe("App crashes");
+      expect(callArgs).not.toHaveProperty("steps_to_reproduce");
+      expect(callArgs).not.toHaveProperty("expected_behavior");
+      expect(callArgs).not.toHaveProperty("actual_behavior");
+    });
+
+    it("maps task-specific fields to camelCase in request body", async () => {
+      (mockApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "SS-4" });
+
+      const handler = tools.get("create_ticket")!.handler;
+      await handler({
+        title: "Setup CI",
+        type: "task",
+        estimated_hours: 4,
+        actual_hours: 2,
+      });
+
+      const callArgs = (mockApiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+      expect(callArgs.estimatedHours).toBe(4);
+      expect(callArgs.actualHours).toBe(2);
+      expect(callArgs).not.toHaveProperty("estimated_hours");
+      expect(callArgs).not.toHaveProperty("actual_hours");
+    });
+
+    it("maps story-specific fields to camelCase in request body", async () => {
+      (mockApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "SS-5" });
+
+      const handler = tools.get("create_ticket")!.handler;
+      await handler({
+        title: "User login",
+        type: "story",
+        story_points: 5,
+        acceptance_criteria: "User can log in with email",
+      });
+
+      const callArgs = (mockApiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+      expect(callArgs.storyPoints).toBe(5);
+      expect(callArgs.acceptanceCriteria).toBe("User can log in with email");
+      expect(callArgs).not.toHaveProperty("story_points");
+      expect(callArgs).not.toHaveProperty("acceptance_criteria");
+    });
+
+    it("maps epic-specific fields to camelCase in request body", async () => {
+      (mockApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "SS-6" });
+
+      const handler = tools.get("create_ticket")!.handler;
+      await handler({
+        title: "MCP Integration",
+        type: "epic",
+        start_date: "2026-02-01",
+        target_date: "2026-03-15",
+      });
+
+      const callArgs = (mockApiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+      expect(callArgs.startDate).toBe("2026-02-01");
+      expect(callArgs.targetDate).toBe("2026-03-15");
+      expect(callArgs).not.toHaveProperty("start_date");
+      expect(callArgs).not.toHaveProperty("target_date");
+    });
   });
 
   describe("get_ticket", () => {
@@ -140,6 +217,42 @@ describe("ticket tools", () => {
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain("At least one field");
       expect(mockApiClient.put).not.toHaveBeenCalled();
+    });
+
+    it("maps parent_id to parentId in update body", async () => {
+      (mockApiClient.put as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "SS-10" });
+
+      const handler = tools.get("update_ticket")!.handler;
+      await handler({
+        ticket_id: "SS-10",
+        parent_id: "SS-1",
+      });
+
+      const callArgs = (mockApiClient.put as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+      expect(callArgs.parentId).toBe("SS-1");
+      expect(callArgs).not.toHaveProperty("parent_id");
+    });
+
+    it("maps type-specific fields to camelCase in update body", async () => {
+      (mockApiClient.put as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "SS-10" });
+
+      const handler = tools.get("update_ticket")!.handler;
+      await handler({
+        ticket_id: "SS-10",
+        severity: "Critical",
+        steps_to_reproduce: "Steps here",
+        estimated_hours: 8,
+        story_points: 3,
+        start_date: "2026-03-01",
+      });
+
+      const callArgs = (mockApiClient.put as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+      expect(callArgs.severity).toBe("Critical");
+      expect(callArgs.stepsToReproduce).toBe("Steps here");
+      expect(callArgs.estimatedHours).toBe(8);
+      expect(callArgs.storyPoints).toBe(3);
+      expect(callArgs.startDate).toBe("2026-03-01");
+      expect(callArgs).not.toHaveProperty("ticket_id");
     });
   });
 

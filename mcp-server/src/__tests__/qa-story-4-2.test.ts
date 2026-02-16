@@ -20,6 +20,8 @@ import { getConfig } from "../config.js";
 import { z } from "zod";
 import { registerTicketTools } from "../tools/tickets.js";
 import { registerCommentTools } from "../tools/comments.js";
+import { registerCodeReferenceTools } from "../tools/code-references.js";
+import { registerActivityTools } from "../tools/activity.js";
 import { registerConnectionTools } from "../tools/connection.js";
 
 // ---- Shared mock infrastructure ----
@@ -74,7 +76,7 @@ describe("QA: README documentation accuracy", () => {
     readmeContent = readFileSync(readmePath, "utf-8");
   });
 
-  it("documents all 7 tool names that match actual registered tools", () => {
+  it("documents all 10 tool names that match actual registered tools", () => {
     const expectedTools = [
       "create_ticket",
       "get_ticket",
@@ -82,6 +84,9 @@ describe("QA: README documentation accuracy", () => {
       "delete_ticket",
       "list_tickets",
       "add_comment",
+      "add_code_reference",
+      "remove_code_reference",
+      "list_activity",
       "test_connection",
     ];
 
@@ -190,22 +195,25 @@ describe("QA: config warning logs for all env vars", () => {
 // ---- TOOL_COUNT Matches Actual Registrations ----
 
 describe("QA: TOOL_COUNT consistency", () => {
-  it("connection tool reports 7 tools which matches total registered tools across all modules", () => {
+  it("connection tool reports 10 tools which matches total registered tools across all modules", () => {
     const mockServer = createMockServer();
     const mockApiClient = createMockApiClient();
     const config = { baseUrl: "http://localhost:52773", username: "_SYSTEM", password: "SYS" };
 
     registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient);
     registerCommentTools(mockServer as unknown as Parameters<typeof registerCommentTools>[0], mockApiClient);
+    registerCodeReferenceTools(mockServer as unknown as Parameters<typeof registerCodeReferenceTools>[0], mockApiClient);
+    registerActivityTools(mockServer as unknown as Parameters<typeof registerActivityTools>[0], mockApiClient);
     registerConnectionTools(mockServer as unknown as Parameters<typeof registerConnectionTools>[0], mockApiClient, config);
 
     const totalRegistered = mockServer.tools.size;
-    expect(totalRegistered).toBe(7);
+    expect(totalRegistered).toBe(10);
 
     // Verify each expected tool is registered
     const expectedTools = [
       "create_ticket", "get_ticket", "update_ticket", "delete_ticket",
-      "list_tickets", "add_comment", "test_connection",
+      "list_tickets", "add_comment", "add_code_reference", "remove_code_reference",
+      "list_activity", "test_connection",
     ];
     for (const tool of expectedTools) {
       expect(mockServer.tools.has(tool)).toBe(true);
@@ -466,7 +474,7 @@ describe("QA: test_connection tool edge cases", () => {
     expect(result.content[0].text).toContain("http://localhost:52773");
   });
 
-  it("success message includes correct tool count of 7", async () => {
+  it("success message includes correct tool count of 10", async () => {
     (mockApiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: [],
       total: 10,
@@ -478,7 +486,7 @@ describe("QA: test_connection tool edge cases", () => {
     const handler = tools.get("test_connection")!.handler;
     const result = await handler({});
 
-    expect(result.content[0].text).toContain("All 7 tools available");
+    expect(result.content[0].text).toContain("All 10 tools available");
   });
 
   it("handles response with missing total field gracefully (defaults to 0)", async () => {

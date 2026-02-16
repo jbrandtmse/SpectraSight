@@ -7,6 +7,7 @@ import { TICKET_ID_PATTERN } from "../types.js";
 const TicketTypeEnum = z.enum(["bug", "task", "story", "epic"]);
 const TicketStatusEnum = z.enum(["Open", "In Progress", "Blocked", "Complete"]);
 const TicketPriorityEnum = z.enum(["Low", "Medium", "High", "Critical"]);
+const SeverityEnum = z.enum(["Low", "Medium", "High", "Critical"]);
 
 const CreateTicketSchema = {
   title: z.string().describe("Ticket title (required)"),
@@ -16,6 +17,20 @@ const CreateTicketSchema = {
   priority: TicketPriorityEnum.optional().describe("Ticket priority: Low, Medium, High, or Critical"),
   assignee: z.string().optional().describe("Assigned user"),
   parent_id: z.string().regex(TICKET_ID_PATTERN, "Parent ticket ID must match format SS-{number} (e.g., SS-1)").optional().describe("Parent ticket ID (e.g., SS-1)"),
+  // Bug-specific fields
+  severity: SeverityEnum.optional().describe("Bug severity: Low, Medium, High, or Critical"),
+  steps_to_reproduce: z.string().optional().describe("Steps to reproduce the bug"),
+  expected_behavior: z.string().optional().describe("Expected behavior"),
+  actual_behavior: z.string().optional().describe("Actual behavior observed"),
+  // Task-specific fields
+  estimated_hours: z.number().optional().describe("Estimated hours to complete"),
+  actual_hours: z.number().optional().describe("Actual hours spent"),
+  // Story-specific fields
+  story_points: z.number().optional().describe("Story point estimate"),
+  acceptance_criteria: z.string().optional().describe("Acceptance criteria for the story"),
+  // Epic-specific fields
+  start_date: z.string().optional().describe("Epic start date"),
+  target_date: z.string().optional().describe("Epic target date"),
 };
 
 const GetTicketSchema = {
@@ -29,6 +44,21 @@ const UpdateTicketSchema = {
   status: TicketStatusEnum.optional().describe("New status: Open, In Progress, Blocked, or Complete"),
   priority: TicketPriorityEnum.optional().describe("New priority: Low, Medium, High, or Critical"),
   assignee: z.string().optional().describe("New assignee"),
+  parent_id: z.string().regex(TICKET_ID_PATTERN, "Parent ticket ID must match format SS-{number} (e.g., SS-1)").optional().describe("Parent ticket ID (e.g., SS-1)"),
+  // Bug-specific fields
+  severity: SeverityEnum.optional().describe("Bug severity: Low, Medium, High, or Critical"),
+  steps_to_reproduce: z.string().optional().describe("Steps to reproduce the bug"),
+  expected_behavior: z.string().optional().describe("Expected behavior"),
+  actual_behavior: z.string().optional().describe("Actual behavior observed"),
+  // Task-specific fields
+  estimated_hours: z.number().optional().describe("Estimated hours to complete"),
+  actual_hours: z.number().optional().describe("Actual hours spent"),
+  // Story-specific fields
+  story_points: z.number().optional().describe("Story point estimate"),
+  acceptance_criteria: z.string().optional().describe("Acceptance criteria for the story"),
+  // Epic-specific fields
+  start_date: z.string().optional().describe("Epic start date"),
+  target_date: z.string().optional().describe("Epic target date"),
 };
 
 const DeleteTicketSchema = {
@@ -62,6 +92,20 @@ export function registerTicketTools(server: McpServer, apiClient: ApiClient): vo
         if (params.priority !== undefined) body.priority = params.priority;
         if (params.assignee !== undefined) body.assignee = params.assignee;
         if (params.parent_id !== undefined) body.parentId = params.parent_id;
+        // Bug-specific fields
+        if (params.severity !== undefined) body.severity = params.severity;
+        if (params.steps_to_reproduce !== undefined) body.stepsToReproduce = params.steps_to_reproduce;
+        if (params.expected_behavior !== undefined) body.expectedBehavior = params.expected_behavior;
+        if (params.actual_behavior !== undefined) body.actualBehavior = params.actual_behavior;
+        // Task-specific fields
+        if (params.estimated_hours !== undefined) body.estimatedHours = params.estimated_hours;
+        if (params.actual_hours !== undefined) body.actualHours = params.actual_hours;
+        // Story-specific fields
+        if (params.story_points !== undefined) body.storyPoints = params.story_points;
+        if (params.acceptance_criteria !== undefined) body.acceptanceCriteria = params.acceptance_criteria;
+        // Epic-specific fields
+        if (params.start_date !== undefined) body.startDate = params.start_date;
+        if (params.target_date !== undefined) body.targetDate = params.target_date;
 
         const data = await apiClient.post("/tickets", body);
         return {
@@ -101,10 +145,25 @@ export function registerTicketTools(server: McpServer, apiClient: ApiClient): vo
         if (params.status !== undefined) body.status = params.status;
         if (params.priority !== undefined) body.priority = params.priority;
         if (params.assignee !== undefined) body.assignee = params.assignee;
+        if (params.parent_id !== undefined) body.parentId = params.parent_id;
+        // Bug-specific fields
+        if (params.severity !== undefined) body.severity = params.severity;
+        if (params.steps_to_reproduce !== undefined) body.stepsToReproduce = params.steps_to_reproduce;
+        if (params.expected_behavior !== undefined) body.expectedBehavior = params.expected_behavior;
+        if (params.actual_behavior !== undefined) body.actualBehavior = params.actual_behavior;
+        // Task-specific fields
+        if (params.estimated_hours !== undefined) body.estimatedHours = params.estimated_hours;
+        if (params.actual_hours !== undefined) body.actualHours = params.actual_hours;
+        // Story-specific fields
+        if (params.story_points !== undefined) body.storyPoints = params.story_points;
+        if (params.acceptance_criteria !== undefined) body.acceptanceCriteria = params.acceptance_criteria;
+        // Epic-specific fields
+        if (params.start_date !== undefined) body.startDate = params.start_date;
+        if (params.target_date !== undefined) body.targetDate = params.target_date;
 
         if (Object.keys(body).length === 0) {
           return {
-            content: [{ type: "text" as const, text: "Error: At least one field (title, description, status, priority, assignee) must be provided to update" }],
+            content: [{ type: "text" as const, text: "Error: At least one field must be provided to update (title, description, status, priority, assignee, parent_id, severity, steps_to_reproduce, expected_behavior, actual_behavior, estimated_hours, actual_hours, story_points, acceptance_criteria, start_date, target_date)" }],
             isError: true,
           };
         }

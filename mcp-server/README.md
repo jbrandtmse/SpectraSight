@@ -61,7 +61,7 @@ test_connection
 
 On success you will see:
 ```
-Connected to SpectraSight API at http://localhost:52773 — 42 tickets found. All 7 tools available.
+Connected to SpectraSight API at http://localhost:52773 — 42 tickets found. All 10 tools available.
 ```
 
 On failure, the error message will indicate the specific problem (connection refused, authentication failed, etc.) and what to check.
@@ -70,12 +70,15 @@ On failure, the error message will indicate the specific problem (connection ref
 
 | Tool | Description |
 |---|---|
-| `create_ticket` | Create a new ticket with title, type, description, status, priority, assignee, and parent ID |
+| `create_ticket` | Create a new ticket with title, type, and optional type-specific fields (bug severity, task hours, story points, epic dates) |
 | `get_ticket` | Get full details of a ticket by its ID (e.g., SS-42) |
-| `update_ticket` | Update an existing ticket's title, description, status, priority, or assignee |
+| `update_ticket` | Update an existing ticket's fields including type-specific fields and parent ID |
 | `delete_ticket` | Delete a ticket by its ID |
 | `list_tickets` | List tickets with optional filtering by type, status, priority, assignee, search, sorting, and pagination |
 | `add_comment` | Add a comment to a ticket |
+| `add_code_reference` | Add an ObjectScript code reference (class and optional method) to a ticket |
+| `remove_code_reference` | Remove a code reference from a ticket |
+| `list_activity` | Get the full activity timeline for a ticket |
 | `test_connection` | Test the connection to the SpectraSight API and verify credentials |
 
 ## Troubleshooting
