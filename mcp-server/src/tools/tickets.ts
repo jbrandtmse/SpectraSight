@@ -12,8 +12,8 @@ const CreateTicketSchema = {
   title: z.string().describe("Ticket title (required)"),
   type: TicketTypeEnum.describe("Ticket type: bug, task, story, or epic"),
   description: z.string().optional().describe("Ticket description"),
-  status: TicketStatusEnum.optional().describe("Ticket status"),
-  priority: TicketPriorityEnum.optional().describe("Ticket priority"),
+  status: TicketStatusEnum.optional().describe("Ticket status: Open, In Progress, Blocked, or Complete"),
+  priority: TicketPriorityEnum.optional().describe("Ticket priority: Low, Medium, High, or Critical"),
   assignee: z.string().optional().describe("Assigned user"),
   parent_id: z.string().regex(TICKET_ID_PATTERN, "Parent ticket ID must match format SS-{number} (e.g., SS-1)").optional().describe("Parent ticket ID (e.g., SS-1)"),
 };
@@ -26,8 +26,8 @@ const UpdateTicketSchema = {
   ticket_id: z.string().regex(TICKET_ID_PATTERN, "Ticket ID must match format SS-{number} (e.g., SS-42)").describe("Ticket ID to update (e.g., SS-42)"),
   title: z.string().optional().describe("New title"),
   description: z.string().optional().describe("New description"),
-  status: TicketStatusEnum.optional().describe("New status"),
-  priority: TicketPriorityEnum.optional().describe("New priority"),
+  status: TicketStatusEnum.optional().describe("New status: Open, In Progress, Blocked, or Complete"),
+  priority: TicketPriorityEnum.optional().describe("New priority: Low, Medium, High, or Critical"),
   assignee: z.string().optional().describe("New assignee"),
 };
 
@@ -36,9 +36,9 @@ const DeleteTicketSchema = {
 };
 
 const ListTicketsSchema = {
-  type: z.string().optional().describe("Filter by ticket type"),
-  status: z.string().optional().describe("Filter by status"),
-  priority: z.string().optional().describe("Filter by priority"),
+  type: TicketTypeEnum.optional().describe("Filter by ticket type: bug, task, story, or epic"),
+  status: TicketStatusEnum.optional().describe("Filter by status: Open, In Progress, Blocked, or Complete"),
+  priority: TicketPriorityEnum.optional().describe("Filter by priority: Low, Medium, High, or Critical"),
   assignee: z.string().optional().describe("Filter by assignee"),
   search: z.string().optional().describe("Search in title and description"),
   sort: z.string().optional().describe("Sort field (e.g., createdAt, -priority)"),
