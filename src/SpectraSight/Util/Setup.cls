@@ -4,7 +4,8 @@ Class SpectraSight.Util.Setup [ Abstract ]
 /// Create or update the /api web application on IRIS
 /// Configures the REST dispatch class, namespace, and authentication
 /// Must switch to %SYS namespace to access Security.Applications
-ClassMethod ConfigureWebApp() As %Status
+/// <p><var>pNamespace</var> — target namespace (default: "HSCUSTOM")</p>
+ClassMethod ConfigureWebApp(pNamespace As %String = "HSCUSTOM") As %Status
 {
     Set tSC = $$$OK
     Try {
@@ -19,7 +20,7 @@ ClassMethod ConfigureWebApp() As %Status
         If tExists {
             // Update existing application
             Set tProps("DispatchClass") = "SpectraSight.REST.Dispatch"
-            Set tProps("NameSpace") = "HSCUSTOM"
+            Set tProps("NameSpace") = pNamespace
             Set tProps("Enabled") = 1
             Set tProps("AutheEnabled") = tAuthValue
             Set tProps("CSPZENEnabled") = 1
@@ -28,7 +29,7 @@ ClassMethod ConfigureWebApp() As %Status
         } Else {
             // Create new application
             Set tProps("DispatchClass") = "SpectraSight.REST.Dispatch"
-            Set tProps("NameSpace") = "HSCUSTOM"
+            Set tProps("NameSpace") = pNamespace
             Set tProps("Enabled") = 1
             Set tProps("AutheEnabled") = tAuthValue
             Set tProps("CSPZENEnabled") = 1

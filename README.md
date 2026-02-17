@@ -48,15 +48,78 @@ Import the ObjectScript classes from `src/` into your IRIS instance:
 Do $SYSTEM.OBJ.LoadDir("/path/to/SpectraSight/src/", "ck", .errors, 1)
 ```
 
-Run the setup utility to create the REST web application:
+Create the `/api` REST web application:
 
 ```objectscript
-Do ##class(SpectraSight.Util.Setup).Install()
+Do ##class(SpectraSight.Util.Setup).ConfigureWebApp()
 ```
 
-The REST API is now available at `http://localhost:52773/spectrasight/api/`.
+By default this targets the `HSCUSTOM` namespace. To use a different namespace:
 
-### 2. Angular Frontend
+```objectscript
+Do ##class(SpectraSight.Util.Setup).ConfigureWebApp("USER")
+```
+
+Create the default project and backfill any existing tickets:
+
+```objectscript
+Do ##class(SpectraSight.Util.Setup).EnsureDefaultProject()
+```
+
+The REST API is now available at `http://localhost:52773/api/`.
+
+### 2. Set Up Users
+
+SpectraSight maps IRIS system usernames to display names. You must create at least one user mapping before tickets can be assigned.
+
+In the Angular app, go to **Settings > Users** and click **Add User**. Provide:
+
+- **IRIS Username** — the system username used to authenticate with IRIS (e.g., `_SYSTEM`, `SuperUser`)
+- **Display Name** — the human-readable name shown in the UI (e.g., "Josh", "Alice")
+
+You can also create user mappings via the REST API:
+
+```bash
+curl -u _SYSTEM:SYS http://localhost:52773/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"irisUsername": "_SYSTEM", "displayName": "Josh"}'
+```
+
+Or via the MCP server (if configured):
+
+```
+create_user_mapping with irisUsername="_SYSTEM", displayName="Josh"
+```
+
+Users can be deactivated (toggled inactive) without deleting them. A user cannot be deleted while assigned to any tickets.
+
+### 3. Set Up Projects
+
+Every ticket belongs to a project. Each project has a **name** and a unique uppercase **prefix** (2-10 characters) used in ticket IDs (e.g., `SS-1`, `DATA-42`).
+
+The setup utility creates a default "SpectraSight" project with prefix `SS`:
+
+```objectscript
+Do ##class(SpectraSight.Util.Setup).EnsureDefaultProject()
+```
+
+To create additional projects, go to **Settings > Projects** in the Angular app and click **Add Project**. Provide:
+
+- **Name** — the project name (e.g., "Data Pipeline")
+- **Prefix** — a unique 2-10 character uppercase code (e.g., `DATA`)
+- **Owner** *(optional)* — the project owner's display name
+
+You can also create projects via the REST API:
+
+```bash
+curl -u _SYSTEM:SYS http://localhost:52773/api/projects \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Data Pipeline", "prefix": "DATA"}'
+```
+
+When creating tickets, you must select which project the ticket belongs to. The ticket ID will use that project's prefix (e.g., `DATA-1`).
+
+### 4. Angular Frontend
 
 ```bash
 cd frontend
@@ -66,7 +129,7 @@ ng serve
 
 Open `http://localhost:4200`. The app proxies API requests to IRIS at `localhost:52773`.
 
-### 3. MCP Server
+### 5. MCP Server
 
 ```bash
 cd mcp-server
