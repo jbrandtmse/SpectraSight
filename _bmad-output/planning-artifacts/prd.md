@@ -114,13 +114,28 @@ SpectraSight is an IRIS-native ticketing and project management system designed 
 - Query and filter by type, status, assignee, and other fields
 - AI agents as first-class participants — functional parity with REST API
 
+### Post-MVP Enhancements (In Scope)
+
+The following capabilities extend the shipped MVP based on user feedback and are planned for immediate implementation:
+
+**Multi-Project Support (Epic 5)**
+- Project CRUD with configurable ticket prefix and owner
+- Project-scoped sequential ticket numbering (replaces global SS-{id} format)
+- Default project created on installation for backward compatibility
+- Project filter in list view and MCP tools
+
+**User Management & Agent Identity (Epic 6)**
+- IRIS account to display name mapping with active/inactive status
+- Assignee dropdowns populated exclusively from mapped users
+- AI agent identity selection via MCP — agents can operate as a specific mapped user
+- Closed ticket filtering — excluded from default list view with toggle to show
+
 ### Growth Features (Post-MVP)
 
 - ObjectScript code viewing from tickets (key differentiator — view live method source inline)
 - Board/kanban view for visual workflow management
 - Code-linking operations via MCP (read/navigate code through agent interface)
 - Initiative and Sub-Task ticket types (complete hierarchy)
-- Enhanced filtering and saved views
 
 ### Vision (Future)
 
@@ -296,7 +311,7 @@ SpectraSight is a hybrid web application and developer tool: an Angular SPA fron
 - **FR6:** Users can view and set type-specific fields unique to each ticket type
 - **FR7:** Users can set ticket status to Open, In Progress, Blocked, or Complete
 - **FR8:** Users can set ticket priority to Low, Medium, High, or Critical
-- **FR9:** Users can assign tickets to a human user or an AI agent
+- **FR9:** Users can assign tickets to any mapped user (human or AI agent) via a filtered dropdown populated from user mappings
 
 ### Ticket Organization & Hierarchy
 
@@ -313,8 +328,8 @@ SpectraSight is a hybrid web application and developer tool: an Angular SPA fron
 
 ### Search & Navigation
 
-- **FR17:** Users can view a list of all tickets across types
-- **FR18:** Users can filter the ticket list by ticket type, status, priority, and assignee
+- **FR17:** Users can view a list of all tickets across types, scoped to the selected project, with closed tickets excluded by default
+- **FR18:** Users can filter the ticket list by project, ticket type, status (including closed toggle), priority, and assignee
 - **FR19:** Users can sort the ticket list by any standard field
 - **FR20:** Users can search tickets by text content (title, description)
 - **FR21:** Users can view a ticket detail page showing all fields, hierarchy context, code references, and comments
@@ -324,14 +339,14 @@ SpectraSight is a hybrid web application and developer tool: an Angular SPA fron
 - **FR22:** Users can add comments to any ticket through the web UI
 - **FR23:** AI agents can add comments to any ticket via MCP
 - **FR24:** Users can view the full comment history and activity trail on a ticket
-- **FR25:** Users can see the author (human user or AI agent) of each comment
+- **FR25:** Users can see the author of each comment, displayed as the mapped display name from user mappings
 
 ### AI Agent Operations
 
-- **FR26:** AI agents can create tickets via MCP
+- **FR26:** AI agents can create tickets via MCP, specifying a project and optionally acting as a specific mapped user
 - **FR27:** AI agents can read full ticket details via MCP
 - **FR28:** AI agents can update ticket fields (including status, assignee, and other fields) via MCP
-- **FR29:** AI agents can list and filter tickets via MCP
+- **FR29:** AI agents can list and filter tickets via MCP, including filtering by project and controlling closed ticket visibility
 - **FR30:** AI agents can close or complete tickets via MCP
 - **FR31:** AI agents can query tickets by type, status, assignee, and other fields via MCP
 
@@ -341,6 +356,28 @@ SpectraSight is a hybrid web application and developer tool: an Angular SPA fron
 - **FR33:** Administrators can configure authentication for API access
 - **FR34:** Users can configure an MCP client to connect to the SpectraSight MCP server
 - **FR35:** Users can test the MCP connection to verify it is working
+
+### Multi-Project Support
+
+- **FR36:** Administrators can create projects with a name, ticket prefix, and owner
+- **FR37:** Administrators can view, update, and delete projects
+- **FR38:** Each project has a unique ticket prefix used for ticket numbering (e.g., PROJ-1, DATA-15)
+- **FR39:** Ticket numbers are sequential per project, starting at 1 for each new project
+- **FR40:** Users can filter the ticket list by project
+- **FR41:** A default project is created on installation so the system works without manual project setup
+
+### User Management
+
+- **FR42:** Administrators can map IRIS user accounts to display names
+- **FR43:** Only mapped and active users appear in assignee dropdowns throughout the UI and MCP
+- **FR44:** The "My Tickets" filter identifies the current user by their mapped IRIS account
+- **FR45:** AI agents can specify a user identity when performing ticket operations via MCP (create, update, comment), allowing the agent to operate as a specific mapped user
+
+### Closed Ticket Visibility
+
+- **FR46:** Closed/complete tickets are excluded from the default ticket list view
+- **FR47:** Users can toggle a filter to include closed/complete tickets in the list
+- **FR48:** The MCP list_tickets tool supports an include_closed parameter to control closed ticket visibility (default: excluded)
 
 ## Non-Functional Requirements
 

@@ -173,15 +173,42 @@ This document provides the complete epic and story breakdown for SpectraSight, d
 | FR33 | Epic 1 | Configure authentication for API access |
 | FR34 | Epic 4 | Configure MCP client connection |
 | FR35 | Epic 4 | Test MCP connection |
+| FR36 | Epic 5 | Create projects with name, prefix, and owner |
+| FR37 | Epic 5 | View, update, and delete projects |
+| FR38 | Epic 5 | Unique ticket prefix per project |
+| FR39 | Epic 5 | Sequential ticket numbering per project |
+| FR40 | Epic 5 | Filter ticket list by project |
+| FR41 | Epic 5 | Default project on installation |
+| FR42 | Epic 6 | Map IRIS accounts to display names |
+| FR43 | Epic 6 | Only mapped users in assignee dropdowns |
+| FR44 | Epic 6 | "My Tickets" based on mapped IRIS account |
+| FR45 | Epic 6 | AI agents specify user identity via MCP |
+| FR46 | Epic 6 | Closed tickets excluded from default list |
+| FR47 | Epic 6 | Toggle filter to show closed tickets |
+| FR48 | Epic 6 | MCP include_closed parameter |
 
 ## Epic List
 
-### Epic 1: Core Ticket Management
+### Epic 1: Core Ticket Management (Done)
 A developer can install SpectraSight on their IRIS instance, log in, create tickets of all four types (Bug, Task, Story, Epic), and manage them through a split-panel web interface with full CRUD operations.
 
 **FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR8, FR9, FR17, FR21, FR32, FR33
 **User journey:** Alex — First-Time Setup and Daily Use (core path)
 **Implementation notes:** Includes full %Persistent class hierarchy (all models including Activity and CodeReference for data capture from day one), REST API with CRUD endpoints + response envelope, Angular scaffold with split panel layout, Basic Auth, ticket list and detail views.
+
+### Epic 5: Multi-Project Support
+Users can create and manage multiple projects, each with a unique ticket prefix and independent sequential numbering. Tickets are scoped to projects, and the list view can be filtered by project. A default project ensures backward compatibility with existing tickets.
+
+**FRs covered:** FR36, FR37, FR38, FR39, FR40, FR41
+**User journey:** Alex — managing tickets across multiple IRIS applications on the same instance
+**Implementation notes:** New Project model class, TicketID utility rework, REST endpoints for project CRUD, MCP tools (list_projects, create_project), project filter in UI, project config page under Settings. Default "SS" project created on install for backward compatibility.
+
+### Epic 6: User Management & Agent Identity
+Administrators can map IRIS accounts to display names, controlling who appears in assignee dropdowns. AI agents can specify a user identity when performing MCP operations. Closed tickets are hidden from the default list view with a toggle to show them.
+
+**FRs covered:** FR42, FR43, FR44, FR45, FR46, FR47, FR48, FR9 (updated)
+**User journey:** Jordan — managing team members and reviewing filtered ticket lists; Spectra — operating as a named team member via MCP
+**Implementation notes:** New UserMapping model class, REST endpoints for user CRUD, assignee dropdowns populated from mappings, MCP user parameter on mutation tools, closed ticket filtering in UI and MCP.
 
 ## Epic 1: Core Ticket Management
 
@@ -515,3 +542,193 @@ So that I have full functional parity with the web UI and can operate as an equa
 **And** all new tool parameters use snake_case naming and are validated with Zod schemas
 **And** the test_connection tool's TOOL_COUNT is updated to reflect the new total (10)
 **And** MCP operation response times do not exceed 150% of equivalent REST API response times (NFR3)
+
+### Epic 5: Multi-Project Support
+Users can create and manage multiple projects, each with a unique ticket prefix and independent sequential numbering. Tickets are scoped to projects, and the list view can be filtered by project. A default project ensures backward compatibility with existing tickets.
+
+**FRs covered:** FR36, FR37, FR38, FR39, FR40, FR41
+**User journey:** Alex — managing tickets across multiple IRIS applications on the same instance
+**Implementation notes:** New Project model class, TicketID utility rework, REST endpoints for project CRUD, MCP tools (list_projects, create_project), project filter in UI, project config page under Settings. Default "SS" project created on install for backward compatibility.
+
+## Epic 5: Multi-Project Support
+
+Users can create and manage multiple projects, each with a unique ticket prefix and independent sequential numbering. Tickets are scoped to projects, and the list view can be filtered by project. A default project ensures backward compatibility with existing tickets.
+
+### Story 5.1: Project Data Model & Default Project
+
+As a developer,
+I want a Project model that stores project name, ticket prefix, and sequential numbering,
+So that the system can support multiple projects with independent ticket numbering.
+
+**Acceptance Criteria:**
+
+**Given** the existing IRIS instance with SpectraSight installed
+**When** the Project %Persistent class is compiled
+**Then** it includes properties: Name (required), Prefix (required, unique, uppercase 2-10 chars), Owner (optional), SequenceCounter (integer, default 0), CreatedAt, UpdatedAt
+**And** a default project is created: Name="SpectraSight", Prefix="SS", Owner="" with SequenceCounter set to the current max ticket ID
+**And** all existing tickets are assigned to the default project
+**And** the base Ticket class has a required Project reference property and a SequenceNumber integer property
+**And** unit tests verify Project CRUD via %Persistent API
+**And** unit tests verify that the default project is created with the correct SequenceCounter
+
+### Story 5.2: Project-Scoped Ticket Numbering
+
+As a developer,
+I want ticket numbers to be sequential per project using the project's prefix,
+So that each project has clean, independent numbering (e.g., DATA-1, DATA-2).
+
+**Acceptance Criteria:**
+
+**Given** the Project model exists from Story 5.1
+**When** a new ticket is created via POST /api/tickets with a project_id
+**Then** the Project's SequenceCounter is atomically incremented and the new value is stored as the ticket's SequenceNumber
+**And** the ticket ID is displayed as {Prefix}-{SequenceNumber} in all API responses (e.g., DATA-1, SS-15)
+**And** the TicketID utility is updated to resolve ticket IDs by parsing the prefix to find the project, then looking up by SequenceNumber within that project
+**And** existing API paths accepting ticket IDs (GET/PUT/DELETE /api/tickets/:id) work with the new prefixed format
+**And** creating a ticket without specifying project_id defaults to the system default project
+**And** unit tests verify sequential numbering across multiple tickets in the same project
+**And** unit tests verify independent numbering across different projects
+
+### Story 5.3: Project REST API & MCP Tools
+
+As a developer,
+I want REST endpoints and MCP tools for managing projects,
+So that projects can be created and listed through both the UI and AI agent interfaces.
+
+**Acceptance Criteria:**
+
+**Given** the Project model exists from Story 5.1
+**When** a client sends POST /api/projects with { "name": "Data Pipeline", "prefix": "DATA" }
+**Then** a new project is created and returned in the response envelope
+**And** GET /api/projects returns all projects
+**And** GET /api/projects/:id returns a single project's details
+**And** PUT /api/projects/:id updates project name and owner (prefix is immutable after creation)
+**And** DELETE /api/projects/:id deletes the project only if it has zero tickets — returns 409 Conflict otherwise
+**And** the default project cannot be deleted — returns 403 Forbidden
+**And** prefix uniqueness is validated on create — returns 400 if duplicate
+**And** MCP tool list_projects returns all projects
+**And** MCP tool create_project accepts name, prefix, owner and creates via POST /api/projects
+**And** GET /api/tickets accepts a project query parameter to filter by project prefix or ID
+**And** MCP tool list_tickets accepts a project parameter for filtering
+
+### Story 5.4: Project Configuration UI & List Filter
+
+As a developer,
+I want a project configuration page and a project filter on the ticket list,
+So that I can manage projects and view tickets scoped to a specific project.
+
+**Acceptance Criteria:**
+
+**Given** the Project REST API exists from Story 5.3
+**When** a user navigates to Settings > Projects
+**Then** a list of projects is displayed showing name, prefix, owner, ticket count, and created date
+**And** clicking "New Project" opens an inline form with Name (required), Prefix (required, validated unique on blur, uppercase 2-10 chars), and Owner (optional)
+**And** the prefix field is read-only when editing an existing project
+**And** the default project is listed first and its delete action is disabled
+**And** delete is disabled for projects with tickets (tooltip: "Cannot delete project with existing tickets")
+**And** the filter bar includes a Project dropdown as the first filter showing all projects by name with prefix in parentheses
+**And** selecting a project filters the ticket list to that project only
+**And** "All Projects" option shows tickets across all projects
+**And** the project filter state is reflected in the URL (?project=DATA)
+
+### Epic 6: User Management & Agent Identity
+Administrators can map IRIS accounts to display names, controlling who appears in assignee dropdowns. AI agents can specify a user identity when performing MCP operations. Closed tickets are hidden from the default list view with a toggle to show them.
+
+**FRs covered:** FR42, FR43, FR44, FR45, FR46, FR47, FR48, FR9 (updated)
+**User journey:** Jordan — managing team members and reviewing filtered ticket lists; Spectra — operating as a named team member via MCP
+**Implementation notes:** New UserMapping model class, REST endpoints for user CRUD, assignee dropdowns populated from mappings, MCP user parameter on mutation tools, closed ticket filtering in UI and MCP.
+
+## Epic 6: User Management & Agent Identity
+
+Administrators can map IRIS accounts to display names, controlling who appears in assignee dropdowns. AI agents can specify a user identity when performing MCP operations. Closed tickets are hidden from the default list view with a toggle to show them.
+
+### Story 6.1: User Mapping Data Model & REST API
+
+As an administrator,
+I want to map IRIS system accounts to display names,
+So that team members and AI agents have recognizable identities throughout the system.
+
+**Acceptance Criteria:**
+
+**Given** the existing IRIS instance with SpectraSight installed
+**When** the UserMapping %Persistent class is compiled
+**Then** it includes properties: IrisUsername (required, unique), DisplayName (required), IsActive (boolean, default true), CreatedAt
+**And** POST /api/users with { "irisUsername": "_SYSTEM", "displayName": "Joe" } creates a new mapping
+**And** GET /api/users returns all user mappings
+**And** GET /api/users?isActive=true returns only active mappings
+**And** GET /api/users/:id returns a single mapping
+**And** PUT /api/users/:id updates displayName and isActive
+**And** DELETE /api/users/:id deletes the mapping only if the user has no ticket assignments — returns 409 Conflict otherwise
+**And** IrisUsername uniqueness is validated — returns 400 if duplicate
+**And** all endpoints follow the standard response envelope and require Basic Auth
+**And** unit tests verify UserMapping CRUD via %Persistent API
+
+### Story 6.2: User Mapping Configuration UI
+
+As an administrator,
+I want a settings page to manage user mappings,
+So that I can control which IRIS accounts are available as assignees and what names are displayed.
+
+**Acceptance Criteria:**
+
+**Given** the UserMapping REST API exists from Story 6.1
+**When** a user navigates to Settings > Users
+**Then** a list of user mappings is displayed showing display name, IRIS username, active status toggle, and created date
+**And** clicking "Add User" opens an inline form with IRIS Username (required) and Display Name (required)
+**And** the active/inactive toggle saves immediately (optimistic UI) with snackbar confirmation
+**And** delete is disabled for users assigned to any tickets (tooltip: "Cannot delete user assigned to tickets")
+**And** inactive users remain in the list but are visually muted
+**And** the Settings sidenav section shows subsections: Theme, Projects, Users
+
+### Story 6.3: Assignee Dropdowns from Mapped Users
+
+As a developer,
+I want assignee dropdowns populated from mapped users instead of free text,
+So that I can consistently assign tickets to recognized team members and AI agents.
+
+**Acceptance Criteria:**
+
+**Given** user mappings exist from Story 6.1
+**When** a user clicks the assignee dropdown on ticket creation or ticket detail
+**Then** the dropdown is populated from GET /api/users?isActive=true showing display names
+**And** selecting a user sets the ticket's assignee to that display name
+**And** the "My Tickets" sidenav filter identifies the current user by matching the authenticated IRIS username to a user mapping and filtering by that mapping's display name
+**And** if no mapping exists for the current IRIS user, "My Tickets" shows an informational message: "Set up your user mapping in Settings > Users"
+**And** the assignee filter in the filter bar is populated from active user mappings
+**And** the MCP create_ticket and update_ticket tools validate assignee values against active user mappings — return error if assignee is not a valid mapped user
+
+### Story 6.4: MCP User Identity Selection
+
+As an AI agent,
+I want to specify which mapped user I'm acting as when performing ticket operations,
+So that my actions are attributed to the correct team member identity rather than the IRIS connection account.
+
+**Acceptance Criteria:**
+
+**Given** user mappings exist from Story 6.1
+**When** an AI agent calls create_ticket, update_ticket, add_comment, add_code_reference, or remove_code_reference with an optional user parameter
+**Then** the specified user is used as the actor for that operation (activity entries, comment author, etc.)
+**And** the user parameter is validated against active user mappings — returns error if not a valid mapped display name
+**And** if no user parameter is provided, the actor defaults to the display name mapped to the IRIS username used for REST authentication
+**And** if no mapping exists for the authenticated IRIS user and no user parameter is provided, the IRIS username is used as-is (graceful fallback)
+**And** all MCP mutation tools include the user parameter in their Zod schemas with description explaining its purpose
+**And** the test_connection tool's TOOL_COUNT remains 12 (no new tools added)
+
+### Story 6.5: Closed Ticket Filtering
+
+As a developer,
+I want closed/complete tickets hidden from the default ticket list,
+So that my daily view shows only active work without clutter from finished tickets.
+
+**Acceptance Criteria:**
+
+**Given** the ticket list and filter bar exist from Epics 1-2
+**When** the ticket list loads
+**Then** tickets with status "Complete" are excluded by default
+**And** the filter bar includes a "Show Closed" toggle at the end
+**And** toggling "Show Closed" on includes Complete tickets in the list
+**And** the toggle state is reflected in the URL (?includeClosed=true)
+**And** GET /api/tickets defaults to excluding Complete status unless includeClosed=true is passed
+**And** MCP list_tickets accepts include_closed parameter (boolean, default false)
+**And** when "Show Closed" is active, Complete tickets display normally with their green Complete status badge
+**And** the empty state message when all tickets are closed reads: "All tickets are closed. Toggle 'Show Closed' to view them."

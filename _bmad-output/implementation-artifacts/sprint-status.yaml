@@ -79,10 +79,10 @@ development_status:
   epic-5-retrospective: optional
 
   # Epic 6: User Management & Agent Identity
-  epic-6: in-progress
+  epic-6: done
   6-1-user-mapping-data-model-and-rest-api: done
   6-2-user-mapping-configuration-ui: done
   6-3-assignee-dropdowns-from-mapped-users: done
   6-4-mcp-user-identity-selection: done
-  6-5-closed-ticket-filtering: backlog
+  6-5-closed-ticket-filtering: done
   epic-6-retrospective: optional

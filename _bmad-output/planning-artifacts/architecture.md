@@ -160,8 +160,9 @@ SpectraSight.Model.Ticket (base)
 
 - Base `Ticket` class: title, description, status, priority, assignee, parent ticket reference, created/updated timestamps
 - Subclasses extend with type-specific fields
-- Ticket ID: IRIS native `%Persistent` auto-increment ID. Displayed as `SS-{id}` at the API layer (prefix prepended in REST responses, stripped on input)
-- Polymorphic list queries: SQL against the base `Ticket` extent (`SELECT * FROM SpectraSight_Model.Ticket`) returns all subclass rows. Filtering by type, status, priority, assignee via SQL `WHERE` clauses
+- Ticket ID: Each ticket stores a SequenceNumber assigned from its Project's SequenceCounter. Displayed as `{Project.Prefix}-{SequenceNumber}` at the API layer (e.g., `SS-1`, `DATA-15`). The IRIS `%Persistent` auto-increment ID remains as the internal primary key.
+- Project reference: Required property referencing `SpectraSight.Model.Project`. Defaults to the system default project if not specified.
+- Polymorphic list queries: SQL against the base `Ticket` extent (`SELECT * FROM SpectraSight_Model.Ticket`) returns all subclass rows. Filtering by type, status, priority, assignee, project via SQL `WHERE` clauses
 - Single-ticket CRUD: `%Persistent` object API (`%OpenId`, `%Save`, `%DeleteId`)
 
 **Activity Model — `%Persistent` Class Hierarchy:**
@@ -188,6 +189,29 @@ SpectraSight.Model.CodeReference
 - One-to-many from Ticket
 - Enables cross-ticket queries ("which tickets reference this class?") for post-MVP code viewing feature
 
+**Project Model:**
+
+```
+SpectraSight.Model.Project (%Persistent, %JSON.Adaptor)
+```
+
+- Fields: Name (required), Prefix (required, unique, uppercase 2-10 chars), Owner (optional), SequenceCounter (integer, default 0), CreatedAt (%TimeStamp), UpdatedAt (%TimeStamp)
+- Prefix validated: uppercase alphanumeric, 2-10 characters, unique across all projects
+- SequenceCounter incremented atomically when a new ticket is created in the project
+- A default project (Name: "SpectraSight", Prefix: "SS") is created on first install
+- JSON field mapping: `name`, `prefix`, `owner`, `sequenceCounter`, `createdAt`, `updatedAt`
+
+**User Mapping Model:**
+
+```
+SpectraSight.Model.UserMapping (%Persistent, %JSON.Adaptor)
+```
+
+- Fields: IrisUsername (required, unique), DisplayName (required), IsActive (boolean, default true), CreatedAt (%TimeStamp)
+- Only active mappings appear in assignee dropdowns and MCP user lists
+- IrisUsername corresponds to an IRIS system account (e.g., `_SYSTEM`, `dev1`)
+- JSON field mapping: `irisUsername`, `displayName`, `isActive`, `createdAt`
+
 ### Authentication & Security
 
 - **Method:** HTTP Basic Auth — IRIS username/password sent with every REST request
@@ -206,18 +230,31 @@ SpectraSight.Model.CodeReference
 **REST API URL Structure:**
 
 ```
-GET    /api/tickets              — list tickets (query params: type, status, priority, assignee, search, sort, page, pageSize)
+GET    /api/tickets              — list tickets (query params: project, type, status, priority, assignee, search, sort, page, pageSize, includeClosed)
+                                   Default: excludes Complete status unless includeClosed=true
 GET    /api/tickets/:id          — get single ticket with full details
-POST   /api/tickets              — create ticket
+POST   /api/tickets              — create ticket (project_id required, defaults to default project)
 PUT    /api/tickets/:id          — update ticket fields
 DELETE /api/tickets/:id          — delete ticket
 GET    /api/tickets/:id/activity — get activity timeline for a ticket
 POST   /api/tickets/:id/comments — add comment to a ticket
 GET    /api/classes              — list available ObjectScript classes (autocomplete)
 GET    /api/classes/:name/methods — list methods on a class (autocomplete)
+GET    /api/projects              — list all projects
+POST   /api/projects              — create a new project (name, prefix, owner)
+GET    /api/projects/:id          — get project details
+PUT    /api/projects/:id          — update project fields (prefix immutable after creation)
+DELETE /api/projects/:id          — delete project (only if no tickets belong to it)
+GET    /api/users                 — list user mappings (optionally filter by isActive)
+POST   /api/users                 — create a user mapping (irisUsername, displayName)
+GET    /api/users/:id             — get user mapping details
+PUT    /api/users/:id             — update user mapping (displayName, isActive)
+DELETE /api/users/:id             — delete user mapping (only if not assigned to any tickets)
 ```
 
 **Pagination:** Offset-based — `?page=1&pageSize=25`. Sufficient for ≤1,000 tickets. Response includes `total`, `page`, `pageSize`, `totalPages`.
+
+**Ticket ID Format:** `{Project.Prefix}-{SequenceNumber}` in all JSON responses and URL paths (e.g., `SS-1`, `DATA-15`). REST layer parses the prefix to find the project, then looks up by SequenceNumber within that project. The `SpectraSight.Util.TicketID` utility handles prefix parsing and resolution.
 
 **Error Response Format:**
 
@@ -303,8 +340,8 @@ ObjectScript classes imported/compiled on the IRIS instance via VS Code ObjectSc
 - Follow Angular CLI defaults without exception
 
 **MCP Server:**
-- Tool names: snake_case — `create_ticket`, `list_tickets`, `update_ticket`, `add_comment`
-- Tool parameters: snake_case — `ticket_id`, `ticket_type`, `page_size`
+- Tool names: snake_case — `create_ticket`, `list_tickets`, `update_ticket`, `add_comment`, `list_projects`, `create_project`
+- Tool parameters: snake_case — `ticket_id`, `ticket_type`, `page_size`, `project_id`, `include_closed`, `user`
 - Internal TypeScript: camelCase (standard TypeScript convention)
 
 ### Structure Patterns
@@ -468,22 +505,28 @@ spectrasight/
 │       │   ├── StatusChange.cls          — extends Activity
 │       │   ├── AssignmentChange.cls      — extends Activity
 │       │   ├── CodeReferenceChange.cls   — extends Activity
-│       │   └── CodeReference.cls         — %Persistent, one-to-many from Ticket
+│       │   ├── CodeReference.cls         — %Persistent, one-to-many from Ticket
+│       │   ├── Project.cls              — %Persistent, project with prefix and sequencing
+│       │   └── UserMapping.cls          — %Persistent, IRIS account to display name mapping
 │       ├── REST/
 │       │   ├── Dispatch.cls              — %CSP.REST main dispatch (URL routing)
 │       │   ├── TicketHandler.cls         — ticket CRUD logic
 │       │   ├── ActivityHandler.cls       — activity timeline queries
 │       │   ├── CommentHandler.cls        — comment creation
 │       │   ├── ClassHandler.cls          — ObjectScript class/method introspection
+│       │   ├── ProjectHandler.cls        — project CRUD logic
+│       │   ├── UserHandler.cls           — user mapping CRUD logic
 │       │   └── Response.cls              — shared response envelope helper
 │       ├── Util/
-│       │   ├── TicketID.cls              — SS-{id} prefix/strip logic
+│       │   ├── TicketID.cls              — {Prefix}-{Seq} resolution logic
 │       │   └── Validation.cls            — shared validation utilities
 │       └── Test/
 │           ├── TestTicket.cls            — %UnitTest for Ticket CRUD
 │           ├── TestActivity.cls          — %UnitTest for Activity recording
 │           ├── TestREST.cls              — %UnitTest for REST endpoints
-│           └── TestCodeReference.cls     — %UnitTest for CodeReference
+│           ├── TestCodeReference.cls     — %UnitTest for CodeReference
+│           ├── TestProject.cls           — %UnitTest for Project CRUD
+│           └── TestUserMapping.cls       — %UnitTest for UserMapping CRUD
 │
 ├── frontend/                             — Angular SPA
 │   ├── angular.json
@@ -505,6 +548,17 @@ spectrasight/
 │       │   │   └── app-shell/
 │       │   │       ├── toolbar.component.ts
 │       │   │       └── sidenav.component.ts
+│       │   ├── settings/
+│       │   │   ├── projects/
+│       │   │   │   ├── project.service.ts         — HTTP calls + signals for project state
+│       │   │   │   ├── project.model.ts           — TypeScript interfaces
+│       │   │   │   ├── project-list.component.ts  — project config page
+│       │   │   │   └── project-list.component.spec.ts
+│       │   │   └── users/
+│       │   │       ├── user-mapping.service.ts     — HTTP calls + signals for user mappings
+│       │   │       ├── user-mapping.model.ts       — TypeScript interfaces
+│       │   │       ├── user-list.component.ts      — user mapping config page
+│       │   │       └── user-list.component.spec.ts
 │       │   ├── tickets/
 │       │   │   ├── ticket.service.ts          — HTTP calls + signals for ticket state
 │       │   │   ├── ticket.model.ts            — TypeScript interfaces (Ticket, Bug, Task, etc.)
@@ -564,10 +618,12 @@ spectrasight/
 │       ├── tools/
 │       │   ├── tickets.ts                — create_ticket, list_tickets, get_ticket, update_ticket, delete_ticket
 │       │   ├── comments.ts               — add_comment, list_activity
-│       │   └── classes.ts                — list_classes, list_methods
+│       │   ├── classes.ts                — list_classes, list_methods
+│       │   └── projects.ts               — list_projects, create_project
 │       └── types/
 │           ├── ticket.ts                 — TypeScript interfaces matching API
-│           └── activity.ts
+│           ├── activity.ts
+│           └── project.ts               — Project and UserMapping interfaces
 │
 ├── docs/                                 — project documentation
 │
@@ -628,6 +684,21 @@ spectrasight/
 **FR26-31 (AI Agent Operations):**
 - MCP: all files in `mcp-server/` — tools mirror REST endpoints
 
+**FR36-41 (Multi-Project Support):**
+- Backend: `Model/Project.cls`, `REST/ProjectHandler.cls`, `Util/TicketID.cls` (reworked)
+- Frontend: Settings > Projects page, project filter in `shared/filter-bar/`
+- MCP: `tools/projects.ts` (list_projects, create_project), project param on list_tickets
+
+**FR42-45 (User Management):**
+- Backend: `Model/UserMapping.cls`, `REST/UserHandler.cls`
+- Frontend: Settings > Users page, assignee dropdowns from mapped users
+- MCP: `user` parameter on mutation tools
+
+**FR46-48 (Closed Ticket Visibility):**
+- Backend: `REST/TicketHandler.cls` (includeClosed query param, default exclude Complete)
+- Frontend: "Show Closed" toggle in `shared/filter-bar/`
+- MCP: `include_closed` parameter on list_tickets
+
 **FR32-35 (Installation & Configuration):**
 - `README.md` — setup instructions
 - `SpectraSight.code-workspace` — VS Code workspace config
@@ -658,7 +729,7 @@ Monorepo with `/src` for ObjectScript aligns with VS Code multi-root sync. Featu
 
 ### Requirements Coverage Validation
 
-**Functional Requirements — 35/35 covered:**
+**Functional Requirements — 48/48 covered:**
 
 | FR Range | Category | Architectural Support |
 |----------|----------|----------------------|
@@ -669,6 +740,9 @@ Monorepo with `/src` for ObjectScript aligns with VS Code multi-root sync. Featu
 | FR22-25 | Collaboration | Activity hierarchy + `ActivityHandler.cls` + `CommentHandler.cls` + `activity/` frontend |
 | FR26-31 | AI Agent Ops | MCP server tools mirror REST API — automatic parity |
 | FR32-35 | Installation | README + workspace config + proxy config + MCP config |
+| FR36-41 | Multi-Project | `Model/Project.cls` + `REST/ProjectHandler.cls` + Settings > Projects UI + `tools/projects.ts` |
+| FR42-45 | User Management | `Model/UserMapping.cls` + `REST/UserHandler.cls` + Settings > Users UI + MCP `user` param |
+| FR46-48 | Closed Visibility | `REST/TicketHandler.cls` (includeClosed) + filter-bar toggle + MCP `include_closed` param |
 
 **Non-Functional Requirements — all addressed:**
 - Performance: Simple SQL queries, offset pagination, 1,000 ticket scale — within targets (<5s page load, <3s API, MCP ≤150% of REST)

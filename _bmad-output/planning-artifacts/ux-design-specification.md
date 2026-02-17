@@ -656,7 +656,7 @@ flowchart TD
 **1. Ticket List Row (`ss-ticket-row`)**
 
 **Purpose:** Dense, scannable row in the list panel showing ticket summary at a glance.
-**Anatomy:** `[Type Icon] [Title (truncated)] [Status Badge] [Assignee Avatar] [Timestamp]`
+**Anatomy:** `[Type Icon] [Ticket ID with project prefix (caption)] [Title (truncated)] [Status Badge] [Assignee Display Name (from user mapping)] [Timestamp]`
 **States:** Default, selected (accent left border + surface-variant background), hover (surface-variant background)
 **Behavior:** Click selects and loads detail. Arrow keys navigate between rows. Selected row is visually distinct.
 **Density:** 36px row height, 8px internal padding, 13px title text, 11px metadata text.
@@ -716,10 +716,28 @@ flowchart TD
 **8. Filter Bar (`ss-filter-bar`)**
 
 **Purpose:** Quick filtering controls above the list panel.
-**Anatomy:** `[Text Search Input] [Type Filter (multi-select chips)] [Status Filter (multi-select chips)] [Assignee Filter (dropdown)]`
-**States:** No filters (show all), active filters (chips show applied filters with × to remove), empty results ("No tickets match filters").
-**Behavior:** Filters apply immediately (no "Apply" button). Active filters shown as removable chips. Clear all button when any filter is active.
+**Anatomy:** `[Project Filter (dropdown)] [Text Search Input] [Type Filter (multi-select chips)] [Status Filter (multi-select chips)] [Assignee Filter (dropdown, populated from mapped users)] [Show Closed (toggle)]`
+**States:** No filters (show all, closed excluded by default), active filters (chips show applied filters with × to remove), empty results ("No tickets match filters"), all-closed ("All tickets are closed. Toggle 'Show Closed' to view them.").
+**Behavior:** Filters apply immediately (no "Apply" button). Active filters shown as removable chips. Clear all button when any filter is active. Project filter is single-select with "All Projects" default. Show Closed toggle defaults to off. Assignee dropdown populated from active user mappings (GET /api/users?isActive=true).
 **Accessibility:** `role="search"` with `aria-label="Filter tickets"`, chip removal via keyboard.
+
+**9. Project Configuration Page (Settings > Projects)**
+
+**Purpose:** CRUD management for projects — create, view, edit, and delete projects.
+**Layout:** Simple list + detail pattern within the main content area (no split panel needed — low-frequency admin page).
+**List view:** Table showing Name, Prefix, Owner, Ticket Count, Created date. "New Project" primary button in page header.
+**Creation/Edit form:** Name (required, text input), Prefix (required, uppercase, 2-10 chars, validated unique on blur, read-only after creation), Owner (optional, text input).
+**Constraints:** Default project ("SpectraSight", prefix "SS") listed first, cannot be deleted. Delete disabled for projects with tickets (tooltip: "Cannot delete project with existing tickets").
+**Accessibility:** Standard form accessibility. Table with `scope="col"` headers.
+
+**10. User Mapping Page (Settings > Users)**
+
+**Purpose:** Map IRIS system accounts to display names for use in assignee dropdowns and activity attribution.
+**Layout:** Simple list + detail pattern within the main content area.
+**List view:** Table showing Display Name, IRIS Username, Active status (toggle), Created date. "Add User" primary button in page header.
+**Creation/Edit form:** IRIS Username (required, text input), Display Name (required, text input).
+**Behavior:** Active/inactive toggle saves immediately (optimistic UI) with snackbar confirmation. Inactive users visually muted in the list but remain visible. Delete disabled for users assigned to tickets (tooltip: "Cannot delete user assigned to tickets").
+**Accessibility:** Toggle uses `role="switch"` with `aria-label`. Standard form accessibility.
 
 ### Component Implementation Strategy
 
@@ -742,7 +760,15 @@ flowchart TD
 
 All 8 custom components are needed for MVP — they directly support the 4 user journeys.
 
-**Phase 2 — Post-MVP enhancements:**
+**Phase 1.5 — Post-MVP Enhancements (In Scope):**
+- Project configuration page (Settings > Projects) — project CRUD
+- User mapping page (Settings > Users) — IRIS account to display name mapping
+- Project filter dropdown in `ss-filter-bar`
+- "Show Closed" toggle in `ss-filter-bar`
+- Assignee dropdowns populated from user mappings (all locations)
+- Updated `ss-ticket-row` with project-prefixed ticket ID
+
+**Phase 2 — Future enhancements:**
 - Board/kanban view components (drag-and-drop cards)
 - Inline code viewer (expand code reference to see source)
 - Notification bell and notification panel
@@ -822,7 +848,7 @@ All 8 custom components are needed for MVP — they directly support the 4 user 
 
 **App-level navigation (sidenav):**
 - Collapsible sidenav (240px expanded, icon-only collapsed)
-- Items: All Tickets (default), My Tickets, Epics, Settings
+- Items: All Tickets (default), My Tickets (filtered by mapped account), Epics, Settings (subsections: Theme, Projects, Users)
 - Active item highlighted with accent color left border
 - Collapse toggle in toolbar
 

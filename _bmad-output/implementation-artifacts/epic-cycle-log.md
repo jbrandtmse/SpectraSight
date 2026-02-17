@@ -613,3 +613,77 @@ All 4 stories done. Epic 5 delivered project model, scoped ticket numbering, RES
 **Issues Auto-Resolved:** 3 code review fixes (duplicate describe block, misleading test name, missing snackbar navigation test)
 
 **User Input Required:** None
+
+## Story 6.4: MCP User Identity Selection
+
+**Status:** COMPLETE
+**Feat Commit:** `7031817` — feat(6.4): implement MCP User Identity Selection
+**Test Commit:** `5c6b2f3` — test(6.4): add automated tests for MCP User Identity Selection
+**Completed:** 2026-02-17
+
+**Files Touched:**
+- `src/SpectraSight/Util/ActivityRecorder.cls` — MODIFIED: Added `ResolveActor()`, `ResolveActorType()` class methods for REST-layer actor validation
+- `src/SpectraSight/REST/TicketHandler.cls` — MODIFIED: Updated 5 mutation handlers (CreateTicket, UpdateTicket, AddComment, AddCodeReference, RemoveCodeReference) to use resolved actor
+- `mcp-server/src/user-identity.ts` — NEW: User identity resolution module with 60s TTL cache
+- `mcp-server/src/tools/tickets.ts` — MODIFIED: Added `user` param to schemas, `resolveUser()` in handlers
+- `mcp-server/src/tools/comments.ts` — MODIFIED: Added `user` param, replaced hardcoded actorType
+- `mcp-server/src/tools/code-references.ts` — MODIFIED: Added `user` param to both schemas, `resolveUser()` in handlers
+- `mcp-server/src/api-client.ts` — MODIFIED: Extended `del()` to accept optional body
+- `mcp-server/src/index.ts` — MODIFIED: Updated 3 registration calls to pass config
+- `mcp-server/src/__tests__/user-identity.test.ts` — NEW: 9 tests for identity resolution
+- `mcp-server/src/__tests__/qa-story-6-4.test.ts` — NEW: QA tests for all 8 ACs
+
+**Key Design Decisions:**
+- Two-layer validation: MCP validates user against active mappings, REST API also validates actorName
+- User parameter uses display name (not IRIS username), consistent with Story 6.3 pattern
+- Graceful fallback: config IRIS username used as-is when no user mapping exists
+- 60s TTL cache in MCP server for active user list to avoid per-call API requests
+- TOOL_COUNT remains 12 — user is a parameter on existing tools, not a new tool
+- Extended api-client `del()` to accept body for identity passing on remove_code_reference
+
+**Issues Auto-Resolved:** Code review fixes applied; 15 pre-existing test failures in qa-story-4-3 fixed after signature changes
+
+**User Input Required:** None
+
+## Story 6.5: Closed Ticket Filtering
+
+**Status:** COMPLETE
+**Feat Commit:** `f9fe03f` — feat(6.5): implement Closed Ticket Filtering
+**Test Commit:** `cc933e3` — test(6.5): add automated tests for Closed Ticket Filtering
+**Completed:** 2026-02-17
+
+**Files Touched:**
+- `src/SpectraSight/REST/TicketHandler.cls` — MODIFIED: Added `includeClosed` query param, default `Status != 'Complete'` WHERE clause, `closedCount` metadata
+- `src/SpectraSight/REST/Response.cls` — MODIFIED: Added optional `pMetadata` DynamicObject param to `PaginatedList()` for extensible response metadata
+- `mcp-server/src/tools/tickets.ts` — MODIFIED: Added `include_closed: z.boolean().optional()` to ListTicketsSchema, passes `includeClosed: "true"` when truthy
+- `mcp-server/src/__tests__/tools/tickets.test.ts` — MODIFIED: Added 3 tests for include_closed parameter
+- `frontend/src/app/tickets/ticket.model.ts` — MODIFIED: Added `includeClosed?: boolean` to FilterState
+- `frontend/src/app/tickets/ticket.service.ts` — MODIFIED: Passes `includeClosed=true` HTTP param, stores `totalCount`/`closedCount` signals
+- `frontend/src/app/shared/filter-bar/filter-bar.component.ts` — MODIFIED: Added `includeClosed` signal, `toggleIncludeClosed()`, `MatSlideToggleModule`
+- `frontend/src/app/shared/filter-bar/filter-bar.component.html` — MODIFIED: Added `<mat-slide-toggle>` "Show Closed" at end of filter bar
+- `frontend/src/app/shared/filter-bar/filter-bar.component.scss` — MODIFIED: Added toggle styling
+- `frontend/src/app/shared/filter-bar/filter-bar.component.spec.ts` — MODIFIED: Added 8 tests for includeClosed toggle
+- `frontend/src/app/tickets/tickets-page.component.ts` — MODIFIED: URL state management for `includeClosed` query param
+- `frontend/src/app/tickets/ticket-list/ticket-list.component.ts` — MODIFIED: Added `isAllClosedHidden` computed signal
+- `frontend/src/app/tickets/ticket-list/ticket-list.component.html` — MODIFIED: Added all-closed empty state message
+- `frontend/src/app/shared/models/api-response.model.ts` — MODIFIED: Added optional `closedCount` to `ApiListResponse`
+- `frontend/src/app/tickets/ticket-list/ticket-list.component.spec.ts` — NEW: 109 lines of QA tests
+- `frontend/src/app/tickets/ticket.service.spec.ts` — MODIFIED: 61 lines of QA tests
+- `frontend/src/app/tickets/tickets-page.component.spec.ts` — MODIFIED: 69 lines of QA tests
+
+**Key Design Decisions:**
+- Default exclusion pattern: "exclude Complete by default, include on demand" — not a hard filter
+- Three override mechanisms: UI toggle (`?includeClosed=true`), explicit status filter (`?status=Complete`), MCP `include_closed: true`
+- `closedCount` metadata returned in paginated response enables frontend to distinguish "no tickets" from "all tickets closed"
+- `PaginatedList()` extended with generic `pMetadata` parameter (iterates DynamicObject keys into response envelope) for future extensibility
+- All-closed empty state uses computed signal checking: empty list + includeClosed off + no other filters + closedCount > 0
+
+**Issues Auto-Resolved:** 2 bugs fixed during code review
+
+**User Input Required:** None
+
+---
+
+## Epic 6: User Management & Agent Identity — COMPLETE
+
+All 5 stories done. Epic 6 delivered user mapping data model + REST API, configuration UI, assignee dropdowns from mapped users, MCP user identity selection, and closed ticket filtering.
