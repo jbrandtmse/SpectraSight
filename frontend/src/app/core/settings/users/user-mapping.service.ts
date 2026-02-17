@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -14,10 +14,14 @@ export class UserMappingService {
   private usersSignal = signal<UserMapping[]>([]);
   private loadingSignal = signal(false);
   private errorSignal = signal<string | null>(null);
+  private loaded = false;
 
   readonly users = this.usersSignal.asReadonly();
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
+
+  readonly activeUsers = computed(() => this.users().filter((u) => u.isActive));
+  readonly activeUserNames = computed(() => this.activeUsers().map((u) => u.displayName));
 
   loadUsers(): void {
     this.loadingSignal.set(true);
@@ -29,12 +33,25 @@ export class UserMappingService {
         next: (response) => {
           this.usersSignal.set(response.data);
           this.loadingSignal.set(false);
+          this.loaded = true;
         },
         error: (err) => {
           this.errorSignal.set(err?.error?.error?.message || 'Failed to load users');
           this.loadingSignal.set(false);
         },
       });
+  }
+
+  ensureLoaded(): void {
+    if (!this.loaded && !this.loading()) {
+      this.loadUsers();
+    }
+  }
+
+  findByIrisUsername(irisUsername: string): UserMapping | undefined {
+    return this.users().find(
+      (u) => u.irisUsername.toLowerCase() === irisUsername.toLowerCase()
+    );
   }
 
   createUser(data: CreateUserRequest): Observable<UserMapping> {

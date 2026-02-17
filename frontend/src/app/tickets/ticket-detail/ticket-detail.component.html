@@ -47,7 +47,7 @@
       <app-field-dropdown
         label="Assignee"
         [value]="ticket.assignee || ''"
-        [freeText]="true"
+        [options]="activeUserNames()"
         placeholder="Unassigned"
         (valueChanged)="onFieldChanged('assignee', $event)">
       </app-field-dropdown>

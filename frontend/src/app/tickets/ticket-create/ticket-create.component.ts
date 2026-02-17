@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { TicketService } from '../ticket.service';
 import { Ticket, TicketType, TicketStatus, TicketPriority } from '../ticket.model';
+import { UserMappingService } from '../../core/settings/users/user-mapping.service';
 import { TypeIconComponent } from '../../shared/type-icon/type-icon.component';
 
 const HIERARCHY_RULES: Record<string, string[]> = {
@@ -41,6 +42,9 @@ const HIERARCHY_RULES: Record<string, string[]> = {
 export class TicketCreateComponent implements OnInit {
   ticketService = inject(TicketService);
   private router = inject(Router);
+  private userMappingService = inject(UserMappingService);
+
+  readonly activeUserNames = computed(() => this.userMappingService.activeUserNames());
 
   created = output<void>();
   cancelled = output<void>();
@@ -89,6 +93,8 @@ export class TicketCreateComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.userMappingService.ensureLoaded();
+
     this.form.controls.type.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((value) => this.selectedType.set(value));

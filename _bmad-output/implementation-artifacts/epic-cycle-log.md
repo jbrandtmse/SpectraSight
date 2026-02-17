@@ -555,3 +555,29 @@ All 4 stories done. Epic 5 delivered project model, scoped ticket numbering, RES
 **Issues Auto-Resolved:** Code review fixes applied
 
 **User Input Required:** None
+
+## Story 6.2: User Mapping Configuration UI
+
+**Status:** COMPLETE
+**Feat Commit:** `713a5bd` — feat(6.2): implement User Mapping Configuration UI
+**Test Commit:** `c4ff48c` — test(6.2): add automated tests for User Mapping Configuration UI
+**Completed:** 2026-02-17
+
+**Files Touched:**
+- `frontend/src/app/core/settings/users/user-mapping.model.ts` — NEW: TypeScript interfaces
+- `frontend/src/app/core/settings/users/user-mapping.service.ts` — NEW: HTTP service with signals
+- `frontend/src/app/core/settings/users/user-list.component.ts` — NEW: User CRUD UI with mat-table
+- `frontend/src/app/core/settings/users/user-list.component.html` — NEW: Template with inline forms
+- `frontend/src/app/core/settings/users/user-list.component.scss` — NEW: Styles with inactive row muting
+- `frontend/src/app/core/settings/settings.component.ts` — MODIFIED: Added Users tab
+
+**Key Design Decisions:**
+- Follows exact same signal-driven pattern as ProjectListComponent
+- isActive toggle uses optimistic UI: immediate visual update, revert on error
+- Inactive rows styled with opacity: 0.5 via .inactive-row CSS class
+- IRIS Username read-only after creation; only DisplayName editable
+- Delete handles 409 Conflict from API (no pre-check needed)
+
+**Issues Auto-Resolved:** Code review fixes applied
+
+**User Input Required:** None

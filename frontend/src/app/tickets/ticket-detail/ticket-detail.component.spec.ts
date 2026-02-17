@@ -103,6 +103,9 @@ describe('TicketDetailComponent', () => {
   });
 
   afterEach(() => {
+    // Flush any pending /api/users request from UserMappingService.ensureLoaded()
+    const userReqs = httpMock.match(r => r.url.includes('/api/users'));
+    userReqs.forEach(r => r.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 }));
     httpMock.verify();
   });
 
@@ -176,7 +179,7 @@ describe('TicketDetailComponent', () => {
     expect(priorityLabel.textContent.trim()).toBe('Priority:');
   });
 
-  it('should display assignee field dropdown with freeText', () => {
+  it('should display assignee field dropdown', () => {
     selectTicket(MOCK_BUG);
     const dropdowns = fixture.nativeElement.querySelectorAll('app-field-dropdown');
     const assigneeLabel = dropdowns[2].querySelector('.field-dropdown-label');
@@ -379,6 +382,22 @@ describe('TicketDetailComponent', () => {
 
   it('should have correct severity options', () => {
     expect(component.severityOptions).toEqual(['Low', 'Medium', 'High', 'Critical']);
+  });
+
+  // Story 6.3 AC#1: Assignee dropdown populated from active users
+  it('should have activeUserNames computed signal', () => {
+    expect(component.activeUserNames).toBeDefined();
+    expect(Array.isArray(component.activeUserNames())).toBeTrue();
+  });
+
+  // Story 6.3 AC#2: Assignee dropdown uses options instead of freeText
+  it('should render assignee dropdown without freeText mode', () => {
+    selectTicket(MOCK_BUG);
+    const dropdowns = fixture.nativeElement.querySelectorAll('app-field-dropdown');
+    const assigneeDropdown = dropdowns[2]; // Third dropdown is Assignee
+    // Verify it uses dropdown mode (arrow_drop_down icon) not freeText mode (edit icon)
+    const dropdownIcon = assigneeDropdown.querySelector('.field-dropdown-icon');
+    expect(dropdownIcon?.textContent?.trim()).toBe('arrow_drop_down');
   });
 
   // Timestamps with tooltip

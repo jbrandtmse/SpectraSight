@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, HostListener, output, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, HostListener, output, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -6,6 +6,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { TicketService } from '../ticket.service';
 import { Ticket } from '../ticket.model';
+import { UserMappingService } from '../../core/settings/users/user-mapping.service';
 import { TypeIconComponent } from '../../shared/type-icon/type-icon.component';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { InlineEditComponent } from '../../shared/inline-edit/inline-edit.component';
@@ -43,12 +44,19 @@ export class TicketDetailComponent {
   ticketService = inject(TicketService);
   private router = inject(Router);
   private dialog = inject(MatDialog);
+  private userMappingService = inject(UserMappingService);
   addSubtaskRequested = output<string>();
   activityRefreshTrigger = signal(0);
 
   statusOptions = ['Open', 'In Progress', 'Blocked', 'Complete'];
   priorityOptions = ['Low', 'Medium', 'High', 'Critical'];
   severityOptions = ['Low', 'Medium', 'High', 'Critical'];
+
+  readonly activeUserNames = computed(() => this.userMappingService.activeUserNames());
+
+  constructor() {
+    this.userMappingService.ensureLoaded();
+  }
 
   @HostListener('keydown.escape')
   onEscape(): void {

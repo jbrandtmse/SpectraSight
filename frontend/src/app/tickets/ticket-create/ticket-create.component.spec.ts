@@ -43,6 +43,9 @@ describe('TicketCreateComponent', () => {
   });
 
   afterEach(() => {
+    // Flush any pending /api/users request from UserMappingService.ensureLoaded()
+    const userReqs = httpMock.match(r => r.url.includes('/api/users'));
+    userReqs.forEach(r => r.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 }));
     httpMock.verify();
   });
 
@@ -320,6 +323,19 @@ describe('TicketCreateComponent', () => {
     input.value = 'Epic';
     input.dispatchEvent(new Event('input'));
     expect(component.parentSearch()).toBe('Epic');
+  });
+
+  // Story 6.3 AC#6: Assignee field is a dropdown populated from active user mappings
+  it('should have activeUserNames computed signal', () => {
+    expect(component.activeUserNames).toBeDefined();
+    expect(Array.isArray(component.activeUserNames())).toBeTrue();
+  });
+
+  it('should render assignee as mat-select instead of text input', () => {
+    const assigneeSelect = fixture.nativeElement.querySelector('mat-select[formControlName="assignee"]');
+    expect(assigneeSelect).toBeTruthy();
+    const assigneeInput = fixture.nativeElement.querySelector('input[formControlName="assignee"]');
+    expect(assigneeInput).toBeFalsy();
   });
 
   it('should clear selectedParent when parentSearch input is emptied', () => {

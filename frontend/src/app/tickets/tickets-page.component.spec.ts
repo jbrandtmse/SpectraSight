@@ -51,6 +51,9 @@ describe('TicketsPageComponent', () => {
   });
 
   afterEach(() => {
+    // Flush any pending /api/users request from UserMappingService.ensureLoaded()
+    const userReqs = httpMock.match(r => r.url.includes('/api/users'));
+    userReqs.forEach(r => r.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 }));
     httpMock.verify();
   });
 
@@ -350,6 +353,14 @@ describe('TicketsPageComponent', () => {
 
     expect(component.projectOptions().length).toBe(1);
     expect(component.projectOptions()[0]).toEqual({ name: 'SpectraSight', prefix: 'SS' });
+  });
+
+  // Story 6.3 AC#5: Filter bar assignee populated from active user mappings
+  it('should have assigneeOptions computed from user mappings', () => {
+    fixture.detectChanges();
+    flushInitRequests();
+    expect(component.assigneeOptions).toBeDefined();
+    expect(Array.isArray(component.assigneeOptions())).toBeTrue();
   });
 
   it('should include project in URL sync', () => {

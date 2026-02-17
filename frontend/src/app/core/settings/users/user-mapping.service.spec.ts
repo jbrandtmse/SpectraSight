@@ -122,7 +122,7 @@ describe('UserMappingService', () => {
     });
   });
 
-  describe('createUser', () => {
+  describe('createUser error handling', () => {
     it('should propagate error to subscriber on failure', () => {
       let errorResponse: any;
       service.createUser({ irisUsername: '_SYSTEM', displayName: 'Duplicate' }).subscribe({
@@ -137,6 +137,85 @@ describe('UserMappingService', () => {
 
       expect(errorResponse).toBeTruthy();
       expect(errorResponse.status).toBe(400);
+    });
+  });
+
+  // Story 6.3: activeUsers computed signal
+  describe('activeUsers', () => {
+    it('should filter to only active users', () => {
+      const inactiveUser: UserMapping = { ...mockUser, id: 2, irisUsername: 'inactive', displayName: 'Inactive User', isActive: false };
+      service.loadUsers();
+      const req = httpMock.expectOne(r => r.url.includes('/api/users'));
+      req.flush({ data: [mockUser, inactiveUser], total: 2, page: 1, pageSize: 100, totalPages: 1 });
+
+      expect(service.activeUsers().length).toBe(1);
+      expect(service.activeUsers()[0].displayName).toBe('System Admin');
+    });
+
+    it('should return empty array when no active users', () => {
+      const inactiveUser: UserMapping = { ...mockUser, isActive: false };
+      service.loadUsers();
+      const req = httpMock.expectOne(r => r.url.includes('/api/users'));
+      req.flush({ data: [inactiveUser], total: 1, page: 1, pageSize: 100, totalPages: 1 });
+
+      expect(service.activeUsers().length).toBe(0);
+    });
+  });
+
+  // Story 6.3: activeUserNames computed signal
+  describe('activeUserNames', () => {
+    it('should return display names of active users', () => {
+      const user2: UserMapping = { ...mockUser, id: 2, irisUsername: 'bob', displayName: 'Bob', isActive: true };
+      service.loadUsers();
+      const req = httpMock.expectOne(r => r.url.includes('/api/users'));
+      req.flush({ data: [mockUser, user2], total: 2, page: 1, pageSize: 100, totalPages: 1 });
+
+      expect(service.activeUserNames()).toEqual(['System Admin', 'Bob']);
+    });
+  });
+
+  // Story 6.3: ensureLoaded
+  describe('ensureLoaded', () => {
+    it('should call loadUsers if not yet loaded', () => {
+      service.ensureLoaded();
+      const req = httpMock.expectOne(r => r.url.includes('/api/users'));
+      req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    });
+
+    it('should not call loadUsers if already loaded', () => {
+      service.loadUsers();
+      const req1 = httpMock.expectOne(r => r.url.includes('/api/users'));
+      req1.flush({ data: [mockUser], total: 1, page: 1, pageSize: 100, totalPages: 1 });
+
+      service.ensureLoaded();
+      httpMock.expectNone(r => r.url.includes('/api/users'));
+    });
+
+    it('should not call loadUsers if currently loading', () => {
+      service.loadUsers();
+      service.ensureLoaded(); // Should not trigger another request
+      const req = httpMock.expectOne(r => r.url.includes('/api/users'));
+      req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+    });
+  });
+
+  // Story 6.3: findByIrisUsername
+  describe('findByIrisUsername', () => {
+    it('should find user by IRIS username (case-insensitive)', () => {
+      service.loadUsers();
+      const req = httpMock.expectOne(r => r.url.includes('/api/users'));
+      req.flush({ data: [mockUser], total: 1, page: 1, pageSize: 100, totalPages: 1 });
+
+      expect(service.findByIrisUsername('_SYSTEM')?.displayName).toBe('System Admin');
+      expect(service.findByIrisUsername('_system')?.displayName).toBe('System Admin');
+    });
+
+    it('should return undefined when no matching user', () => {
+      service.loadUsers();
+      const req = httpMock.expectOne(r => r.url.includes('/api/users'));
+      req.flush({ data: [mockUser], total: 1, page: 1, pageSize: 100, totalPages: 1 });
+
+      expect(service.findByIrisUsername('nonexistent')).toBeUndefined();
     });
   });
 

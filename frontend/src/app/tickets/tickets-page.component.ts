@@ -9,6 +9,7 @@ import { TicketCreateComponent } from './ticket-create/ticket-create.component';
 import { FilterBarComponent } from '../shared/filter-bar/filter-bar.component';
 import { TicketService } from './ticket.service';
 import { ProjectService } from '../core/settings/projects/project.service';
+import { UserMappingService } from '../core/settings/users/user-mapping.service';
 import { FilterState } from './ticket.model';
 
 @Component({
@@ -72,6 +73,7 @@ import { FilterState } from './ticket.model';
 export class TicketsPageComponent implements OnInit, OnDestroy {
   ticketService = inject(TicketService);
   private projectService = inject(ProjectService);
+  private userMappingService = inject(UserMappingService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private destroy$ = new Subject<void>();
@@ -86,7 +88,11 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
     return this.projectService.projects().map((p) => ({ name: p.name, prefix: p.prefix }));
   });
 
+  readonly assigneeOptions = computed(() => this.userMappingService.activeUserNames());
+
   readonly distinctAssignees = computed(() => {
+    const mapped = this.assigneeOptions();
+    if (mapped.length) return mapped;
     const tickets = this.ticketService.tickets();
     const assignees = new Set<string>();
     for (const t of tickets) {
@@ -112,6 +118,7 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.projectService.loadProjects();
+    this.userMappingService.ensureLoaded();
 
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const id = params.get('id');
