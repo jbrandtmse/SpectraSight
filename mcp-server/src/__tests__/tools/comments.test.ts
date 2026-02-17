@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { z } from "zod";
 import { registerCommentTools } from "../../tools/comments.js";
 import { ApiClient } from "../../api-client.js";
+import { Config } from "../../config.js";
+import { clearUserCache } from "../../user-identity.js";
 
 type ToolHandler = (params: Record<string, unknown>) => Promise<{
   content: Array<{ type: string; text: string }>;
@@ -32,15 +34,29 @@ function createMockApiClient() {
   } as unknown as ApiClient;
 }
 
+const mockConfig: Config = {
+  baseUrl: "http://localhost:52773",
+  username: "_SYSTEM",
+  password: "SYS",
+};
+
+const activeUsers = [
+  { id: 1, irisUsername: "_SYSTEM", displayName: "Spectra", isActive: true },
+  { id: 2, irisUsername: "jdoe", displayName: "Joe", isActive: true },
+];
+
 describe("comment tools", () => {
   let mockServer: ReturnType<typeof createMockServer>;
   let mockApiClient: ReturnType<typeof createMockApiClient>;
   let tools: Map<string, ToolRegistration>;
 
   beforeEach(() => {
+    clearUserCache();
     mockServer = createMockServer();
     mockApiClient = createMockApiClient();
-    registerCommentTools(mockServer as unknown as Parameters<typeof registerCommentTools>[0], mockApiClient);
+    // Mock GET /users for resolveUser
+    (mockApiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(activeUsers);
+    registerCommentTools(mockServer as unknown as Parameters<typeof registerCommentTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
@@ -49,11 +65,12 @@ describe("comment tools", () => {
   });
 
   describe("add_comment", () => {
-    it("calls POST with body and actorType 'agent'", async () => {
+    it("calls POST with body, resolved actorName and actorType", async () => {
       const createdComment = {
         id: "1",
         ticketId: "SS-10",
         body: "This is a comment",
+        actorName: "Spectra",
         actorType: "agent",
         createdAt: "2026-02-15T00:00:00Z",
       };
@@ -67,6 +84,24 @@ describe("comment tools", () => {
 
       expect(mockApiClient.post).toHaveBeenCalledWith("/tickets/SS-10/comments", {
         body: "This is a comment",
+        actorName: "Spectra",
+        actorType: "agent",
+      });
+    });
+
+    it("uses specified user as actorName", async () => {
+      (mockApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "2" });
+
+      const handler = tools.get("add_comment")!.handler;
+      await handler({
+        ticket_id: "SS-10",
+        body: "Comment from Joe",
+        user: "Joe",
+      });
+
+      expect(mockApiClient.post).toHaveBeenCalledWith("/tickets/SS-10/comments", {
+        body: "Comment from Joe",
+        actorName: "Joe",
         actorType: "agent",
       });
     });
@@ -76,6 +111,7 @@ describe("comment tools", () => {
         id: "1",
         ticketId: "SS-10",
         body: "Test comment",
+        actorName: "Spectra",
         actorType: "agent",
         createdAt: "2026-02-15T00:00:00Z",
       };

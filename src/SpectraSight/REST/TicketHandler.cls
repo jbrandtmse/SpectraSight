@@ -158,9 +158,18 @@ ClassMethod CreateTicket() As %Status
             Quit
         }
 
+        // Resolve actor identity from request body
+        Set tSC2 = ##class(SpectraSight.Util.ActivityRecorder).ResolveActor(tBody, .tActor)
+        If $$$ISERR(tSC2) {
+            // Invalid actorName — roll back by deleting the ticket
+            Do ##class(SpectraSight.Model.Ticket).%DeleteId(tTicket.%Id())
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest($System.Status.GetErrorText(tSC2))
+            Quit
+        }
+        Set tActorType = ##class(SpectraSight.Util.ActivityRecorder).ResolveActorType(tBody)
+
         // Record activity: StatusChange on creation
-        Set tActor = ##class(SpectraSight.Util.ActivityRecorder).GetActorFromRequest()
-        Set tSC2 = ##class(SpectraSight.Util.ActivityRecorder).RecordStatusChange(tTicket.%Id(), "", tTicket.Status, tActor, "human")
+        Set tSC2 = ##class(SpectraSight.Util.ActivityRecorder).RecordStatusChange(tTicket.%Id(), "", tTicket.Status, tActor, tActorType)
         // Activity recording failure is non-fatal for ticket creation
 
         // Build and return response
@@ -482,6 +491,14 @@ ClassMethod UpdateTicket(pId As %String) As %Status
             If tBody.%IsDefined("targetDate") Set tTicket.TargetDate = tBody.%Get("targetDate")
         }
 
+        // Resolve actor identity BEFORE saving — invalid actorName must not persist changes
+        Set tSC = ##class(SpectraSight.Util.ActivityRecorder).ResolveActor(tBody, .tActor)
+        If $$$ISERR(tSC) {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest($System.Status.GetErrorText(tSC))
+            Quit
+        }
+        Set tActorType = ##class(SpectraSight.Util.ActivityRecorder).ResolveActorType(tBody)
+
         // Save
         Set tSC = tTicket.%Save()
         If $$$ISERR(tSC) {
@@ -490,12 +507,11 @@ ClassMethod UpdateTicket(pId As %String) As %Status
         }
 
         // Record activity
-        Set tActor = ##class(SpectraSight.Util.ActivityRecorder).GetActorFromRequest()
         If tTicket.Status '= tOldStatus {
-            Do ##class(SpectraSight.Util.ActivityRecorder).RecordStatusChange(tInternalId, tOldStatus, tTicket.Status, tActor, "human")
+            Do ##class(SpectraSight.Util.ActivityRecorder).RecordStatusChange(tInternalId, tOldStatus, tTicket.Status, tActor, tActorType)
         }
         If tTicket.Assignee '= tOldAssignee {
-            Do ##class(SpectraSight.Util.ActivityRecorder).RecordAssignmentChange(tInternalId, tOldAssignee, tTicket.Assignee, tActor, "human")
+            Do ##class(SpectraSight.Util.ActivityRecorder).RecordAssignmentChange(tInternalId, tOldAssignee, tTicket.Assignee, tActor, tActorType)
         }
 
         // Build and return response
@@ -594,13 +610,21 @@ ClassMethod AddCodeReference(pId As %String) As %Status
             Quit
         }
 
+        // Resolve actor identity from request body
+        Set tSC2 = ##class(SpectraSight.Util.ActivityRecorder).ResolveActor(tBody, .tActorName)
+        If $$$ISERR(tSC2) {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest($System.Status.GetErrorText(tSC2))
+            Quit
+        }
+        Set tActorType = ##class(SpectraSight.Util.ActivityRecorder).ResolveActorType(tBody)
+
         Set tRef = ##class(SpectraSight.Model.CodeReference).%New()
         Set tRef.Ticket = tTicket
         Set tRef.ClassName = tClassName
         If tMethodName '= "" {
             Set tRef.MethodName = tMethodName
         }
-        Set tRef.AddedBy = ##class(SpectraSight.Util.ActivityRecorder).GetActorFromRequest()
+        Set tRef.AddedBy = tActorName
 
         Set tSC2 = tRef.%Save()
         If $$$ISERR(tSC2) {
@@ -609,7 +633,7 @@ ClassMethod AddCodeReference(pId As %String) As %Status
         }
 
         // Record activity
-        Do ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tInternalId, tClassName, tMethodName, "added", tRef.AddedBy, "human")
+        Do ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tInternalId, tClassName, tMethodName, "added", tActorName, tActorType)
 
         // Build response
         Set tResponse = ##class(%DynamicObject).%New()
@@ -655,9 +679,21 @@ ClassMethod RemoveCodeReference(pId As %String, pRefId As %String) As %Status
             Quit
         }
 
-        // Record activity BEFORE deleting
+        // Resolve actor identity from request body (if present)
         Set tActor = ##class(SpectraSight.Util.ActivityRecorder).GetActorFromRequest()
-        Do ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tInternalId, tRef.ClassName, tRef.MethodName, "removed", tActor, "human")
+        Set tActorType = "human"
+        If (%request.Content '= "") && ($ISOBJECT(%request.Content)) {
+            Set tBody = ##class(%DynamicObject).%FromJSON(%request.Content)
+            Set tSC2 = ##class(SpectraSight.Util.ActivityRecorder).ResolveActor(tBody, .tActor)
+            If $$$ISERR(tSC2) {
+                Set tSC = ##class(SpectraSight.REST.Response).BadRequest($System.Status.GetErrorText(tSC2))
+                Quit
+            }
+            Set tActorType = ##class(SpectraSight.Util.ActivityRecorder).ResolveActorType(tBody)
+        }
+
+        // Record activity BEFORE deleting
+        Do ##class(SpectraSight.Util.ActivityRecorder).RecordCodeReferenceChange(tInternalId, tRef.ClassName, tRef.MethodName, "removed", tActor, tActorType)
 
         // Delete the code reference
         Set tSC2 = ##class(SpectraSight.Model.CodeReference).%DeleteId(pRefId)
@@ -894,17 +930,19 @@ ClassMethod AddComment(pId As %String) As %Status
             Quit
         }
 
-        // Determine actor type from request body (default to "human")
-        Set tActorType = tBody.%Get("actorType")
-        If (tActorType '= "human") && (tActorType '= "agent") {
-            Set tActorType = "human"
+        // Resolve actor identity from request body
+        Set tSC2 = ##class(SpectraSight.Util.ActivityRecorder).ResolveActor(tBody, .tActorName)
+        If $$$ISERR(tSC2) {
+            Set tSC = ##class(SpectraSight.REST.Response).BadRequest($System.Status.GetErrorText(tSC2))
+            Quit
         }
+        Set tActorType = ##class(SpectraSight.Util.ActivityRecorder).ResolveActorType(tBody)
 
         // Create the comment
         Set tComment = ##class(SpectraSight.Model.Comment).%New()
         Set tComment.Ticket = tTicket
         Set tComment.Body = tCommentBody
-        Set tComment.ActorName = ##class(SpectraSight.Util.ActivityRecorder).GetActorFromRequest()
+        Set tComment.ActorName = tActorName
         Set tComment.ActorType = tActorType
 
         Set tSC = tComment.%Save()

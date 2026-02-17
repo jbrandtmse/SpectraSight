@@ -139,7 +139,7 @@ export class ApiClient {
     return this.request("PUT", path, { body });
   }
 
-  async del(path: string): Promise<unknown> {
-    return this.request("DELETE", path);
+  async del(path: string, body?: unknown): Promise<unknown> {
+    return this.request("DELETE", path, body !== undefined ? { body } : undefined);
   }
 }

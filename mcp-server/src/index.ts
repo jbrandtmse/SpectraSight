@@ -20,9 +20,9 @@ async function main(): Promise<void> {
     version: "0.1.0",
   });
 
-  registerTicketTools(server, apiClient);
-  registerCommentTools(server, apiClient);
-  registerCodeReferenceTools(server, apiClient);
+  registerTicketTools(server, apiClient, config);
+  registerCommentTools(server, apiClient, config);
+  registerCodeReferenceTools(server, apiClient, config);
   registerActivityTools(server, apiClient);
   registerProjectTools(server, apiClient);
   registerConnectionTools(server, apiClient, config);

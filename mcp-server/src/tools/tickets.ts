@@ -1,8 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ApiClient } from "../api-client.js";
+import { Config } from "../config.js";
 import { formatError } from "../errors.js";
 import { TICKET_ID_PATTERN } from "../types.js";
+import { resolveUser } from "../user-identity.js";
 
 const TicketTypeEnum = z.enum(["bug", "task", "story", "epic"]);
 const TicketStatusEnum = z.enum(["Open", "In Progress", "Blocked", "Complete"]);
@@ -12,6 +14,7 @@ const SeverityEnum = z.enum(["Low", "Medium", "High", "Critical"]);
 const CreateTicketSchema = {
   title: z.string().describe("Ticket title (required)"),
   type: TicketTypeEnum.describe("Ticket type: bug, task, story, or epic"),
+  user: z.string().optional().describe("Display name of the mapped user to act as. Validated against active user mappings. If omitted, defaults to the display name mapped to the IRIS authentication username."),
   description: z.string().optional().describe("Ticket description"),
   status: TicketStatusEnum.optional().describe("Ticket status: Open, In Progress, Blocked, or Complete"),
   priority: TicketPriorityEnum.optional().describe("Ticket priority: Low, Medium, High, or Critical"),
@@ -39,6 +42,7 @@ const GetTicketSchema = {
 
 const UpdateTicketSchema = {
   ticket_id: z.string().regex(TICKET_ID_PATTERN, "Ticket ID must match format {PREFIX}-{number} (e.g., SS-42)").describe("Ticket ID to update (e.g., SS-42)"),
+  user: z.string().optional().describe("Display name of the mapped user to act as. Validated against active user mappings. If omitted, defaults to the display name mapped to the IRIS authentication username."),
   title: z.string().optional().describe("New title"),
   description: z.string().optional().describe("New description"),
   status: TicketStatusEnum.optional().describe("New status: Open, In Progress, Blocked, or Complete"),
@@ -77,16 +81,20 @@ const ListTicketsSchema = {
   project: z.string().optional().describe("Filter by project prefix (e.g., DATA) or project ID"),
 };
 
-export function registerTicketTools(server: McpServer, apiClient: ApiClient): void {
+export function registerTicketTools(server: McpServer, apiClient: ApiClient, config: Config): void {
   server.tool(
     "create_ticket",
     "Create a new ticket in SpectraSight",
     CreateTicketSchema,
     async (params) => {
       try {
+        const identity = await resolveUser(apiClient, config, params.user);
+
         const body: Record<string, unknown> = {
           title: params.title,
           type: params.type,
+          actorName: identity.actorName,
+          actorType: identity.actorType,
         };
         if (params.description !== undefined) body.description = params.description;
         if (params.status !== undefined) body.status = params.status;
@@ -140,6 +148,8 @@ export function registerTicketTools(server: McpServer, apiClient: ApiClient): vo
     UpdateTicketSchema,
     async (params) => {
       try {
+        const identity = await resolveUser(apiClient, config, params.user);
+
         const body: Record<string, unknown> = {};
         if (params.title !== undefined) body.title = params.title;
         if (params.description !== undefined) body.description = params.description;
@@ -168,6 +178,9 @@ export function registerTicketTools(server: McpServer, apiClient: ApiClient): vo
             isError: true,
           };
         }
+
+        body.actorName = identity.actorName;
+        body.actorType = identity.actorType;
 
         const data = await apiClient.put(`/tickets/${params.ticket_id}`, body);
         return {

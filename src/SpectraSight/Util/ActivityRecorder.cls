@@ -77,4 +77,49 @@ ClassMethod GetActorFromRequest() As %String
     Quit $USERNAME
 }
 
+/// Resolve actor name from request body, validating against active user mappings.
+/// If actorName is provided in body, validate it matches an active user mapping display name.
+/// If not provided, fall back to GetActorFromRequest() ($USERNAME).
+ClassMethod ResolveActor(pBody As %DynamicObject, Output pActorName As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        Set tActorName = pBody.%Get("actorName")
+        If (tActorName = "") || (tActorName = $CHAR(0)) {
+            // No actorName provided — fall back to $USERNAME
+            Set pActorName = ..GetActorFromRequest()
+            Quit
+        }
+
+        // Validate actorName against active user mapping display names
+        Set tStatement = ##class(%SQL.Statement).%New()
+        Set tSC = tStatement.%Prepare("SELECT COUNT(*) AS cnt FROM SpectraSight_Model.UserMapping WHERE DisplayName = ? AND IsActive = 1")
+        If $$$ISERR(tSC) Quit
+
+        Set tResult = tStatement.%Execute(tActorName)
+        If tResult.%Next() && (tResult.%Get("cnt") > 0) {
+            Set pActorName = tActorName
+            Quit
+        }
+
+        // actorName not found in active mappings — return error
+        Set tSC = $$$ERROR(5001, "Invalid actorName: '"_tActorName_"' does not match any active user mapping")
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+    }
+    Quit tSC
+}
+
+/// Resolve actor type from request body.
+/// Accepts "human" or "agent"; defaults to "human" if not provided or invalid.
+ClassMethod ResolveActorType(pBody As %DynamicObject) As %String
+{
+    Set tActorType = pBody.%Get("actorType")
+    If (tActorType = "human") || (tActorType = "agent") {
+        Quit tActorType
+    }
+    Quit "human"
+}
+
 }

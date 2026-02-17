@@ -581,3 +581,35 @@ All 4 stories done. Epic 5 delivered project model, scoped ticket numbering, RES
 **Issues Auto-Resolved:** Code review fixes applied
 
 **User Input Required:** None
+
+## Story 6.3: Assignee Dropdowns from Mapped Users
+
+**Status:** COMPLETE
+**Feat Commit:** `43fa701` — feat(6.3): implement Assignee Dropdowns from Mapped Users
+**Test Commit:** `cd8876f` — test(6.3): add automated tests for Assignee Dropdowns from Mapped Users
+**Completed:** 2026-02-16
+
+**Files Touched:**
+- `frontend/src/app/core/settings/users/user-mapping.service.ts` — MODIFIED: Added `activeUsers`, `activeUserNames` computed signals, `ensureLoaded()`, `findByIrisUsername()`
+- `frontend/src/app/core/settings/users/user-mapping.service.spec.ts` — MODIFIED: Added tests for new signals and methods
+- `frontend/src/app/tickets/ticket-detail/ticket-detail.component.ts` — MODIFIED: Injected UserMappingService, `activeUserNames` computed
+- `frontend/src/app/tickets/ticket-detail/ticket-detail.component.html` — MODIFIED: Switched assignee from freeText to options dropdown
+- `frontend/src/app/tickets/ticket-detail/ticket-detail.component.spec.ts` — MODIFIED: Added Story 6.3 tests
+- `frontend/src/app/tickets/ticket-create/ticket-create.component.ts` — MODIFIED: Injected UserMappingService, `activeUserNames` computed
+- `frontend/src/app/tickets/ticket-create/ticket-create.component.html` — MODIFIED: Replaced text input with `mat-select` for assignee
+- `frontend/src/app/tickets/ticket-create/ticket-create.component.spec.ts` — MODIFIED: Added Story 6.3 tests
+- `frontend/src/app/tickets/tickets-page.component.ts` — MODIFIED: Injected UserMappingService, `assigneeOptions` computed
+- `frontend/src/app/tickets/tickets-page.component.spec.ts` — MODIFIED: Added Story 6.3 test
+- `frontend/src/app/core/app-shell/sidenav.component.ts` — MODIFIED: Refactored to computed navItems, dynamic My Tickets resolution, snackbar
+- `frontend/src/app/core/app-shell/sidenav.component.spec.ts` — MODIFIED: Rewrote tests for signal-based navItems, AC#3/#4 tests
+
+**Key Design Decisions:**
+- Assignee field stores display name (string), consistent across REST, MCP, filter bar, and My Tickets
+- UserMappingService extended with computed signals for active user filtering (client-side)
+- My Tickets resolves IRIS username to display name via `findByIrisUsername()` (case-insensitive)
+- No-mapping case shows snackbar with "Go to Settings" action navigation
+- Filter bar assignee options fall back to ticket-derived assignees when no user mappings loaded
+
+**Issues Auto-Resolved:** 3 code review fixes (duplicate describe block, misleading test name, missing snackbar navigation test)
+
+**User Input Required:** None

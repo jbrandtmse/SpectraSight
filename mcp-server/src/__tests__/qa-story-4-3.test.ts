@@ -23,8 +23,11 @@ import { registerTicketTools } from "../tools/tickets.js";
 import { registerCodeReferenceTools } from "../tools/code-references.js";
 import { registerActivityTools } from "../tools/activity.js";
 import { registerConnectionTools } from "../tools/connection.js";
+import { registerProjectTools } from "../tools/projects.js";
 import { registerCommentTools } from "../tools/comments.js";
 import { ApiClient } from "../api-client.js";
+import { Config } from "../config.js";
+import { clearUserCache } from "../user-identity.js";
 
 // ---- Shared mock infrastructure ----
 
@@ -57,6 +60,20 @@ function createMockApiClient() {
   } as unknown as ApiClient;
 }
 
+const mockConfig: Config = {
+  baseUrl: "http://localhost:52773",
+  username: "_SYSTEM",
+  password: "SYS",
+};
+
+const activeUsers = [
+  { id: 1, irisUsername: "_SYSTEM", displayName: "Spectra", isActive: true },
+];
+
+function setupUserMock(mockApiClient: ReturnType<typeof createMockApiClient>) {
+  (mockApiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(activeUsers);
+}
+
 // ---- AC #1: Bug-specific fields on create_ticket ----
 
 describe("QA AC#1: create_ticket accepts bug-specific fields", () => {
@@ -65,7 +82,7 @@ describe("QA AC#1: create_ticket accepts bug-specific fields", () => {
   beforeEach(() => {
     const mockServer = createMockServer();
     const mockApiClient = createMockApiClient();
-    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient);
+    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
@@ -115,7 +132,7 @@ describe("QA AC#2: create_ticket accepts task-specific fields", () => {
   beforeEach(() => {
     const mockServer = createMockServer();
     const mockApiClient = createMockApiClient();
-    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient);
+    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
@@ -147,7 +164,7 @@ describe("QA AC#3: create_ticket accepts story-specific fields", () => {
   beforeEach(() => {
     const mockServer = createMockServer();
     const mockApiClient = createMockApiClient();
-    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient);
+    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
@@ -177,7 +194,7 @@ describe("QA AC#4: create_ticket accepts epic-specific fields", () => {
   beforeEach(() => {
     const mockServer = createMockServer();
     const mockApiClient = createMockApiClient();
-    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient);
+    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
@@ -205,9 +222,11 @@ describe("QA AC#5: update_ticket maps ALL type-specific fields to camelCase", ()
   let mockApiClient: ReturnType<typeof createMockApiClient>;
 
   beforeEach(() => {
+    clearUserCache();
     const mockServer = createMockServer();
     mockApiClient = createMockApiClient();
-    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient);
+    setupUserMock(mockApiClient);
+    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
@@ -309,6 +328,9 @@ describe("QA AC#5: update_ticket maps ALL type-specific fields to camelCase", ()
 
     const callArgs = (mockApiClient.put as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
     expect(callArgs.severity).toBe("Low");
+    // actorName/actorType are always present (resolved identity)
+    expect(callArgs).toHaveProperty("actorName");
+    expect(callArgs).toHaveProperty("actorType");
     // All other type-specific fields should NOT be present
     expect(callArgs).not.toHaveProperty("stepsToReproduce");
     expect(callArgs).not.toHaveProperty("expectedBehavior");
@@ -330,9 +352,11 @@ describe("QA AC#6: update_ticket accepts parent_id and maps to parentId", () => 
   let mockApiClient: ReturnType<typeof createMockApiClient>;
 
   beforeEach(() => {
+    clearUserCache();
     const mockServer = createMockServer();
     mockApiClient = createMockApiClient();
-    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient);
+    setupUserMock(mockApiClient);
+    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
@@ -376,9 +400,11 @@ describe("QA AC#7: add_code_reference tool", () => {
   let mockApiClient: ReturnType<typeof createMockApiClient>;
 
   beforeEach(() => {
+    clearUserCache();
     const mockServer = createMockServer();
     mockApiClient = createMockApiClient();
-    registerCodeReferenceTools(mockServer as unknown as Parameters<typeof registerCodeReferenceTools>[0], mockApiClient);
+    setupUserMock(mockApiClient);
+    registerCodeReferenceTools(mockServer as unknown as Parameters<typeof registerCodeReferenceTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
@@ -451,9 +477,11 @@ describe("QA AC#8: remove_code_reference tool", () => {
   let mockApiClient: ReturnType<typeof createMockApiClient>;
 
   beforeEach(() => {
+    clearUserCache();
     const mockServer = createMockServer();
     mockApiClient = createMockApiClient();
-    registerCodeReferenceTools(mockServer as unknown as Parameters<typeof registerCodeReferenceTools>[0], mockApiClient);
+    setupUserMock(mockApiClient);
+    registerCodeReferenceTools(mockServer as unknown as Parameters<typeof registerCodeReferenceTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
@@ -502,6 +530,7 @@ describe("QA AC#8: remove_code_reference tool", () => {
 
   it("returns formatted error on API failure", async () => {
     const { ApiError } = await import("../api-client.js");
+    // The handler calls resolveUser first (which uses get), then del
     (mockApiClient.del as ReturnType<typeof vi.fn>).mockRejectedValue(
       new ApiError("NOT_FOUND", "Code reference not found", 404)
     );
@@ -578,22 +607,23 @@ describe("QA AC#9: list_activity tool", () => {
 
 // ---- AC #10: Correct total tool count ----
 
-describe("QA AC#10: total tool count is 10", () => {
-  it("all 5 registration modules produce exactly 10 tools total", () => {
+describe("QA AC#10: total tool count is 12", () => {
+  it("all 6 registration modules produce exactly 12 tools total", () => {
     const mockServer = createMockServer();
     const mockApiClient = createMockApiClient();
     const config = { baseUrl: "http://localhost:52773", username: "_SYSTEM", password: "SYS" };
 
-    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient);
-    registerCommentTools(mockServer as unknown as Parameters<typeof registerCommentTools>[0], mockApiClient);
-    registerCodeReferenceTools(mockServer as unknown as Parameters<typeof registerCodeReferenceTools>[0], mockApiClient);
+    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient, config);
+    registerCommentTools(mockServer as unknown as Parameters<typeof registerCommentTools>[0], mockApiClient, config);
+    registerCodeReferenceTools(mockServer as unknown as Parameters<typeof registerCodeReferenceTools>[0], mockApiClient, config);
     registerActivityTools(mockServer as unknown as Parameters<typeof registerActivityTools>[0], mockApiClient);
+    registerProjectTools(mockServer as unknown as Parameters<typeof registerProjectTools>[0], mockApiClient);
     registerConnectionTools(mockServer as unknown as Parameters<typeof registerConnectionTools>[0], mockApiClient, config);
 
-    expect(mockServer.tools.size).toBe(10);
+    expect(mockServer.tools.size).toBe(12);
   });
 
-  it("test_connection success message includes 'All 10 tools available'", async () => {
+  it("test_connection success message includes 'All 12 tools available'", async () => {
     const mockServer = createMockServer();
     const mockApiClient = createMockApiClient();
     const config = { baseUrl: "http://localhost:52773", username: "_SYSTEM", password: "SYS" };
@@ -605,7 +635,7 @@ describe("QA AC#10: total tool count is 10", () => {
     const handler = mockServer.tools.get("test_connection")!.handler;
     const result = await handler({});
 
-    expect(result.content[0].text).toContain("10 tools available");
+    expect(result.content[0].text).toContain("12 tools available");
   });
 });
 
@@ -616,20 +646,22 @@ describe("QA cross-cutting: create_ticket does not leak omitted optional fields"
   let mockApiClient: ReturnType<typeof createMockApiClient>;
 
   beforeEach(() => {
+    clearUserCache();
     const mockServer = createMockServer();
     mockApiClient = createMockApiClient();
-    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient);
+    setupUserMock(mockApiClient);
+    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
-  it("only sends title and type when no optional fields are provided", async () => {
+  it("only sends title, type, actorName, and actorType when no optional fields are provided", async () => {
     (mockApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "SS-1" });
 
     const handler = tools.get("create_ticket")!.handler;
     await handler({ title: "Minimal ticket", type: "task" });
 
     const callArgs = (mockApiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
-    expect(Object.keys(callArgs)).toEqual(["title", "type"]);
+    expect(Object.keys(callArgs).sort()).toEqual(["actorName", "actorType", "title", "type"]);
   });
 
   it("only sends provided fields for a bug with partial fields", async () => {
@@ -647,6 +679,8 @@ describe("QA cross-cutting: create_ticket does not leak omitted optional fields"
     expect(callArgs).toHaveProperty("title");
     expect(callArgs).toHaveProperty("type");
     expect(callArgs).toHaveProperty("severity");
+    expect(callArgs).toHaveProperty("actorName");
+    expect(callArgs).toHaveProperty("actorType");
     expect(callArgs).not.toHaveProperty("stepsToReproduce");
     expect(callArgs).not.toHaveProperty("expectedBehavior");
     expect(callArgs).not.toHaveProperty("actualBehavior");
@@ -684,8 +718,8 @@ describe("QA cross-cutting: README documents Story 4.3 changes", () => {
     expect(readmeContent).toContain("type-specific");
   });
 
-  it("shows correct tool count of 10 in example output", () => {
-    expect(readmeContent).toContain("10 tools available");
+  it("shows correct tool count of 12 in example output", () => {
+    expect(readmeContent).toContain("12 tools available");
   });
 });
 
@@ -709,8 +743,8 @@ describe("QA cross-cutting: index.ts registers all tool modules", () => {
     expect(indexContent).toContain("./tools/activity.js");
   });
 
-  it("calls registerCodeReferenceTools(server, apiClient)", () => {
-    expect(indexContent).toContain("registerCodeReferenceTools(server, apiClient)");
+  it("calls registerCodeReferenceTools(server, apiClient, config)", () => {
+    expect(indexContent).toContain("registerCodeReferenceTools(server, apiClient, config)");
   });
 
   it("calls registerActivityTools(server, apiClient)", () => {

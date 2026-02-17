@@ -83,6 +83,6 @@ development_status:
   6-1-user-mapping-data-model-and-rest-api: done
   6-2-user-mapping-configuration-ui: done
   6-3-assignee-dropdowns-from-mapped-users: done
-  6-4-mcp-user-identity-selection: backlog
+  6-4-mcp-user-identity-selection: done
   6-5-closed-ticket-filtering: backlog
   epic-6-retrospective: optional

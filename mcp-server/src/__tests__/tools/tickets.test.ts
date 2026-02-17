@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { z } from "zod";
 import { registerTicketTools } from "../../tools/tickets.js";
 import { ApiClient } from "../../api-client.js";
+import { Config } from "../../config.js";
+import { clearUserCache } from "../../user-identity.js";
 
 type ToolHandler = (params: Record<string, unknown>) => Promise<{
   content: Array<{ type: string; text: string }>;
@@ -32,15 +34,32 @@ function createMockApiClient() {
   } as unknown as ApiClient;
 }
 
+const mockConfig: Config = {
+  baseUrl: "http://localhost:52773",
+  username: "_SYSTEM",
+  password: "SYS",
+};
+
+const activeUsers = [
+  { id: 1, irisUsername: "_SYSTEM", displayName: "Spectra", isActive: true },
+  { id: 2, irisUsername: "jdoe", displayName: "Joe", isActive: true },
+];
+
 describe("ticket tools", () => {
   let mockServer: ReturnType<typeof createMockServer>;
   let mockApiClient: ReturnType<typeof createMockApiClient>;
   let tools: Map<string, ToolRegistration>;
 
   beforeEach(() => {
+    clearUserCache();
     mockServer = createMockServer();
     mockApiClient = createMockApiClient();
-    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient);
+    // Mock GET /users for resolveUser
+    (mockApiClient.get as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+      if (path === "/users") return Promise.resolve(activeUsers);
+      return Promise.resolve({});
+    });
+    registerTicketTools(mockServer as unknown as Parameters<typeof registerTicketTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
@@ -53,7 +72,7 @@ describe("ticket tools", () => {
   });
 
   describe("create_ticket", () => {
-    it("calls POST /tickets with correct camelCase body", async () => {
+    it("calls POST /tickets with correct camelCase body and resolved identity", async () => {
       const createdTicket = { id: "SS-1", title: "Bug fix", type: "bug" };
       (mockApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue(createdTicket);
 
@@ -65,14 +84,31 @@ describe("ticket tools", () => {
         priority: "High",
       });
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("/tickets", {
+      expect(mockApiClient.post).toHaveBeenCalledWith("/tickets", expect.objectContaining({
         title: "Bug fix",
         type: "bug",
         description: "Fix the bug",
         priority: "High",
-      });
+        actorName: "Spectra",
+        actorType: "agent",
+      }));
 
       expect(result.content[0].text).toContain("SS-1");
+    });
+
+    it("includes specified user as actorName in request body", async () => {
+      (mockApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "SS-99" });
+
+      const handler = tools.get("create_ticket")!.handler;
+      await handler({
+        title: "Test",
+        type: "task",
+        user: "Joe",
+      });
+
+      const callArgs = (mockApiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+      expect(callArgs.actorName).toBe("Joe");
+      expect(callArgs.actorType).toBe("agent");
     });
 
     it("maps parent_id to parentId in request body", async () => {
@@ -175,7 +211,10 @@ describe("ticket tools", () => {
   describe("get_ticket", () => {
     it("calls GET with correct path", async () => {
       const ticket = { id: "SS-42", title: "Test ticket" };
-      (mockApiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(ticket);
+      (mockApiClient.get as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+        if (path === "/users") return Promise.resolve(activeUsers);
+        return Promise.resolve(ticket);
+      });
 
       const handler = tools.get("get_ticket")!.handler;
       const result = await handler({ ticket_id: "SS-42" });
@@ -187,7 +226,7 @@ describe("ticket tools", () => {
   });
 
   describe("update_ticket", () => {
-    it("calls PUT with correct path and strips ticket_id from body", async () => {
+    it("calls PUT with correct path, strips ticket_id, and includes resolved identity", async () => {
       const updated = { id: "SS-10", title: "Updated title" };
       (mockApiClient.put as ReturnType<typeof vi.fn>).mockResolvedValue(updated);
 
@@ -198,10 +237,12 @@ describe("ticket tools", () => {
         status: "In Progress",
       });
 
-      expect(mockApiClient.put).toHaveBeenCalledWith("/tickets/SS-10", {
+      expect(mockApiClient.put).toHaveBeenCalledWith("/tickets/SS-10", expect.objectContaining({
         title: "Updated title",
         status: "In Progress",
-      });
+        actorName: "Spectra",
+        actorType: "agent",
+      }));
 
       // Verify ticket_id is NOT sent in the body
       const callArgs = (mockApiClient.put as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
@@ -254,6 +295,21 @@ describe("ticket tools", () => {
       expect(callArgs.startDate).toBe("2026-03-01");
       expect(callArgs).not.toHaveProperty("ticket_id");
     });
+
+    it("includes specified user as actorName in update request body", async () => {
+      (mockApiClient.put as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "SS-10" });
+
+      const handler = tools.get("update_ticket")!.handler;
+      await handler({
+        ticket_id: "SS-10",
+        title: "Test",
+        user: "Joe",
+      });
+
+      const callArgs = (mockApiClient.put as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+      expect(callArgs.actorName).toBe("Joe");
+      expect(callArgs.actorType).toBe("agent");
+    });
   });
 
   describe("delete_ticket", () => {
@@ -272,7 +328,10 @@ describe("ticket tools", () => {
   describe("list_tickets", () => {
     it("maps page_size to pageSize in query params", async () => {
       const paginated = { data: [], total: 0, page: 1, pageSize: 10, totalPages: 0 };
-      (mockApiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(paginated);
+      (mockApiClient.get as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+        if (path === "/users") return Promise.resolve(activeUsers);
+        return Promise.resolve(paginated);
+      });
 
       const handler = tools.get("list_tickets")!.handler;
       await handler({
@@ -287,14 +346,19 @@ describe("ticket tools", () => {
         pageSize: 10,
       }));
 
-      // Verify page_size is NOT directly passed as a query param key
-      const callParams = (mockApiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
-      expect(callParams).not.toHaveProperty("page_size");
+      // Find the /tickets call specifically
+      const ticketCall = (mockApiClient.get as ReturnType<typeof vi.fn>).mock.calls.find(
+        (c: unknown[]) => c[0] === "/tickets"
+      );
+      expect(ticketCall![1]).not.toHaveProperty("page_size");
     });
 
     it("calls GET without params when no filters are provided", async () => {
       const paginated = { data: [], total: 0, page: 1, pageSize: 25, totalPages: 0 };
-      (mockApiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(paginated);
+      (mockApiClient.get as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+        if (path === "/users") return Promise.resolve(activeUsers);
+        return Promise.resolve(paginated);
+      });
 
       const handler = tools.get("list_tickets")!.handler;
       await handler({});
@@ -310,7 +374,10 @@ describe("ticket tools", () => {
         pageSize: 25,
         totalPages: 1,
       };
-      (mockApiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(paginated);
+      (mockApiClient.get as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+        if (path === "/users") return Promise.resolve(activeUsers);
+        return Promise.resolve(paginated);
+      });
 
       const handler = tools.get("list_tickets")!.handler;
       const result = await handler({});
@@ -348,9 +415,10 @@ describe("ticket tools", () => {
   describe("error handling", () => {
     it("returns formatted error when API call fails", async () => {
       const { ApiError } = await import("../../api-client.js");
-      (mockApiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new ApiError("NOT_FOUND", "Ticket not found", 404)
-      );
+      (mockApiClient.get as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+        if (path === "/users") return Promise.resolve(activeUsers);
+        return Promise.reject(new ApiError("NOT_FOUND", "Ticket not found", 404));
+      });
 
       const handler = tools.get("get_ticket")!.handler;
       const result = await handler({ ticket_id: "SS-999" });

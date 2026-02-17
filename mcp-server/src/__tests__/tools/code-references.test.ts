@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { z } from "zod";
 import { registerCodeReferenceTools } from "../../tools/code-references.js";
 import { ApiClient } from "../../api-client.js";
+import { Config } from "../../config.js";
+import { clearUserCache } from "../../user-identity.js";
 
 type ToolHandler = (params: Record<string, unknown>) => Promise<{
   content: Array<{ type: string; text: string }>;
@@ -32,15 +34,29 @@ function createMockApiClient() {
   } as unknown as ApiClient;
 }
 
+const mockConfig: Config = {
+  baseUrl: "http://localhost:52773",
+  username: "_SYSTEM",
+  password: "SYS",
+};
+
+const activeUsers = [
+  { id: 1, irisUsername: "_SYSTEM", displayName: "Spectra", isActive: true },
+  { id: 2, irisUsername: "jdoe", displayName: "Joe", isActive: true },
+];
+
 describe("code reference tools", () => {
   let mockServer: ReturnType<typeof createMockServer>;
   let mockApiClient: ReturnType<typeof createMockApiClient>;
   let tools: Map<string, ToolRegistration>;
 
   beforeEach(() => {
+    clearUserCache();
     mockServer = createMockServer();
     mockApiClient = createMockApiClient();
-    registerCodeReferenceTools(mockServer as unknown as Parameters<typeof registerCodeReferenceTools>[0], mockApiClient);
+    // Mock GET /users for resolveUser
+    (mockApiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(activeUsers);
+    registerCodeReferenceTools(mockServer as unknown as Parameters<typeof registerCodeReferenceTools>[0], mockApiClient, mockConfig);
     tools = mockServer.tools;
   });
 
@@ -50,12 +66,12 @@ describe("code reference tools", () => {
   });
 
   describe("add_code_reference", () => {
-    it("calls POST with className and methodName mapped from snake_case", async () => {
+    it("calls POST with className, methodName, and resolved identity", async () => {
       const createdRef = {
         id: 5,
         className: "SpectraSight.Model.Ticket",
         methodName: "GetById",
-        addedBy: "agent",
+        addedBy: "Spectra",
         timestamp: "2026-02-15T00:00:00Z",
       };
       (mockApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue(createdRef);
@@ -67,10 +83,12 @@ describe("code reference tools", () => {
         method_name: "GetById",
       });
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("/tickets/SS-10/code-references", {
+      expect(mockApiClient.post).toHaveBeenCalledWith("/tickets/SS-10/code-references", expect.objectContaining({
         className: "SpectraSight.Model.Ticket",
         methodName: "GetById",
-      });
+        actorName: "Spectra",
+        actorType: "agent",
+      }));
     });
 
     it("omits methodName when method_name is not provided", async () => {
@@ -82,12 +100,25 @@ describe("code reference tools", () => {
         class_name: "SpectraSight.Model.Ticket",
       });
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("/tickets/SS-10/code-references", {
-        className: "SpectraSight.Model.Ticket",
+      const callArgs = (mockApiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+      expect(callArgs.className).toBe("SpectraSight.Model.Ticket");
+      expect(callArgs.actorName).toBe("Spectra");
+      expect(callArgs).not.toHaveProperty("methodName");
+    });
+
+    it("includes specified user as actorName", async () => {
+      (mockApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 7 });
+
+      const handler = tools.get("add_code_reference")!.handler;
+      await handler({
+        ticket_id: "SS-10",
+        class_name: "SomeClass",
+        user: "Joe",
       });
 
       const callArgs = (mockApiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
-      expect(callArgs).not.toHaveProperty("methodName");
+      expect(callArgs.actorName).toBe("Joe");
+      expect(callArgs.actorType).toBe("agent");
     });
 
     it("returns created reference as JSON content", async () => {
@@ -113,7 +144,7 @@ describe("code reference tools", () => {
   });
 
   describe("remove_code_reference", () => {
-    it("calls DELETE with correct path", async () => {
+    it("calls DELETE with correct path and resolved identity body", async () => {
       (mockApiClient.del as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
       const handler = tools.get("remove_code_reference")!.handler;
@@ -122,9 +153,28 @@ describe("code reference tools", () => {
         reference_id: 5,
       });
 
-      expect(mockApiClient.del).toHaveBeenCalledWith("/tickets/SS-10/code-references/5");
+      expect(mockApiClient.del).toHaveBeenCalledWith(
+        "/tickets/SS-10/code-references/5",
+        { actorName: "Spectra", actorType: "agent" }
+      );
       expect(result.content[0].text).toContain("Code reference 5 removed");
       expect(result.content[0].text).toContain("SS-10");
+    });
+
+    it("includes specified user as actorName in DELETE body", async () => {
+      (mockApiClient.del as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+      const handler = tools.get("remove_code_reference")!.handler;
+      await handler({
+        ticket_id: "SS-10",
+        reference_id: 5,
+        user: "Joe",
+      });
+
+      expect(mockApiClient.del).toHaveBeenCalledWith(
+        "/tickets/SS-10/code-references/5",
+        { actorName: "Joe", actorType: "agent" }
+      );
     });
   });
 
