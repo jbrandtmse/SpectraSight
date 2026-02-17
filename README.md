@@ -145,6 +145,56 @@ Copy `.mcp.json.example` to `.mcp.json` and fill in your IRIS credentials:
 cp .mcp.json.example .mcp.json
 ```
 
+## Custom IRIS Host / Port
+
+By default, SpectraSight connects to IRIS at `localhost:52773`. If your IRIS instance runs on a different host or port, update these three locations:
+
+### Angular Dev Proxy
+
+Edit `frontend/proxy.conf.json` and change the target:
+
+```json
+{
+  "/api": {
+    "target": "http://your-iris-host:52773",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}
+```
+
+### MCP Server
+
+The MCP server reads its connection from environment variables. Set these in your MCP client config (e.g., `.mcp.json` or Claude Desktop settings):
+
+```json
+{
+  "mcpServers": {
+    "spectrasight": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp-server/build/index.js"],
+      "env": {
+        "SPECTRASIGHT_URL": "http://your-iris-host:52773",
+        "SPECTRASIGHT_USERNAME": "_SYSTEM",
+        "SPECTRASIGHT_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
+| Variable | Default | Description |
+|---|---|---|
+| `SPECTRASIGHT_URL` | `http://localhost:52773` | IRIS REST base URL |
+| `SPECTRASIGHT_USERNAME` | `_SYSTEM` | IRIS authentication username |
+| `SPECTRASIGHT_PASSWORD` | `SYS` | IRIS authentication password |
+
+### REST API Calls
+
+If you follow the curl examples in this README, replace `localhost:52773` with your actual host and port.
+
 ## Project Structure
 
 ```
