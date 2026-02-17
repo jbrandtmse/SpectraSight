@@ -6,6 +6,7 @@ import { ToolbarComponent } from './core/app-shell/toolbar.component';
 import { SidenavComponent } from './core/app-shell/sidenav.component';
 import { AuthService } from './core/auth.service';
 import { ThemeService } from './core/theme.service';
+import { TicketService } from './tickets/ticket.service';
 
 @Component({
   selector: 'app-root',
@@ -20,6 +21,7 @@ export class AppComponent implements OnInit {
   private router = inject(Router);
   authService = inject(AuthService);
   private themeService = inject(ThemeService);
+  private ticketService = inject(TicketService);
 
   sidenavCollapsed = signal(false);
 
@@ -37,6 +39,11 @@ export class AppComponent implements OnInit {
 
   onToggleTheme(): void {
     this.themeService.toggle();
+  }
+
+  async onNewTicket(): Promise<void> {
+    await this.router.navigate(['/tickets']);
+    this.ticketService.requestNewTicket();
   }
 
   onLogout(): void {

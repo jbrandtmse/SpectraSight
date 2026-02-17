@@ -22,6 +22,8 @@ export class TicketService {
   private totalCountSignal = signal<number>(0);
   private closedCountSignal = signal<number>(0);
   private searchDebounce$ = new Subject<string>();
+  private createRequestSubject = new Subject<void>();
+  readonly createRequested$ = this.createRequestSubject.asObservable();
 
   readonly tickets = this.ticketsSignal.asReadonly();
   readonly loading = this.loadingSignal.asReadonly();
@@ -191,6 +193,10 @@ export class TicketService {
 
   selectTicket(id: string | null): void {
     this.selectedTicketIdSignal.set(id);
+  }
+
+  requestNewTicket(): void {
+    this.createRequestSubject.next();
   }
 
   refreshTickets(): void {

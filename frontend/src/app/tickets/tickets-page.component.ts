@@ -120,6 +120,11 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
     this.projectService.loadProjects();
     this.userMappingService.ensureLoaded();
 
+    this.ticketService.createRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.creatingParentId.set(null);
+      this.creating.set(true);
+    });
+
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const id = params.get('id');
       if (id) {

@@ -17,6 +17,10 @@ import { ThemeService } from '../theme.service';
       </button>
       <span class="ss-toolbar-title">SpectraSight</span>
       <span class="spacer"></span>
+      <button mat-flat-button color="primary" class="new-ticket-btn"
+        (click)="newTicketClicked.emit()" aria-label="New Ticket (Ctrl+N)">
+        + New Ticket
+      </button>
       <button mat-icon-button (click)="toggleTheme.emit()" [attr.aria-label]="themeService.isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
         <mat-icon>{{ themeService.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
       </button>
@@ -48,6 +52,12 @@ import { ThemeService } from '../theme.service';
       color: var(--ss-text-secondary);
       margin-left: var(--ss-xs);
     }
+    .new-ticket-btn {
+      margin-right: var(--ss-sm);
+      font-size: 0.8125rem;
+      line-height: 32px;
+      padding: 0 12px;
+    }
   `],
 })
 export class ToolbarComponent {
@@ -57,4 +67,5 @@ export class ToolbarComponent {
   toggleSidenav = output<void>();
   toggleTheme = output<void>();
   logoutClicked = output<void>();
+  newTicketClicked = output<void>();
 }
