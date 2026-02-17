@@ -24,6 +24,7 @@ export class TicketService {
   private searchDebounce$ = new Subject<string>();
   private createRequestSubject = new Subject<void>();
   readonly createRequested$ = this.createRequestSubject.asObservable();
+  private createPending = false;
 
   readonly tickets = this.ticketsSignal.asReadonly();
   readonly loading = this.loadingSignal.asReadonly();
@@ -196,7 +197,16 @@ export class TicketService {
   }
 
   requestNewTicket(): void {
+    this.createPending = true;
     this.createRequestSubject.next();
+  }
+
+  consumeCreateRequest(): boolean {
+    if (this.createPending) {
+      this.createPending = false;
+      return true;
+    }
+    return false;
   }
 
   refreshTickets(): void {

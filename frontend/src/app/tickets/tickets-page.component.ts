@@ -120,6 +120,13 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
     this.projectService.loadProjects();
     this.userMappingService.ensureLoaded();
 
+    // Check for pending create request from cross-page navigation
+    if (this.ticketService.consumeCreateRequest()) {
+      this.creatingParentId.set(null);
+      this.creating.set(true);
+    }
+
+    // Listen for same-page create requests (e.g., Ctrl+N while already on tickets)
     this.ticketService.createRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.creatingParentId.set(null);
       this.creating.set(true);

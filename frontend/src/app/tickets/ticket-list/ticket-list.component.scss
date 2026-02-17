@@ -34,6 +34,12 @@
     cursor: default;
   }
 
+  &--id {
+    width: 64px;
+    flex-shrink: 0;
+    cursor: default;
+  }
+
   &--title {
     flex: 1;
     justify-content: flex-start;
@@ -47,19 +53,19 @@
   }
 
   &--priority {
-    width: 60px;
+    width: 52px;
     flex-shrink: 0;
     justify-content: flex-start;
   }
 
   &--assignee {
-    width: 80px;
+    width: 72px;
     flex-shrink: 0;
     justify-content: flex-start;
   }
 
   &--updated {
-    width: 70px;
+    width: 56px;
     flex-shrink: 0;
     justify-content: flex-end;
   }

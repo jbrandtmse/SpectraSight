@@ -24,19 +24,12 @@
   }
 }
 
-.ticket-title-group {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--ss-xs);
-  min-width: 0;
-}
-
 .ticket-id {
   font-size: 11px;
   color: var(--ss-text-secondary);
   white-space: nowrap;
   flex-shrink: 0;
+  width: 64px;
 }
 
 .ticket-title {
@@ -50,10 +43,16 @@
   min-width: 0;
 }
 
+.ticket-status {
+  width: 70px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
 .ticket-priority {
   font-size: 11px;
   color: var(--ss-text-secondary);
-  width: 60px;
+  width: 52px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -63,7 +62,7 @@
 .ticket-assignee {
   font-size: 11px;
   color: var(--ss-text-secondary);
-  width: 80px;
+  width: 72px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -73,7 +72,7 @@
 .ticket-timestamp {
   font-size: 11px;
   color: var(--ss-text-secondary);
-  width: 70px;
+  width: 56px;
   text-align: right;
   flex-shrink: 0;
 }

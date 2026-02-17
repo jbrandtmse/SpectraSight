@@ -18,7 +18,8 @@ import {
 export class SplitPanelComponent implements AfterViewInit, OnDestroy {
   @ViewChild('container', { static: true }) containerRef!: ElementRef<HTMLElement>;
 
-  listPanelWidth = signal(400);
+  listPanelWidth = signal(0);
+  private defaultWidth = 550;
 
   private isResizing = false;
   private startX = 0;
@@ -29,6 +30,12 @@ export class SplitPanelComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.boundOnResizeMove = this.onResizeMove.bind(this);
     this.boundOnResizeEnd = this.onResizeEnd.bind(this);
+
+    const containerWidth = this.containerRef.nativeElement.offsetWidth;
+    if (containerWidth > 0) {
+      this.defaultWidth = Math.round(containerWidth * 0.45);
+    }
+    this.listPanelWidth.set(this.defaultWidth);
   }
 
   ngOnDestroy(): void {
@@ -64,7 +71,8 @@ export class SplitPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   resetWidth(): void {
-    this.listPanelWidth.set(400);
+    const containerWidth = this.containerRef.nativeElement.offsetWidth;
+    this.listPanelWidth.set(containerWidth > 0 ? Math.round(containerWidth * 0.45) : this.defaultWidth);
   }
 
   private removeListeners(): void {
