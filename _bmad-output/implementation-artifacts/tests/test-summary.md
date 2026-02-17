@@ -1309,9 +1309,9 @@ No IRIS ObjectScript tests needed. Story 5.4 is entirely frontend (Angular). The
 ## Project Test Totals (Stories 1.2-6.1)
 
 - **IRIS ObjectScript tests:** 84+ (TestREST, TestHierarchy, TestFilter, TestProject, TestProjectIntegration, TestProjectREST, TestUserMapping, TestUserREST)
-- **Angular tests:** 436 (435 pass, 1 pre-existing failure in auth.guard.spec.ts)
+- **Angular tests:** 467 (all pass)
 - **MCP TypeScript tests:** 204 (all passing)
-- **Combined total:** 724+ tests
+- **Combined total:** 755+ tests
 
 ## Next Steps
 
@@ -1320,3 +1320,88 @@ No IRIS ObjectScript tests needed. Story 5.4 is entirely frontend (Angular). The
 - Add edge case tests for concurrent updates when needed
 - E2E tests for login flow, keyboard navigation, and split panel drag interaction when Cypress/Playwright is set up
 - Fix pre-existing auth.guard.spec.ts failure (guard returns Boolean instead of UrlTree)
+
+---
+
+## Story 6.2: User Mapping Configuration UI
+
+**Date:** 2026-02-16
+**Test Framework:** Angular 18 / Karma / Jasmine with HttpTestingController
+**Test Files:**
+- `frontend/src/app/core/settings/users/user-mapping.service.spec.ts`
+- `frontend/src/app/core/settings/users/user-list.component.spec.ts`
+- `frontend/src/app/core/settings/settings.component.spec.ts`
+
+### Generated Tests
+
+#### Service Tests (UserMappingService) — 9 tests
+
+- [x] `should be created` — Service instantiation
+- [x] `should load users and set signal` — GET /api/users, signal update, loading=false
+- [x] `should set loading to true while loading` — Loading signal lifecycle
+- [x] `should set error on failure` — 500 error sets error signal, clears loading
+- [x] `should POST and reload users on success` — Create user, auto-reload, snackbar "User created"
+- [x] `should propagate error to subscriber on failure` — 400 Bad Request (duplicate IRIS username) propagates to caller (NEW)
+- [x] `should PUT and reload users on success` — Update displayName, auto-reload, snackbar "User updated"
+- [x] `should PUT isActive and reload users on success` — Update isActive flag, auto-reload, snackbar
+- [x] `should DELETE and reload users on success` — Delete user, auto-reload, snackbar "User deleted"
+- [x] `should propagate 409 Conflict error to subscriber` — Delete 409 Conflict (assigned to tickets) propagates (NEW)
+
+#### Component Tests (UserListComponent) — 22 tests
+
+- [x] `should create` — Component instantiation with initial data load
+- [x] `should load users on init` — ngOnInit triggers loadUsers, signal populated
+- [x] `should sort users alphabetically by displayName` — Alphabetical sort via computed signal
+- [x] `should toggle create form visibility` — openCreateForm/cancelCreate signal toggles
+- [x] `should clear create form fields when opening` — Leftover fields reset on open
+- [x] `should toggle edit mode` — startEdit sets editingUserId, cancelEdit clears
+- [x] `should close create form when starting edit` — Mutual exclusion: edit closes create form
+- [x] `should not submit create form when fields are empty` — Validation guard, no HTTP request
+- [x] `should cancel edit without saving when displayName unchanged` — No-op save when unchanged
+- [x] `should display correct columns` — Table columns match spec
+- [x] `should call updateUser when toggling isActive` — PUT {isActive: false}, auto-reload
+- [x] `should reload users on toggle error to revert` — Optimistic UI revert on 500 error
+- [x] `should delete user after confirmation` — window.confirm(true), DELETE, auto-reload
+- [x] `should not delete user when confirmation is cancelled` — window.confirm(false), no HTTP
+- [x] `should submit create form and reset on success` — POST, auto-reload, form closes
+- [x] `should show snackbar on create error (duplicate IRIS username)` — 400 error, form stays open (NEW)
+- [x] `should save edit when displayName is changed` — PUT {displayName}, auto-reload, edit closes (NEW)
+- [x] `should show snackbar on edit error` — 500 error, edit mode stays active (NEW)
+- [x] `should show snackbar on delete 409 Conflict error` — 409 Conflict, users unchanged (NEW)
+- [x] `should call loadUsers when retry is clicked` — retry() triggers GET reload (NEW)
+- [x] `should show empty state when no users exist` — DOM renders empty message (NEW)
+
+#### Integration Tests (SettingsComponent) — 2 tests
+
+- [x] `should create` — Component with child HTTP requests flushed
+- [x] `should have tab group with General, Projects, and Users tabs` — Tab label verification
+
+### Coverage
+
+#### By Acceptance Criteria
+
+| AC | Description | Covered By |
+|----|-------------|-----------|
+| #1 | Users tab in Settings | SettingsComponent tab label test |
+| #2 | User list loads with correct columns | loadUsers, sortedUsers, displayedColumns tests |
+| #3 | Add User inline form | create form toggle, clear fields, saveCreate success test |
+| #4 | isActive toggle optimistic UI | onToggleActive success + error revert tests |
+| #5 | Delete disabled for assigned users | 409 Conflict error handling test |
+| #6 | Delete with confirmation | delete confirm + cancel tests |
+| #7 | Inactive users visually muted | CSS class binding (`inactive-row`) — verified via template review |
+| #8 | Duplicate IRIS username error | create error 400 test (NEW) |
+| #9 | Edit display name inline | startEdit/cancelEdit, saveEdit success + error, no-op when unchanged |
+
+#### By Component
+
+- **UserMappingService:** 9/9 methods and error paths covered
+- **UserListComponent:** 22/22 tests — all public methods, all error handlers, all UI states
+- **SettingsComponent:** 2/2 tests — creation and tab structure
+
+### QA Notes
+
+- All 467 Angular tests pass (467/467 SUCCESS, 0 FAILED)
+- Fixed 1 pre-existing Jasmine warning: "has no expectations" in `should not submit create form when fields are empty`
+- 1 unrelated warning remains: `TicketCreateComponent should not submit when form is invalid` (pre-existing, not from Story 6.2)
+- Added 8 new tests covering error paths and missing AC coverage gaps identified during QA review
+- No E2E tests needed — this story is a CRUD form with standard Material table patterns

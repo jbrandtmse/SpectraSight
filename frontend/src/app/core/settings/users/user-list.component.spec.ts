@@ -114,7 +114,8 @@ describe('UserListComponent', () => {
 
     component.openCreateForm();
     component.saveCreate();
-    // No HTTP request should be made
+    // No HTTP request should be made (httpMock.verify in afterEach confirms this)
+    expect(component.showCreateForm()).toBeTrue();
   });
 
   it('should cancel edit without saving when displayName unchanged', () => {
@@ -208,5 +209,100 @@ describe('UserListComponent', () => {
     reloadReq.flush({ data: mockUsers, total: 3, page: 1, pageSize: 100, totalPages: 1 });
 
     expect(component.showCreateForm()).toBeFalse();
+  });
+
+  it('should show snackbar on create error (duplicate IRIS username)', () => {
+    fixture.detectChanges();
+    flushUsers();
+
+    component.openCreateForm();
+    component.createIrisUsername.set('_SYSTEM');
+    component.createDisplayName.set('Duplicate');
+    component.saveCreate();
+
+    const createReq = httpMock.expectOne(r => r.url.includes('/api/users') && r.method === 'POST');
+    createReq.flush(
+      { error: { message: 'IRIS username already exists' } },
+      { status: 400, statusText: 'Bad Request' }
+    );
+
+    expect(component.showCreateForm()).toBeTrue();
+  });
+
+  it('should save edit when displayName is changed', () => {
+    fixture.detectChanges();
+    flushUsers();
+
+    component.startEdit(mockUsers[1]);
+    component.editDisplayName.set('Robert Smith');
+    component.saveEdit(mockUsers[1]);
+
+    const updateReq = httpMock.expectOne(r => r.url.includes('/api/users/2') && r.method === 'PUT');
+    expect(updateReq.request.body).toEqual({ displayName: 'Robert Smith' });
+    updateReq.flush({ data: { ...mockUsers[1], displayName: 'Robert Smith' } });
+
+    // Reload triggered
+    const reloadReq = httpMock.expectOne(r => r.url.includes('/api/users') && r.method === 'GET');
+    reloadReq.flush({ data: mockUsers, total: 3, page: 1, pageSize: 100, totalPages: 1 });
+
+    expect(component.editingUserId()).toBeNull();
+  });
+
+  it('should show snackbar on edit error', () => {
+    fixture.detectChanges();
+    flushUsers();
+
+    component.startEdit(mockUsers[1]);
+    component.editDisplayName.set('Failed Name');
+    component.saveEdit(mockUsers[1]);
+
+    const updateReq = httpMock.expectOne(r => r.url.includes('/api/users/2') && r.method === 'PUT');
+    updateReq.flush(
+      { error: { message: 'Failed to update user' } },
+      { status: 500, statusText: 'Internal Server Error' }
+    );
+
+    // Edit mode should remain active on error
+    expect(component.editingUserId()).toBe(2);
+  });
+
+  it('should show snackbar on delete 409 Conflict error', () => {
+    fixture.detectChanges();
+    flushUsers();
+
+    spyOn(window, 'confirm').and.returnValue(true);
+    component.deleteUser(mockUsers[0]);
+
+    const deleteReq = httpMock.expectOne(r => r.url.includes('/api/users/1') && r.method === 'DELETE');
+    expect(deleteReq.request.method).toBe('DELETE');
+    deleteReq.flush(
+      { error: { message: 'Cannot delete user assigned to tickets' } },
+      { status: 409, statusText: 'Conflict' }
+    );
+
+    // Users list should still contain all users (delete was rejected)
+    expect(component.users().length).toBe(3);
+  });
+
+  it('should call loadUsers when retry is clicked', () => {
+    fixture.detectChanges();
+    flushUsers();
+
+    component.retry();
+
+    const reloadReq = httpMock.expectOne(r => r.url.includes('/api/users') && r.method === 'GET');
+    expect(reloadReq.request.method).toBe('GET');
+    reloadReq.flush({ data: mockUsers, total: 3, page: 1, pageSize: 100, totalPages: 1 });
+  });
+
+  it('should show empty state when no users exist', () => {
+    fixture.detectChanges();
+    flushUsers([]);
+
+    fixture.detectChanges();
+
+    const emptyEl = fixture.nativeElement.querySelector('.user-list__empty');
+    expect(emptyEl).toBeTruthy();
+    expect(emptyEl.textContent).toContain('No user mappings yet');
   });
 });

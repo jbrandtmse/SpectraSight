@@ -122,6 +122,24 @@ describe('UserMappingService', () => {
     });
   });
 
+  describe('createUser', () => {
+    it('should propagate error to subscriber on failure', () => {
+      let errorResponse: any;
+      service.createUser({ irisUsername: '_SYSTEM', displayName: 'Duplicate' }).subscribe({
+        error: (err) => { errorResponse = err; },
+      });
+
+      const createReq = httpMock.expectOne(r => r.url.includes('/api/users') && r.method === 'POST');
+      createReq.flush(
+        { error: { message: 'IRIS username already exists' } },
+        { status: 400, statusText: 'Bad Request' }
+      );
+
+      expect(errorResponse).toBeTruthy();
+      expect(errorResponse.status).toBe(400);
+    });
+  });
+
   describe('deleteUser', () => {
     it('should DELETE and reload users on success', () => {
       service.deleteUser(2).subscribe();
@@ -134,6 +152,22 @@ describe('UserMappingService', () => {
       reloadReq.flush({ data: [mockUser], total: 1, page: 1, pageSize: 100, totalPages: 1 });
 
       expect(snackBarSpy.open).toHaveBeenCalledWith('User deleted', '', { duration: 3000 });
+    });
+
+    it('should propagate 409 Conflict error to subscriber', () => {
+      let errorResponse: any;
+      service.deleteUser(1).subscribe({
+        error: (err) => { errorResponse = err; },
+      });
+
+      const deleteReq = httpMock.expectOne(r => r.url.includes('/api/users/1') && r.method === 'DELETE');
+      deleteReq.flush(
+        { error: { message: 'Cannot delete user assigned to tickets' } },
+        { status: 409, statusText: 'Conflict' }
+      );
+
+      expect(errorResponse).toBeTruthy();
+      expect(errorResponse.status).toBe(409);
     });
   });
 });
