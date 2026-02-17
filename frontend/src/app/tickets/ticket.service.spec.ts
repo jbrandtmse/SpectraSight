@@ -384,4 +384,65 @@ describe('TicketService', () => {
     expect(req2.request.params.has('search')).toBeFalse();
     req2.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
   }));
+
+  // Story 6.5: includeClosed filter parameter (AC #1, #4)
+  it('should pass includeClosed=true when filter state has includeClosed', () => {
+    service.setFilters({ includeClosed: true });
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req.request.params.get('includeClosed')).toBe('true');
+    req.flush({ data: MOCK_TICKETS, total: 3, page: 1, pageSize: 100, totalPages: 1 });
+  });
+
+  it('should not include includeClosed param when not set', () => {
+    service.setFilters({});
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req.request.params.has('includeClosed')).toBeFalse();
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+  });
+
+  it('should not include includeClosed param when false', () => {
+    service.setFilters({ includeClosed: false });
+
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(req.request.params.has('includeClosed')).toBeFalse();
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+  });
+
+  // Story 6.5: closedCount from response (AC #7)
+  it('should store closedCount from API response', () => {
+    expect(service.closedCount()).toBe(0);
+
+    service.loadTickets();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({
+      data: [],
+      total: 0,
+      page: 1,
+      pageSize: 100,
+      totalPages: 0,
+      closedCount: 5,
+    });
+
+    expect(service.closedCount()).toBe(5);
+  });
+
+  it('should default closedCount to 0 when not in response', () => {
+    service.loadTickets();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 });
+
+    expect(service.closedCount()).toBe(0);
+  });
+
+  it('should store totalCount from API response', () => {
+    expect(service.totalCount()).toBe(0);
+
+    service.loadTickets();
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({ data: MOCK_TICKETS, total: 3, page: 1, pageSize: 100, totalPages: 1 });
+
+    expect(service.totalCount()).toBe(3);
+  });
 });

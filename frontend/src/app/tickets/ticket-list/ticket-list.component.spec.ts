@@ -288,4 +288,113 @@ describe('TicketListComponent', () => {
     component.onClearFilters();
     expect(setFiltersSpy).toHaveBeenCalledWith({});
   });
+
+  // Story 6.5: isAllClosedHidden computed and all-closed empty state (AC #7)
+  it('should show all-closed empty state when tickets empty, includeClosed off, no filters, closedCount > 0', () => {
+    // Set no filters (default state, includeClosed is false)
+    ticketService.setFilters({});
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({
+      data: [],
+      total: 0,
+      page: 1,
+      pageSize: 100,
+      totalPages: 0,
+      closedCount: 3,
+    } as ApiListResponse<Ticket>);
+    fixture.detectChanges();
+
+    expect(component.isAllClosedHidden()).toBeTrue();
+
+    const allClosed = fixture.nativeElement.querySelector('.empty-state--all-closed');
+    expect(allClosed).toBeTruthy();
+    expect(allClosed.textContent).toContain("All tickets are closed. Toggle 'Show Closed' to view them.");
+  });
+
+  it('should not show all-closed state when closedCount is 0', () => {
+    ticketService.setFilters({});
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({
+      data: [],
+      total: 0,
+      page: 1,
+      pageSize: 100,
+      totalPages: 0,
+      closedCount: 0,
+    } as ApiListResponse<Ticket>);
+    fixture.detectChanges();
+
+    expect(component.isAllClosedHidden()).toBeFalse();
+
+    const allClosed = fixture.nativeElement.querySelector('.empty-state--all-closed');
+    expect(allClosed).toBeFalsy();
+  });
+
+  it('should not show all-closed state when includeClosed is true', () => {
+    ticketService.setFilters({ includeClosed: true });
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({
+      data: [],
+      total: 0,
+      page: 1,
+      pageSize: 100,
+      totalPages: 0,
+      closedCount: 3,
+    } as ApiListResponse<Ticket>);
+    fixture.detectChanges();
+
+    expect(component.isAllClosedHidden()).toBeFalse();
+  });
+
+  it('should not show all-closed state when active filters are set', () => {
+    ticketService.setFilters({ type: ['bug'] });
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({
+      data: [],
+      total: 0,
+      page: 1,
+      pageSize: 100,
+      totalPages: 0,
+      closedCount: 3,
+    } as ApiListResponse<Ticket>);
+    fixture.detectChanges();
+
+    expect(component.isAllClosedHidden()).toBeFalse();
+
+    // Should show filtered empty state instead
+    const filteredEmpty = fixture.nativeElement.querySelector('.empty-state--filtered');
+    expect(filteredEmpty).toBeTruthy();
+  });
+
+  it('should not show all-closed state when tickets exist', () => {
+    ticketService.setFilters({});
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({
+      data: MOCK_TICKETS,
+      total: 3,
+      page: 1,
+      pageSize: 100,
+      totalPages: 1,
+      closedCount: 1,
+    } as ApiListResponse<Ticket>);
+    fixture.detectChanges();
+
+    expect(component.isAllClosedHidden()).toBeFalse();
+  });
+
+  it('should not show all-closed state when project filter is active', () => {
+    ticketService.setFilters({ project: 'SS' });
+    const req = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    req.flush({
+      data: [],
+      total: 0,
+      page: 1,
+      pageSize: 100,
+      totalPages: 0,
+      closedCount: 3,
+    } as ApiListResponse<Ticket>);
+    fixture.detectChanges();
+
+    expect(component.isAllClosedHidden()).toBeFalse();
+  });
 });

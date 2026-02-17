@@ -1574,3 +1574,88 @@ No IRIS ObjectScript tests needed. Story 5.4 is entirely frontend (Angular). The
 - Dev-authored tests in `user-identity.test.ts` (9 tests) and tool-level tests cover basic identity resolution; QA tests verify cross-tool consistency and edge cases the dev tests don't cover
 - No E2E tests needed — this story modifies MCP tool handlers and REST API internals only (no UI changes)
 - No new tools added — `user` is a parameter on existing tools, keeping TOOL_COUNT at 12
+
+---
+
+## Story 6.5: Closed Ticket Filtering
+
+**Date:** 2026-02-16
+**Test Frameworks:** Angular Karma (frontend), Vitest (MCP server)
+
+### Generated Tests
+
+#### Angular — TicketService (ticket.service.spec.ts) — 6 new tests
+
+- [x] `should pass includeClosed=true when filter state has includeClosed` — AC #1, #4: Verifies `includeClosed=true` HTTP param is sent when filter state has `includeClosed: true`
+- [x] `should not include includeClosed param when not set` — AC #1: Verifies default behavior excludes the param (backend defaults to excluding Complete)
+- [x] `should not include includeClosed param when false` — AC #1: Verifies `includeClosed: false` does not send the param
+- [x] `should store closedCount from API response` — AC #7: Verifies the service stores `closedCount` from the paginated response metadata
+- [x] `should default closedCount to 0 when not in response` — AC #7: Verifies `closedCount` defaults to 0 when the API response omits it
+- [x] `should store totalCount from API response` — AC #7: Verifies `totalCount` is stored from the API response
+
+#### Angular — TicketListComponent (ticket-list.component.spec.ts) — 6 new tests
+
+- [x] `should show all-closed empty state when tickets empty, includeClosed off, no filters, closedCount > 0` — AC #7: Full positive path for the `isAllClosedHidden` computed signal and DOM rendering of the all-closed empty state message
+- [x] `should not show all-closed state when closedCount is 0` — AC #7: Verifies `isAllClosedHidden` is false when backend reports no closed tickets
+- [x] `should not show all-closed state when includeClosed is true` — AC #7: Verifies the all-closed state is hidden when user has toggled Show Closed on
+- [x] `should not show all-closed state when active filters are set` — AC #7: Verifies filtered empty state takes precedence over all-closed state when type/status/etc. filters are active
+- [x] `should not show all-closed state when tickets exist` — AC #7: Verifies `isAllClosedHidden` is false when the list has visible tickets
+- [x] `should not show all-closed state when project filter is active` — AC #7: Verifies project filter counts as an active filter, preventing the all-closed message
+
+#### Angular — TicketsPageComponent (tickets-page.component.spec.ts) — 4 new tests
+
+- [x] `should sync includeClosed=true to URL when filter is active` — AC #3: Verifies `?includeClosed=true` appears in URL query params when the toggle is on
+- [x] `should sync includeClosed=null to URL when filter is off` — AC #3: Verifies `includeClosed` is removed from URL when toggle is off
+- [x] `should read includeClosed from initial query params` — AC #3: Verifies `includeClosed` is restored from URL on page load
+- [x] `should update filters from query param changes including includeClosed` — AC #3: Verifies browser back/forward navigation with `includeClosed` in query params updates the filter state
+
+### Pre-existing Tests (dev-authored, already covering Story 6.5)
+
+#### Angular — FilterBarComponent (filter-bar.component.spec.ts) — 8 tests from dev
+
+- [x] `should default includeClosed to false` — AC #2
+- [x] `should toggle includeClosed on toggleIncludeClosed` — AC #2
+- [x] `should toggle includeClosed off on second call` — AC #2
+- [x] `should include includeClosed in emitted filter state when true` — AC #2
+- [x] `should not include includeClosed in emitted filter state when false` — AC #2
+- [x] `should initialize includeClosed from initialFilters` — AC #2, #3
+- [x] `should reset includeClosed on clearAll` — AC #2
+- [x] `should render the Show Closed slide toggle` — AC #2
+
+#### MCP — tickets.test.ts — 3 tests from dev
+
+- [x] `passes includeClosed=true when include_closed is true` — AC #5
+- [x] `does not pass includeClosed when include_closed is false` — AC #5
+- [x] `does not pass includeClosed when include_closed is omitted` — AC #5
+
+### Coverage by Acceptance Criteria
+
+| AC | Description | Tests | Coverage |
+|----|-------------|-------|----------|
+| #1 | Default exclusion of Complete tickets | 3 service tests | Full |
+| #2 | "Show Closed" toggle in filter bar | 8 filter-bar tests (dev) | Full |
+| #3 | URL state management for includeClosed | 4 tickets-page tests | Full |
+| #4 | REST API excludes Complete by default | 3 service tests (validates HTTP param) | Param-level (IRIS logic verified via code review) |
+| #5 | MCP include_closed parameter | 3 MCP tests (dev) | Full |
+| #6 | Complete tickets display normally with green badge | N/A (no special styling = no behavioral change to test) | By design |
+| #7 | All-closed empty state message | 6 ticket-list tests + 2 service tests | Full |
+
+### Test Results
+
+- **Angular:** 513 passed, 1 pre-existing failure (authGuard, unrelated)
+- **MCP:** 270 passed, 0 failed
+- **New tests added:** 16 (6 service + 6 ticket-list + 4 tickets-page)
+- **Pre-existing dev tests covering 6.5:** 11 (8 filter-bar + 3 MCP)
+- **Total tests covering Story 6.5:** 27
+
+### Files Modified
+
+- `frontend/src/app/tickets/ticket.service.spec.ts` — Added 6 tests for includeClosed param and closedCount/totalCount signals
+- `frontend/src/app/tickets/ticket-list/ticket-list.component.spec.ts` — Added 6 tests for isAllClosedHidden computed and all-closed empty state DOM rendering
+- `frontend/src/app/tickets/tickets-page.component.spec.ts` — Added 4 tests for includeClosed URL state management
+
+### Notes
+
+- AC #4 (REST API behavior) is tested at the HTTP parameter level through the TicketService tests. The actual SQL WHERE clause logic (`Status != 'Complete'`) is in IRIS ObjectScript and is validated by code review, not unit tests.
+- AC #6 requires no test because Complete tickets have always rendered with the green status badge. The story explicitly states "no special styling," meaning there is no new behavior to test.
+- The `isAllClosedHidden` computed signal was flagged as untested in code review (MEDIUM-advisory). All 4 conditions of the computed are now covered: empty list, includeClosed off, no active filters, closedCount > 0.

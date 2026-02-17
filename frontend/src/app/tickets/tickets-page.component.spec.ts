@@ -424,4 +424,73 @@ describe('TicketsPageComponent', () => {
       queryParams: jasmine.objectContaining({ project: 'DATA' }),
     }));
   });
+
+  // Story 6.5: includeClosed URL state management (AC #3)
+  it('should sync includeClosed=true to URL when filter is active', () => {
+    fixture.detectChanges();
+    flushInitRequests();
+
+    const router = TestBed.inject(Router);
+    const navigateSpy = spyOn(router, 'navigate');
+    component.onFiltersChanged({ includeClosed: true });
+
+    const ticketReq = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    ticketReq.flush(emptyTicketsResponse);
+
+    expect(navigateSpy).toHaveBeenCalledWith([], jasmine.objectContaining({
+      queryParams: jasmine.objectContaining({ includeClosed: 'true' }),
+    }));
+  });
+
+  it('should sync includeClosed=null to URL when filter is off', () => {
+    fixture.detectChanges();
+    flushInitRequests();
+
+    const router = TestBed.inject(Router);
+    const navigateSpy = spyOn(router, 'navigate');
+    component.onFiltersChanged({});
+
+    const ticketReq = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    ticketReq.flush(emptyTicketsResponse);
+
+    expect(navigateSpy).toHaveBeenCalledWith([], jasmine.objectContaining({
+      queryParams: jasmine.objectContaining({ includeClosed: null }),
+    }));
+  });
+
+  it('should read includeClosed from initial query params', async () => {
+    // Recreate with includeClosed=true in snapshot
+    const fixture2 = TestBed.createComponent(TicketsPageComponent);
+    const comp2 = fixture2.componentInstance;
+
+    // Override snapshot before init
+    const route = TestBed.inject(ActivatedRoute);
+    (route as unknown as { snapshot: unknown }).snapshot = {
+      paramMap: convertToParamMap({}),
+      queryParamMap: convertToParamMap({ includeClosed: 'true' }),
+    };
+
+    fixture2.detectChanges();
+    // Flush projects
+    const projReq = httpMock.expectOne(r => r.url.includes('/api/projects'));
+    projReq.flush(emptyProjectsResponse);
+    // Flush tickets
+    const ticketReq = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    expect(ticketReq.request.params.get('includeClosed')).toBe('true');
+    ticketReq.flush(emptyTicketsResponse);
+
+    expect(comp2.initialFilters().includeClosed).toBeTrue();
+
+    fixture2.destroy();
+  });
+
+  it('should update filters from query param changes including includeClosed', () => {
+    fixture.detectChanges();
+    flushInitRequests();
+
+    const setFiltersSpy = spyOn(ticketService, 'setFilters');
+    queryParamMapSubject.next(convertToParamMap({ includeClosed: 'true' }));
+
+    expect(setFiltersSpy).toHaveBeenCalledWith(jasmine.objectContaining({ includeClosed: true }));
+  });
 });
