@@ -1,0 +1,65 @@
+.user-list {
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--ss-md);
+  }
+
+  h3 {
+    margin: 0;
+    color: var(--ss-text-primary);
+  }
+
+  &__form {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--ss-sm);
+    padding: var(--ss-md);
+    margin-bottom: var(--ss-md);
+    background: var(--ss-surface-variant, #f5f5f5);
+    border-radius: 8px;
+    flex-wrap: wrap;
+  }
+
+  &__form-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--ss-xs);
+    padding-top: 4px;
+  }
+
+  &__loading {
+    display: flex;
+    justify-content: center;
+    padding: var(--ss-xl);
+  }
+
+  &__error {
+    color: var(--ss-error, #d32f2f);
+    padding: var(--ss-md);
+  }
+
+  &__empty {
+    padding: var(--ss-xl);
+    text-align: center;
+    color: var(--ss-text-secondary, #666);
+  }
+
+  &__table {
+    width: 100%;
+
+    .inactive-row {
+      opacity: 0.5;
+    }
+  }
+
+  &__inline-field {
+    width: 100%;
+
+    .mat-mdc-form-field-infix {
+      padding-top: 4px;
+      padding-bottom: 4px;
+    }
+  }
+}

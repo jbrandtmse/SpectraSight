@@ -28,23 +28,28 @@ describe('SettingsComponent', () => {
     httpMock.verify();
   });
 
-  it('should create', () => {
-    fixture.detectChanges();
-    // Flush projects request from the ProjectListComponent in the Projects tab
+  function flushChildRequests(): void {
     const projReqs = httpMock.match(r => r.url.includes('/api/projects'));
     projReqs.forEach(r => r.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 }));
+    const userReqs = httpMock.match(r => r.url.includes('/api/users'));
+    userReqs.forEach(r => r.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 }));
+  }
+
+  it('should create', () => {
+    fixture.detectChanges();
+    flushChildRequests();
     expect(component).toBeTruthy();
   });
 
-  it('should have tab group with General and Projects tabs', () => {
+  it('should have tab group with General, Projects, and Users tabs', () => {
     fixture.detectChanges();
-    const projReqs = httpMock.match(r => r.url.includes('/api/projects'));
-    projReqs.forEach(r => r.flush({ data: [], total: 0, page: 1, pageSize: 100, totalPages: 0 }));
+    flushChildRequests();
     fixture.detectChanges();
 
     const tabs = fixture.nativeElement.querySelectorAll('.mdc-tab');
     const tabLabels = Array.from(tabs).map((t: any) => t.textContent.trim());
     expect(tabLabels).toContain('General');
     expect(tabLabels).toContain('Projects');
+    expect(tabLabels).toContain('Users');
   });
 });

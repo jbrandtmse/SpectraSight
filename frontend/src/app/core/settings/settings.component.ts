@@ -3,12 +3,13 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTabsModule } from '@angular/material/tabs';
 import { ThemeService } from '../theme.service';
 import { ProjectListComponent } from './projects/project-list.component';
+import { UserListComponent } from './users/user-list.component';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatSlideToggleModule, MatTabsModule, ProjectListComponent],
+  imports: [MatSlideToggleModule, MatTabsModule, ProjectListComponent, UserListComponent],
   template: `
     <div class="settings-container">
       <h2>Settings</h2>
@@ -26,6 +27,11 @@ import { ProjectListComponent } from './projects/project-list.component';
         <mat-tab label="Projects">
           <div class="settings-tab-content">
             <app-project-list></app-project-list>
+          </div>
+        </mat-tab>
+        <mat-tab label="Users">
+          <div class="settings-tab-content">
+            <app-user-list></app-user-list>
           </div>
         </mat-tab>
       </mat-tab-group>

@@ -527,3 +527,31 @@
 ## Epic 5: Multi-Project Support — COMPLETE
 
 All 4 stories done. Epic 5 delivered project model, scoped ticket numbering, REST API + MCP tools, and configuration UI with list filter.
+
+---
+
+## Story 6.1: User Mapping Data Model & REST API
+
+**Status:** COMPLETE
+**Feat Commit:** `21d1072` — feat(6.1): implement User Mapping Data Model & REST API
+**Test Commit:** `f8bcdc3` — test(6.1): add automated tests for User Mapping Data Model & REST API
+**Completed:** 2026-02-16
+
+**Files Touched:**
+- `src/SpectraSight/Model/UserMapping.cls` — NEW: UserMapping %Persistent class with IrisUsername (unique), DisplayName, IsActive, timestamps
+- `src/SpectraSight/REST/UserHandler.cls` — NEW: Full CRUD handler (List, Create, Get, Update, Delete) with isActive filter, duplicate guard, ticket assignment check
+- `src/SpectraSight/REST/Dispatch.cls` — Added 5 user routes (/users, /users/:id)
+- `src/SpectraSight/Test/TestUserMapping.cls` — NEW: Unit tests for UserMapping model CRUD
+- `src/SpectraSight/Test/TestREST.cls` — Extended with user endpoint tests
+- `src/SpectraSight/Test/TestUserREST.cls` — NEW: QA REST endpoint tests (639 lines)
+
+**Key Design Decisions:**
+- UserMapping follows exact same %Persistent + %JSON.Adaptor pattern as Project.cls
+- UserHandler follows exact same Abstract ClassMethod pattern as ProjectHandler.cls
+- Delete guard checks ticket assignment by matching DisplayName against Ticket.Assignee field
+- isActive filter supports true/false/omitted (returns all)
+- Duplicate username returns 400, ticket-assigned user returns 409 Conflict on delete
+
+**Issues Auto-Resolved:** Code review fixes applied
+
+**User Input Required:** None

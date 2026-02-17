@@ -1,0 +1,107 @@
+<div class="user-list">
+  <div class="user-list__header">
+    <h3>Users</h3>
+    <button mat-raised-button color="primary" (click)="openCreateForm()" [disabled]="showCreateForm()">
+      Add User
+    </button>
+  </div>
+
+  @if (showCreateForm()) {
+    <div class="user-list__form">
+      <mat-form-field appearance="outline">
+        <mat-label>IRIS Username</mat-label>
+        <input matInput [value]="createIrisUsername()" (input)="createIrisUsername.set($any($event.target).value)" required />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Display Name</mat-label>
+        <input matInput [value]="createDisplayName()" (input)="createDisplayName.set($any($event.target).value)" required />
+      </mat-form-field>
+      <div class="user-list__form-actions">
+        <button mat-raised-button color="primary" (click)="saveCreate()" [disabled]="!createIrisUsername() || !createDisplayName()">Save</button>
+        <button mat-button (click)="cancelCreate()">Cancel</button>
+      </div>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="user-list__loading">
+      <mat-spinner diameter="32"></mat-spinner>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="user-list__error">
+      {{ error() }}
+      <button mat-button color="primary" (click)="retry()">Retry</button>
+    </div>
+  }
+
+  @if (!loading() && !error()) {
+    @if (sortedUsers().length === 0) {
+      <div class="user-list__empty">No user mappings yet. Click Add User to create one.</div>
+    } @else {
+      <table mat-table [dataSource]="sortedUsers()" class="user-list__table">
+        <ng-container matColumnDef="displayName">
+          <th mat-header-cell *matHeaderCellDef>Display Name</th>
+          <td mat-cell *matCellDef="let user">
+            @if (editingUserId() === user.id) {
+              <mat-form-field appearance="outline" class="user-list__inline-field">
+                <input matInput [value]="editDisplayName()" (input)="editDisplayName.set($any($event.target).value)" />
+              </mat-form-field>
+            } @else {
+              {{ user.displayName }}
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="irisUsername">
+          <th mat-header-cell *matHeaderCellDef>IRIS Username</th>
+          <td mat-cell *matCellDef="let user">{{ user.irisUsername }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="isActive">
+          <th mat-header-cell *matHeaderCellDef>Active</th>
+          <td mat-cell *matCellDef="let user">
+            <mat-slide-toggle
+              [checked]="user.isActive"
+              (change)="onToggleActive(user, $event.checked)"
+              [disabled]="editingUserId() === user.id">
+            </mat-slide-toggle>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="createdAt">
+          <th mat-header-cell *matHeaderCellDef>Created</th>
+          <td mat-cell *matCellDef="let user">{{ user.createdAt | date:'mediumDate' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let user">
+            @if (editingUserId() === user.id) {
+              <button mat-icon-button (click)="saveEdit(user)" matTooltip="Save">
+                <mat-icon>check</mat-icon>
+              </button>
+              <button mat-icon-button (click)="cancelEdit()" matTooltip="Cancel">
+                <mat-icon>close</mat-icon>
+              </button>
+            } @else {
+              <button mat-icon-button (click)="startEdit(user)" matTooltip="Edit user">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                (click)="deleteUser(user)"
+                matTooltip="Delete user (users assigned to tickets cannot be deleted)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" [class.inactive-row]="!row.isActive"></tr>
+      </table>
+    }
+  }
+</div>

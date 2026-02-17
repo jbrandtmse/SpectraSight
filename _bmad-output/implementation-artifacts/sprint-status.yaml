@@ -81,7 +81,7 @@ development_status:
   # Epic 6: User Management & Agent Identity
   epic-6: in-progress
   6-1-user-mapping-data-model-and-rest-api: done
-  6-2-user-mapping-configuration-ui: backlog
+  6-2-user-mapping-configuration-ui: done
   6-3-assignee-dropdowns-from-mapped-users: backlog
   6-4-mcp-user-identity-selection: backlog
   6-5-closed-ticket-filtering: backlog
