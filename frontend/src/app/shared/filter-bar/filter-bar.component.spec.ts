@@ -292,4 +292,76 @@ describe('FilterBarComponent', () => {
     expect(emitted).toBeTruthy();
     expect(emitted!.project).toBeUndefined();
   });
+
+  // Story 6.5: Show Closed toggle tests
+  it('should default includeClosed to false', () => {
+    expect(component.includeClosed()).toBeFalse();
+  });
+
+  it('should toggle includeClosed on toggleIncludeClosed', () => {
+    let emitted: FilterState | null = null;
+    component.filtersChanged.subscribe((f: FilterState) => emitted = f);
+
+    component.toggleIncludeClosed();
+    expect(component.includeClosed()).toBeTrue();
+    expect(emitted).toBeTruthy();
+    expect(emitted!.includeClosed).toBeTrue();
+  });
+
+  it('should toggle includeClosed off on second call', () => {
+    component.toggleIncludeClosed();
+    expect(component.includeClosed()).toBeTrue();
+
+    let emitted: FilterState | null = null;
+    component.filtersChanged.subscribe((f: FilterState) => emitted = f);
+
+    component.toggleIncludeClosed();
+    expect(component.includeClosed()).toBeFalse();
+    expect(emitted).toBeTruthy();
+    expect(emitted!.includeClosed).toBeUndefined();
+  });
+
+  it('should include includeClosed in emitted filter state when true', () => {
+    let emitted: FilterState | null = null;
+    component.filtersChanged.subscribe((f: FilterState) => emitted = f);
+
+    component.toggleIncludeClosed();
+    expect(emitted!.includeClosed).toBeTrue();
+  });
+
+  it('should not include includeClosed in emitted filter state when false', () => {
+    let emitted: FilterState | null = null;
+    component.filtersChanged.subscribe((f: FilterState) => emitted = f);
+
+    component.onTypeToggle('bug');
+    expect(emitted!.includeClosed).toBeUndefined();
+  });
+
+  it('should initialize includeClosed from initialFilters', () => {
+    const fixture2 = TestBed.createComponent(FilterBarComponent);
+    const comp2 = fixture2.componentInstance;
+    fixture2.componentRef.setInput('initialFilters', { includeClosed: true });
+    fixture2.detectChanges();
+
+    expect(comp2.includeClosed()).toBeTrue();
+
+    fixture2.destroy();
+  });
+
+  it('should reset includeClosed on clearAll', () => {
+    component.toggleIncludeClosed();
+    expect(component.includeClosed()).toBeTrue();
+
+    let emitted: FilterState | null = null;
+    component.filtersChanged.subscribe((f: FilterState) => emitted = f);
+
+    component.clearAll();
+    expect(component.includeClosed()).toBeFalse();
+    expect(emitted!.includeClosed).toBeUndefined();
+  });
+
+  it('should render the Show Closed slide toggle', () => {
+    const toggle = fixture.nativeElement.querySelector('mat-slide-toggle');
+    expect(toggle).toBeTruthy();
+  });
 });

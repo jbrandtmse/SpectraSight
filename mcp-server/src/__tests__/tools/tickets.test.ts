@@ -366,6 +366,54 @@ describe("ticket tools", () => {
       expect(mockApiClient.get).toHaveBeenCalledWith("/tickets", expect.objectContaining({}));
     });
 
+    it("passes includeClosed=true when include_closed is true", async () => {
+      const paginated = { data: [], total: 0, page: 1, pageSize: 25, totalPages: 0 };
+      (mockApiClient.get as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+        if (path === "/users") return Promise.resolve(activeUsers);
+        return Promise.resolve(paginated);
+      });
+
+      const handler = tools.get("list_tickets")!.handler;
+      await handler({ include_closed: true });
+
+      const ticketCall = (mockApiClient.get as ReturnType<typeof vi.fn>).mock.calls.find(
+        (c: unknown[]) => c[0] === "/tickets"
+      );
+      expect(ticketCall![1]).toHaveProperty("includeClosed", "true");
+    });
+
+    it("does not pass includeClosed when include_closed is false", async () => {
+      const paginated = { data: [], total: 0, page: 1, pageSize: 25, totalPages: 0 };
+      (mockApiClient.get as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+        if (path === "/users") return Promise.resolve(activeUsers);
+        return Promise.resolve(paginated);
+      });
+
+      const handler = tools.get("list_tickets")!.handler;
+      await handler({ include_closed: false });
+
+      const ticketCall = (mockApiClient.get as ReturnType<typeof vi.fn>).mock.calls.find(
+        (c: unknown[]) => c[0] === "/tickets"
+      );
+      expect(ticketCall![1].includeClosed).toBeUndefined();
+    });
+
+    it("does not pass includeClosed when include_closed is omitted", async () => {
+      const paginated = { data: [], total: 0, page: 1, pageSize: 25, totalPages: 0 };
+      (mockApiClient.get as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+        if (path === "/users") return Promise.resolve(activeUsers);
+        return Promise.resolve(paginated);
+      });
+
+      const handler = tools.get("list_tickets")!.handler;
+      await handler({});
+
+      const ticketCall = (mockApiClient.get as ReturnType<typeof vi.fn>).mock.calls.find(
+        (c: unknown[]) => c[0] === "/tickets"
+      );
+      expect(ticketCall![1].includeClosed).toBeUndefined();
+    });
+
     it("returns full paginated envelope as JSON", async () => {
       const paginated = {
         data: [{ id: "SS-1", title: "First" }],

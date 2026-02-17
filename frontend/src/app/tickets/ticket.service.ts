@@ -19,6 +19,8 @@ export class TicketService {
   private errorSignal = signal<string | null>(null);
   private selectedTicketIdSignal = signal<string | null>(null);
   private filterStateSignal = signal<FilterState>({});
+  private totalCountSignal = signal<number>(0);
+  private closedCountSignal = signal<number>(0);
   private searchDebounce$ = new Subject<string>();
 
   readonly tickets = this.ticketsSignal.asReadonly();
@@ -26,6 +28,8 @@ export class TicketService {
   readonly error = this.errorSignal.asReadonly();
   readonly selectedTicketId = this.selectedTicketIdSignal.asReadonly();
   readonly filterState = this.filterStateSignal.asReadonly();
+  readonly totalCount = this.totalCountSignal.asReadonly();
+  readonly closedCount = this.closedCountSignal.asReadonly();
   readonly selectedTicket = computed(() => {
     const id = this.selectedTicketIdSignal();
     return this.ticketsSignal().find((t) => t.id === id) ?? null;
@@ -79,6 +83,9 @@ export class TicketService {
     if (state.project) {
       params = params.set('project', state.project);
     }
+    if (state.includeClosed) {
+      params = params.set('includeClosed', 'true');
+    }
 
     this.http
       .get<ApiListResponse<Ticket>>(
@@ -88,6 +95,8 @@ export class TicketService {
       .subscribe({
         next: (response) => {
           this.ticketsSignal.set(response.data);
+          this.totalCountSignal.set(response.total);
+          this.closedCountSignal.set(response.closedCount ?? 0);
           this.loadingSignal.set(false);
         },
         error: (err) => {

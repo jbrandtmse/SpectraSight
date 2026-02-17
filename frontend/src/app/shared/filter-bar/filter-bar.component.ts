@@ -16,6 +16,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { FilterState } from '../../tickets/ticket.model';
 import { Subject } from 'rxjs';
 import { debounceTime, takeUntil } from 'rxjs/operators';
@@ -31,6 +32,7 @@ import { debounceTime, takeUntil } from 'rxjs/operators';
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    MatSlideToggleModule,
   ],
   templateUrl: './filter-bar.component.html',
   styleUrl: './filter-bar.component.scss',
@@ -51,6 +53,7 @@ export class FilterBarComponent implements OnInit, OnDestroy {
   selectedPriority = signal('');
   selectedAssignee = signal('');
   currentSort = signal('');
+  includeClosed = signal(false);
 
   private searchInput$ = new Subject<string>();
   private destroy$ = new Subject<void>();
@@ -104,6 +107,7 @@ export class FilterBarComponent implements OnInit, OnDestroy {
     if (initial.assignee) this.selectedAssignee.set(initial.assignee);
     if (initial.search) this.searchText.set(initial.search);
     if (initial.sort) this.currentSort.set(initial.sort);
+    if (initial.includeClosed) this.includeClosed.set(true);
 
     this.searchInput$.pipe(debounceTime(300), takeUntil(this.destroy$)).subscribe((text) => {
       this.searchText.set(text);
@@ -170,6 +174,11 @@ export class FilterBarComponent implements OnInit, OnDestroy {
     this.emitFilters();
   }
 
+  toggleIncludeClosed(): void {
+    this.includeClosed.update((v) => !v);
+    this.emitFilters();
+  }
+
   removeFilter(chip: { category: string; value: string }): void {
     switch (chip.category) {
       case 'project':
@@ -201,6 +210,7 @@ export class FilterBarComponent implements OnInit, OnDestroy {
     this.selectedStatuses.set([]);
     this.selectedPriority.set('');
     this.selectedAssignee.set('');
+    this.includeClosed.set(false);
     this.emitFilters();
   }
 
@@ -224,6 +234,7 @@ export class FilterBarComponent implements OnInit, OnDestroy {
     if (this.selectedAssignee()) state.assignee = this.selectedAssignee();
     if (this.searchText()) state.search = this.searchText();
     if (this.currentSort()) state.sort = this.currentSort();
+    if (this.includeClosed()) state.includeClosed = true;
     this.filtersChanged.emit(state);
   }
 }

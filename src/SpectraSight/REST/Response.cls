@@ -48,8 +48,8 @@ ClassMethod SuccessNoContent() As %Status
     Quit tSC
 }
 
-/// Return a paginated list response
-ClassMethod PaginatedList(pData As %DynamicArray, pTotal As %Integer, pPage As %Integer, pPageSize As %Integer) As %Status
+/// Return a paginated list response with optional metadata
+ClassMethod PaginatedList(pData As %DynamicArray, pTotal As %Integer, pPage As %Integer, pPageSize As %Integer, pMetadata As %DynamicObject = "") As %Status
 {
     Set tSC = $$$OK
     Try {
@@ -60,6 +60,12 @@ ClassMethod PaginatedList(pData As %DynamicArray, pTotal As %Integer, pPage As %
         Do tEnvelope.%Set("pageSize", pPageSize, "number")
         Set tTotalPages = $SELECT(pTotal=0:0, 1:((pTotal - 1) \ pPageSize) + 1)
         Do tEnvelope.%Set("totalPages", tTotalPages, "number")
+        If (pMetadata '= "") && $ISOBJECT(pMetadata) {
+            Set tIter = pMetadata.%GetIterator()
+            While tIter.%GetNext(.tKey, .tValue) {
+                Do tEnvelope.%Set(tKey, tValue)
+            }
+        }
         Set %response.ContentType = "application/json"
         Set %response.Status = "200 OK"
         Write tEnvelope.%ToJSON()

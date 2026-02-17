@@ -221,6 +221,7 @@ ClassMethod ListTickets() As %Status
         Set tSearch = $GET(%request.Data("search", 1))
         Set tSort = $GET(%request.Data("sort", 1), "-updatedAt")
         Set tProjectFilter = $GET(%request.Data("project", 1))
+        Set tIncludeClosed = $ZCONVERT($GET(%request.Data("includeClosed", 1), "false"), "L")
 
         // Enforce min/max
         If tPage < 1 Set tPage = 1
@@ -327,6 +328,11 @@ ClassMethod ListTickets() As %Status
             }
         }
 
+        // Default: exclude Complete status unless includeClosed=true or explicit status filter
+        If (tIncludeClosed '= "true") && (tStatus = "") {
+            Set tWhere = tWhere_$SELECT(tWhere="":"", 1:" AND ")_"Status != 'Complete'"
+        }
+
         Set tWhereClause = ""
         If tWhere '= "" Set tWhereClause = " WHERE "_tWhere
 
@@ -377,7 +383,29 @@ ClassMethod ListTickets() As %Status
             }
         }
 
-        Set tSC = ##class(SpectraSight.REST.Response).PaginatedList(tArray, tTotal, tPage, tPageSize)
+        // Include closedCount when default exclusion is active
+        Set tMetadata = ""
+        If (tIncludeClosed '= "true") && (tStatus = "") {
+            // Build closedCount query respecting project filter
+            Set tClosedSQL = "SELECT COUNT(*) AS cnt FROM SpectraSight_Model.Ticket WHERE Status = ?"
+            Set tClosedParamCount = 1
+            Set tClosedParams(1) = "Complete"
+            If tProjectFilter '= "" && (tResolvedProjectId '= "") {
+                Set tClosedSQL = tClosedSQL _ " AND Project = ?"
+                Set tClosedParamCount = 2
+                Set tClosedParams(2) = tResolvedProjectId
+            }
+            Set tClosedStmt = ##class(%SQL.Statement).%New()
+            Set tSC2 = tClosedStmt.%Prepare(tClosedSQL)
+            If $$$ISOK(tSC2) {
+                Set tClosedResult = ..ExecuteWithParams(tClosedStmt, .tClosedParams, tClosedParamCount)
+                If tClosedResult.%Next() {
+                    Set tMetadata = ##class(%DynamicObject).%New()
+                    Do tMetadata.%Set("closedCount", +tClosedResult.%Get("cnt"), "number")
+                }
+            }
+        }
+        Set tSC = ##class(SpectraSight.REST.Response).PaginatedList(tArray, tTotal, tPage, tPageSize, tMetadata)
     }
     Catch ex {
         Set tSC = ##class(SpectraSight.REST.Response).ServerError("An unexpected error occurred while listing tickets")

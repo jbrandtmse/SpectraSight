@@ -73,6 +73,7 @@ export interface FilterState {
   assignee?: string;
   search?: string;
   sort?: string;
+  includeClosed?: boolean;
 }
 
 export interface CreateTicketRequest {

@@ -30,7 +30,15 @@ export class TicketListComponent {
 
   readonly hasActiveFilters = computed(() => {
     const state = this.ticketService.filterState();
-    return !!(state.type?.length || state.status?.length || state.priority || state.assignee || state.search);
+    return !!(state.project || state.type?.length || state.status?.length || state.priority || state.assignee || state.search);
+  });
+
+  readonly isAllClosedHidden = computed(() => {
+    const state = this.ticketService.filterState();
+    return this.tickets().length === 0
+      && !state.includeClosed
+      && !this.hasActiveFilters()
+      && this.ticketService.closedCount() > 0;
   });
 
   readonly sortField = computed(() => {

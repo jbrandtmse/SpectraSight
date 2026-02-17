@@ -137,6 +137,7 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
     if (qp.get('assignee')) initial.assignee = qp.get('assignee')!;
     if (qp.get('search')) initial.search = qp.get('search')!;
     if (qp.get('sort')) initial.sort = qp.get('sort')!;
+    if (qp.get('includeClosed') === 'true') initial.includeClosed = true;
     this.initialFilters.set(initial);
 
     // Always apply initial filters and load tickets. Even with empty filters,
@@ -154,6 +155,7 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
       if (qpm.get('assignee')) filters.assignee = qpm.get('assignee')!;
       if (qpm.get('search')) filters.search = qpm.get('search')!;
       if (qpm.get('sort')) filters.sort = qpm.get('sort')!;
+      if (qpm.get('includeClosed') === 'true') filters.includeClosed = true;
 
       const currentState = this.ticketService.filterState();
       if (JSON.stringify(filters) !== JSON.stringify(currentState)) {
@@ -210,6 +212,7 @@ export class TicketsPageComponent implements OnInit, OnDestroy {
       assignee: filters.assignee || null,
       search: filters.search || null,
       sort: filters.sort || null,
+      includeClosed: filters.includeClosed ? 'true' : null,
     };
     this.router.navigate([], {
       relativeTo: this.route,

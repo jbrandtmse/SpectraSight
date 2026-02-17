@@ -8,6 +8,7 @@ export interface ApiListResponse<T> {
   page: number;
   pageSize: number;
   totalPages: number;
+  closedCount?: number;
 }
 
 export interface ApiError {

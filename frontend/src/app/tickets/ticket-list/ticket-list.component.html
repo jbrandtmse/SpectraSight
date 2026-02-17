@@ -10,6 +10,10 @@
       </div>
     }
   </div>
+} @else if (isAllClosedHidden()) {
+  <div class="empty-state empty-state--all-closed">
+    <p>All tickets are closed. Toggle 'Show Closed' to view them.</p>
+  </div>
 } @else if (tickets().length === 0 && hasActiveFilters()) {
   <div class="empty-state empty-state--filtered">
     <p>No tickets match your filters</p>

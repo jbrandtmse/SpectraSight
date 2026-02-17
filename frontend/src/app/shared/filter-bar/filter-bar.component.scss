@@ -49,6 +49,11 @@
     }
   }
 
+  &__toggle {
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+
   &__active {
     display: flex;
     align-items: center;

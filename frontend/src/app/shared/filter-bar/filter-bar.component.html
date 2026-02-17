@@ -80,6 +80,15 @@
       }
     </mat-select>
   </mat-form-field>
+
+  <!-- Show Closed toggle -->
+  <mat-slide-toggle
+    class="filter-bar__toggle"
+    [checked]="includeClosed()"
+    (change)="toggleIncludeClosed()"
+    aria-label="Show closed tickets">
+    Show Closed
+  </mat-slide-toggle>
 </div>
 
 <!-- Active filter chips row -->

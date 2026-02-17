@@ -79,6 +79,7 @@ const ListTicketsSchema = {
   page: z.number().optional().describe("Page number (default: 1)"),
   page_size: z.number().optional().describe("Items per page (default: 25)"),
   project: z.string().optional().describe("Filter by project prefix (e.g., DATA) or project ID"),
+  include_closed: z.boolean().optional().describe("Include closed/completed tickets in results (default: false)"),
 };
 
 export function registerTicketTools(server: McpServer, apiClient: ApiClient, config: Config): void {
@@ -224,6 +225,7 @@ export function registerTicketTools(server: McpServer, apiClient: ApiClient, con
           page: params.page,
           pageSize: params.page_size,
           project: params.project,
+          includeClosed: params.include_closed ? "true" : undefined,
         };
 
         const data = await apiClient.get("/tickets", queryParams);
