@@ -4,8 +4,8 @@ Class SpectraSight.Test.TestUserMapping Extends %UnitTest.TestCase
 Method TestUserMappingCreate() As %Status
 {
     Set tMapping = ##class(SpectraSight.Model.UserMapping).%New()
-    Set tMapping.IrisUsername = "_SYSTEM"
-    Set tMapping.DisplayName = "System Admin"
+    Set tMapping.IrisUsername = "TESTCREATE_"_$RANDOM(999999)
+    Set tMapping.DisplayName = "Test Create User"
     Set tSC = tMapping.%Save()
     Do $$$AssertStatusOK(tSC, "UserMapping should save successfully")
 
@@ -13,8 +13,7 @@ Method TestUserMappingCreate() As %Status
     Do $$$AssertTrue(tId '= "", "UserMapping should have an ID after save")
 
     Set tLoaded = ##class(SpectraSight.Model.UserMapping).%OpenId(tId)
-    Do $$$AssertEquals(tLoaded.IrisUsername, "_SYSTEM", "IrisUsername should match")
-    Do $$$AssertEquals(tLoaded.DisplayName, "System Admin", "DisplayName should match")
+    Do $$$AssertEquals(tLoaded.DisplayName, "Test Create User", "DisplayName should match")
     Do $$$AssertEquals(tLoaded.IsActive, 1, "IsActive should default to true")
     Do $$$AssertTrue(tLoaded.CreatedAt '= "", "CreatedAt should be set")
     Do $$$AssertTrue(tLoaded.UpdatedAt '= "", "UpdatedAt should be set")

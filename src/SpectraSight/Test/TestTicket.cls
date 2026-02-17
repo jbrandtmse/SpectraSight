@@ -1,7 +1,7 @@
 Class SpectraSight.Test.TestTicket Extends %UnitTest.TestCase
 {
 
-Method TestCreateBug()
+Method TestCreateBug() As %Status
 {
     Set tBug = ##class(SpectraSight.Model.Bug).%New()
     Set tBug.Title = "Test Bug"
@@ -21,9 +21,10 @@ Method TestCreateBug()
 
     Set tSC = ##class(SpectraSight.Model.Bug).%DeleteId(tId)
     Do $$$AssertStatusOK(tSC, "Bug should delete successfully")
+    Quit $$$OK
 }
 
-Method TestCreateTask()
+Method TestCreateTask() As %Status
 {
     Set tTask = ##class(SpectraSight.Model.Task).%New()
     Set tTask.Title = "Test Task"
@@ -41,9 +42,10 @@ Method TestCreateTask()
 
     Set tSC = ##class(SpectraSight.Model.Task).%DeleteId(tId)
     Do $$$AssertStatusOK(tSC, "Task should delete successfully")
+    Quit $$$OK
 }
 
-Method TestCreateStory()
+Method TestCreateStory() As %Status
 {
     Set tStory = ##class(SpectraSight.Model.Story).%New()
     Set tStory.Title = "Test Story"
@@ -61,14 +63,15 @@ Method TestCreateStory()
 
     Set tSC = ##class(SpectraSight.Model.Story).%DeleteId(tId)
     Do $$$AssertStatusOK(tSC, "Story should delete successfully")
+    Quit $$$OK
 }
 
-Method TestCreateEpic()
+Method TestCreateEpic() As %Status
 {
     Set tEpic = ##class(SpectraSight.Model.Epic).%New()
     Set tEpic.Title = "Test Epic"
-    Set tEpic.StartDate = $HOROLOG
-    Set tEpic.TargetDate = $HOROLOG + 30
+    Set tEpic.StartDate = +$HOROLOG
+    Set tEpic.TargetDate = +$HOROLOG + 30
     Set tSC = tEpic.%Save()
     Do $$$AssertStatusOK(tSC, "Epic should save successfully")
 
@@ -80,9 +83,10 @@ Method TestCreateEpic()
 
     Set tSC = ##class(SpectraSight.Model.Epic).%DeleteId(tId)
     Do $$$AssertStatusOK(tSC, "Epic should delete successfully")
+    Quit $$$OK
 }
 
-Method TestDefaultValues()
+Method TestDefaultValues() As %Status
 {
     Set tBug = ##class(SpectraSight.Model.Bug).%New()
     Set tBug.Title = "Default Test"
@@ -96,9 +100,10 @@ Method TestDefaultValues()
     Set tId = tBug.%Id()
     Set tSC = ##class(SpectraSight.Model.Bug).%DeleteId(tId)
     Do $$$AssertStatusOK(tSC, "Cleanup should succeed")
+    Quit $$$OK
 }
 
-Method TestUpdateTimestamp()
+Method TestUpdateTimestamp() As %Status
 {
     Set tTask = ##class(SpectraSight.Model.Task).%New()
     Set tTask.Title = "Timestamp Test"
@@ -125,9 +130,10 @@ Method TestUpdateTimestamp()
 
     Set tSC = ##class(SpectraSight.Model.Task).%DeleteId(tId)
     Do $$$AssertStatusOK(tSC, "Cleanup should succeed")
+    Quit $$$OK
 }
 
-Method TestPolymorphicQuery()
+Method TestPolymorphicQuery() As %Status
 {
     // Create one of each type
     Set tBug = ##class(SpectraSight.Model.Bug).%New()
@@ -171,9 +177,10 @@ Method TestPolymorphicQuery()
     Do ##class(SpectraSight.Model.Task).%DeleteId(tTaskId)
     Do ##class(SpectraSight.Model.Story).%DeleteId(tStoryId)
     Do ##class(SpectraSight.Model.Epic).%DeleteId(tEpicId)
+    Quit $$$OK
 }
 
-Method TestPolymorphicFilterByStatus()
+Method TestPolymorphicFilterByStatus() As %Status
 {
     // Create tickets with different statuses
     Set tBug = ##class(SpectraSight.Model.Bug).%New()
@@ -211,6 +218,7 @@ Method TestPolymorphicFilterByStatus()
     Do ##class(SpectraSight.Model.Bug).%DeleteId(tBugId)
     Do ##class(SpectraSight.Model.Task).%DeleteId(tTaskId)
     Do ##class(SpectraSight.Model.Story).%DeleteId(tStoryId)
+    Quit $$$OK
 }
 
 }

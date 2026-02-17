@@ -1,7 +1,7 @@
 Class SpectraSight.Test.TestActivity Extends %UnitTest.TestCase
 {
 
-Method TestCreateComment()
+Method TestCreateComment() As %Status
 {
     // Create a ticket first (activity needs a ticket reference)
     Set tTicket = ##class(SpectraSight.Model.Bug).%New()
@@ -34,9 +34,10 @@ Method TestCreateComment()
     Do $$$AssertStatusOK(tSC, "Comment should delete")
     Set tSC = ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
     Do $$$AssertStatusOK(tSC, "Ticket should delete")
+    Quit $$$OK
 }
 
-Method TestCreateStatusChange()
+Method TestCreateStatusChange() As %Status
 {
     // Create a ticket
     Set tTicket = ##class(SpectraSight.Model.Bug).%New()
@@ -68,9 +69,10 @@ Method TestCreateStatusChange()
     Do $$$AssertStatusOK(tSC, "StatusChange should delete")
     Set tSC = ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
     Do $$$AssertStatusOK(tSC, "Ticket should delete")
+    Quit $$$OK
 }
 
-Method TestCreateAssignmentChange()
+Method TestCreateAssignmentChange() As %Status
 {
     // Create a ticket
     Set tTicket = ##class(SpectraSight.Model.Task).%New()
@@ -101,9 +103,10 @@ Method TestCreateAssignmentChange()
     Do $$$AssertStatusOK(tSC, "AssignmentChange should delete")
     Set tSC = ##class(SpectraSight.Model.Task).%DeleteId(tTicketId)
     Do $$$AssertStatusOK(tSC, "Ticket should delete")
+    Quit $$$OK
 }
 
-Method TestCreateCodeReferenceChange()
+Method TestCreateCodeReferenceChange() As %Status
 {
     // Create a ticket
     Set tTicket = ##class(SpectraSight.Model.Story).%New()
@@ -136,9 +139,10 @@ Method TestCreateCodeReferenceChange()
     Do $$$AssertStatusOK(tSC, "CodeReferenceChange should delete")
     Set tSC = ##class(SpectraSight.Model.Story).%DeleteId(tTicketId)
     Do $$$AssertStatusOK(tSC, "Ticket should delete")
+    Quit $$$OK
 }
 
-Method TestActivityTimestamp()
+Method TestActivityTimestamp() As %Status
 {
     // Create a ticket
     Set tTicket = ##class(SpectraSight.Model.Bug).%New()
@@ -169,9 +173,10 @@ Method TestActivityTimestamp()
     Do $$$AssertStatusOK(tSC, "Comment should delete")
     Set tSC = ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
     Do $$$AssertStatusOK(tSC, "Ticket should delete")
+    Quit $$$OK
 }
 
-Method TestActivityTicketReference()
+Method TestActivityTicketReference() As %Status
 {
     // Create a ticket
     Set tTicket = ##class(SpectraSight.Model.Bug).%New()
@@ -213,6 +218,7 @@ Method TestActivityTicketReference()
     Do $$$AssertStatusOK(tSC, "Comment should delete")
     Set tSC = ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
     Do $$$AssertStatusOK(tSC, "Ticket should delete")
+    Quit $$$OK
 }
 
 }

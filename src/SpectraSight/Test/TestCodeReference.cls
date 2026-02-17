@@ -1,7 +1,7 @@
 Class SpectraSight.Test.TestCodeReference Extends %UnitTest.TestCase
 {
 
-Method TestCreateCodeReference()
+Method TestCreateCodeReference() As %Status
 {
     // Create a ticket
     Set tTicket = ##class(SpectraSight.Model.Bug).%New()
@@ -35,9 +35,10 @@ Method TestCreateCodeReference()
     Do $$$AssertStatusOK(tSC, "CodeReference should delete")
     Set tSC = ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
     Do $$$AssertStatusOK(tSC, "Ticket should delete")
+    Quit $$$OK
 }
 
-Method TestCodeReferenceOptionalMethod()
+Method TestCodeReferenceOptionalMethod() As %Status
 {
     // Create a ticket
     Set tTicket = ##class(SpectraSight.Model.Task).%New()
@@ -66,9 +67,10 @@ Method TestCodeReferenceOptionalMethod()
     Do $$$AssertStatusOK(tSC, "CodeReference should delete")
     Set tSC = ##class(SpectraSight.Model.Task).%DeleteId(tTicketId)
     Do $$$AssertStatusOK(tSC, "Ticket should delete")
+    Quit $$$OK
 }
 
-Method TestCodeReferenceTimestamp()
+Method TestCodeReferenceTimestamp() As %Status
 {
     // Create a ticket
     Set tTicket = ##class(SpectraSight.Model.Bug).%New()
@@ -97,9 +99,10 @@ Method TestCodeReferenceTimestamp()
     Do $$$AssertStatusOK(tSC, "CodeReference should delete")
     Set tSC = ##class(SpectraSight.Model.Bug).%DeleteId(tTicketId)
     Do $$$AssertStatusOK(tSC, "Ticket should delete")
+    Quit $$$OK
 }
 
-Method TestMultipleReferencesPerTicket()
+Method TestMultipleReferencesPerTicket() As %Status
 {
     // Create a ticket
     Set tTicket = ##class(SpectraSight.Model.Story).%New()
@@ -152,6 +155,7 @@ Method TestMultipleReferencesPerTicket()
     Do $$$AssertStatusOK(tSC, "Third CodeReference should delete")
     Set tSC = ##class(SpectraSight.Model.Story).%DeleteId(tTicketId)
     Do $$$AssertStatusOK(tSC, "Ticket should delete")
+    Quit $$$OK
 }
 
 }
