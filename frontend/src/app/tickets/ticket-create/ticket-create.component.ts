@@ -12,6 +12,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { TicketService } from '../ticket.service';
 import { Ticket, TicketType, TicketStatus, TicketPriority } from '../ticket.model';
 import { UserMappingService } from '../../core/settings/users/user-mapping.service';
+import { ProjectService } from '../../core/settings/projects/project.service';
 import { TypeIconComponent } from '../../shared/type-icon/type-icon.component';
 
 const HIERARCHY_RULES: Record<string, string[]> = {
@@ -43,8 +44,10 @@ export class TicketCreateComponent implements OnInit {
   ticketService = inject(TicketService);
   private router = inject(Router);
   private userMappingService = inject(UserMappingService);
+  private projectService = inject(ProjectService);
 
   readonly activeUserNames = computed(() => this.userMappingService.activeUserNames());
+  readonly projects = this.projectService.projects;
 
   created = output<void>();
   cancelled = output<void>();
@@ -84,6 +87,7 @@ export class TicketCreateComponent implements OnInit {
 
   form = new FormGroup({
     title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    project: new FormControl<number | null>(null, { validators: [Validators.required] }),
     type: new FormControl<TicketType | ''>('', { nonNullable: true, validators: [Validators.required] }),
     status: new FormControl<TicketStatus>('Open', { nonNullable: true }),
     priority: new FormControl<TicketPriority | ''>('', { nonNullable: true }),
@@ -94,6 +98,7 @@ export class TicketCreateComponent implements OnInit {
 
   ngOnInit(): void {
     this.userMappingService.ensureLoaded();
+    this.projectService.loadProjects();
 
     this.form.controls.type.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -106,6 +111,18 @@ export class TicketCreateComponent implements OnInit {
         this.selectedParent.set(parent);
         this.form.controls.parentSearch.setValue(parent.title);
       }
+    }
+
+    // Default project to current filter's project or first available
+    const filterProject = this.ticketService.filterState().project;
+    if (filterProject) {
+      const match = this.projects().find((p) => p.prefix === filterProject || String(p.id) === filterProject);
+      if (match) {
+        this.form.controls.project.setValue(match.id);
+      }
+    }
+    if (!this.form.controls.project.value && this.projects().length) {
+      this.form.controls.project.setValue(this.projects()[0].id);
     }
   }
 
@@ -147,6 +164,7 @@ export class TicketCreateComponent implements OnInit {
     this.ticketService.createTicket({
       title: raw.title,
       type: raw.type as TicketType,
+      projectId: raw.project!,
       ...(raw.status !== 'Open' ? { status: raw.status } : {}),
       ...(raw.priority ? { priority: raw.priority as TicketPriority } : {}),
       ...(raw.assignee ? { assignee: raw.assignee } : {}),

@@ -14,6 +14,7 @@ const SeverityEnum = z.enum(["Low", "Medium", "High", "Critical"]);
 const CreateTicketSchema = {
   title: z.string().describe("Ticket title (required)"),
   type: TicketTypeEnum.describe("Ticket type: bug, task, story, or epic"),
+  project: z.string().describe("Project prefix (e.g., SS) or project name"),
   user: z.string().optional().describe("Display name of the mapped user to act as. Validated against active user mappings. If omitted, defaults to the display name mapped to the IRIS authentication username."),
   description: z.string().optional().describe("Ticket description"),
   status: TicketStatusEnum.optional().describe("Ticket status: Open, In Progress, Blocked, or Complete"),
@@ -91,9 +92,24 @@ export function registerTicketTools(server: McpServer, apiClient: ApiClient, con
       try {
         const identity = await resolveUser(apiClient, config, params.user);
 
+        // Resolve project prefix/name to projectId
+        const projectsData = await apiClient.get("/projects") as { data: Array<{ id: number; name: string; prefix: string }> };
+        const projects = projectsData.data;
+        const projectMatch = projects.find(
+          (p) => p.prefix.toLowerCase() === params.project.toLowerCase() || p.name.toLowerCase() === params.project.toLowerCase()
+        );
+        if (!projectMatch) {
+          const available = projects.map((p) => `${p.name} (${p.prefix})`).join(", ");
+          return {
+            content: [{ type: "text" as const, text: `Error: Project "${params.project}" not found. Available projects: ${available}` }],
+            isError: true,
+          };
+        }
+
         const body: Record<string, unknown> = {
           title: params.title,
           type: params.type,
+          projectId: projectMatch.id,
           actorName: identity.actorName,
           actorType: identity.actorType,
         };

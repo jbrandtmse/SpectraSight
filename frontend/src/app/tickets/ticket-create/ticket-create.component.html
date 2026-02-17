@@ -17,6 +17,19 @@
       }
     </mat-form-field>
 
+    <!-- Project (required) -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Project</mat-label>
+      <mat-select formControlName="project">
+        @for (p of projects(); track p.id) {
+          <mat-option [value]="p.id">{{ p.name }} ({{ p.prefix }})</mat-option>
+        }
+      </mat-select>
+      @if (form.controls.project.hasError('required') && form.controls.project.touched) {
+        <mat-error>Project is required</mat-error>
+      }
+    </mat-form-field>
+
     <!-- Type (required) -->
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Type</mat-label>

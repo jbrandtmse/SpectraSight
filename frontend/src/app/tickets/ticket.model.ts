@@ -79,6 +79,7 @@ export interface FilterState {
 export interface CreateTicketRequest {
   type: TicketType;
   title: string;
+  projectId: number;
   description?: string;
   status?: TicketStatus;
   priority?: TicketPriority;

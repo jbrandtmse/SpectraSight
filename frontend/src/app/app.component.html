@@ -6,10 +6,11 @@
       (newTicketClicked)="onNewTicket()"
       (logoutClicked)="onLogout()">
     </app-toolbar>
-    <mat-sidenav-container class="ss-sidenav-container">
+    <mat-sidenav-container class="ss-sidenav-container" autosize>
       <mat-sidenav mode="side" [opened]="true" [disableClose]="true"
         [style.width]="sidenavCollapsed() ? '56px' : '240px'"
-        [style.min-width]="sidenavCollapsed() ? '56px' : '240px'">
+        [style.min-width]="sidenavCollapsed() ? '56px' : '240px'"
+        [style.max-width]="sidenavCollapsed() ? '56px' : '240px'">
         <app-sidenav [collapsed]="sidenavCollapsed()"></app-sidenav>
       </mat-sidenav>
       <mat-sidenav-content>
