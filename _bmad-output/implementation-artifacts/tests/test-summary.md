@@ -1489,3 +1489,88 @@ No IRIS ObjectScript tests needed. Story 5.4 is entirely frontend (Angular). The
 - 1 pre-existing Jasmine warning remains: `TicketCreateComponent should not submit when form is invalid` (has no expectations — pre-existing, not from this story)
 - No E2E tests needed — this story modifies existing Angular form controls with standard Material component patterns
 - No IRIS/backend changes in this story (REST API completed in Story 6.1)
+
+## Story 6.4: MCP User Identity Selection
+
+**Date:** 2026-02-16
+**Test Framework:** Vitest 4.0.18 (MCP server test suite)
+**Test File:** `mcp-server/src/__tests__/qa-story-6-4.test.ts`
+
+## Generated Tests
+
+### API Tests (Unit)
+
+- [x] AC#5: `user` parameter present on all 5 mutation tool schemas (create_ticket, update_ticket, add_comment, add_code_reference, remove_code_reference)
+- [x] AC#5: `user` parameter is optional string on all schemas (accepts string, accepts undefined, rejects number)
+- [x] AC#5: `user` parameter description is consistent across all 5 tools
+- [x] AC#5: Non-mutation tools (get_ticket, delete_ticket, list_tickets) do NOT have `user` parameter
+- [x] AC#6: All 6 registration modules produce exactly 12 tools total
+- [x] AC#6: No `resolve_user` or `set_user` tool was added (identity is a param, not a tool)
+- [x] AC#1: create_ticket sends actorName/actorType from specified user
+- [x] AC#1: update_ticket sends actorName from specified user
+- [x] AC#1: add_comment sends actorName from specified user
+- [x] AC#1: add_code_reference sends actorName from specified user
+- [x] AC#1: remove_code_reference sends actorName from specified user (via DELETE body)
+- [x] AC#1: `user` field itself is never forwarded to REST API body on any tool
+- [x] AC#2: create_ticket returns isError=true with descriptive message for invalid user
+- [x] AC#2: update_ticket returns isError=true for invalid user
+- [x] AC#2: add_comment returns isError=true for invalid user
+- [x] AC#2: add_code_reference returns isError=true for invalid user
+- [x] AC#2: remove_code_reference returns isError=true for invalid user
+- [x] AC#2: All 5 tools list valid display names in error message
+- [x] AC#2: No API mutation calls made when user validation fails
+- [x] AC#3: create_ticket defaults actorName to 'Spectra' (mapped from _SYSTEM config)
+- [x] AC#3: update_ticket defaults actorName to 'Spectra'
+- [x] AC#3: add_comment defaults actorName to 'Spectra'
+- [x] AC#3: add_code_reference defaults actorName to 'Spectra'
+- [x] AC#3: remove_code_reference defaults actorName to 'Spectra'
+- [x] AC#4: create_ticket falls back to IRIS username when no mapping exists
+- [x] AC#4: add_comment falls back to IRIS username
+- [x] AC#4: remove_code_reference falls back to IRIS username
+- [x] AC#7: create_ticket POST body always has actorName and actorType
+- [x] AC#7: update_ticket PUT body always has actorName and actorType
+- [x] AC#7: add_comment POST body always has actorName and actorType
+- [x] AC#7: add_code_reference POST body always has actorName and actorType
+- [x] AC#7: remove_code_reference DELETE body always has actorName and actorType
+- [x] Cross-cutting: index.ts passes config to registerTicketTools
+- [x] Cross-cutting: index.ts passes config to registerCommentTools
+- [x] Cross-cutting: index.ts passes config to registerCodeReferenceTools
+- [x] Cross-cutting: ApiClient.del() method signature accepts optional body
+- [x] Cross-cutting: README documents all 12 tools
+- [x] Cross-cutting: README shows correct tool count of 12
+- [x] Cross-cutting: user-identity module exports clearUserCache
+- [x] Cross-cutting: user-identity module exports resolveUser
+
+## Coverage
+
+### By Acceptance Criteria
+
+| AC | Tests | Description |
+|----|-------|-------------|
+| AC #1 | 6 | Specified user becomes actorName on all 5 mutation tools + user field not forwarded |
+| AC #2 | 11 | Invalid user returns error from all 5 tools + lists valid names + no API calls made |
+| AC #3 | 5 | Default identity maps config username to display name on all 5 tools |
+| AC #4 | 3 | Graceful fallback uses IRIS username when no mapping exists |
+| AC #5 | 8 | Schema completeness — user param present, optional, typed, described, and absent on read-only tools |
+| AC #6 | 2 | TOOL_COUNT stays at 12, no new identity tools added |
+| AC #7 | 5 | REST request bodies always include actorName and actorType |
+| AC #8 | — | REST-layer validation covered by IRIS-side tests (ResolveActor returns error status; handler returns 400) |
+| Cross-cutting | 9 | index.ts config wiring, del() body support, README docs, module exports |
+
+**Total: 49 tests**
+
+### By Component
+
+- **Tool Schemas (all 5 mutation tools):** 8 tests — user param existence, type, optionality, description, absence on read-only tools
+- **Identity Resolution in Handlers:** 22 tests — specified user, default user, fallback, invalid user, error propagation
+- **REST Body Correctness:** 11 tests — actorName/actorType presence, user field not leaked
+- **Infrastructure:** 8 tests — index.ts config wiring, del() signature, README docs, module exports
+
+### QA Notes
+
+- All 267 MCP tests pass (267/267 passed, 0 failed) across 14 test files
+- 49 new QA tests for Story 6.4 covering all 8 acceptance criteria
+- AC #8 (REST-layer 400 response for invalid actorName) is validated at the IRIS ObjectScript level, not in MCP tests — the MCP layer validates before calling REST
+- Dev-authored tests in `user-identity.test.ts` (9 tests) and tool-level tests cover basic identity resolution; QA tests verify cross-tool consistency and edge cases the dev tests don't cover
+- No E2E tests needed — this story modifies MCP tool handlers and REST API internals only (no UI changes)
+- No new tools added — `user` is a parameter on existing tools, keeping TOOL_COUNT at 12
