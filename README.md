@@ -4,25 +4,25 @@
 
 AI-powered ticket management built on **InterSystems IRIS**, **Angular**, and the **Model Context Protocol (MCP)**. SpectraSight lets both humans and AI agents manage tickets through the same REST API — the Angular SPA for humans, an MCP server for AI assistants like Claude.
 
-<!-- ![SpectraSight screenshot](docs/screenshot.png) -->
+![SpectraSight screenshot](docs/screenshot.png)
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌─────────────┐
+┌──────────────┐     ┌─────────────┐
 │  Angular SPA │     │  MCP Server │
-│  (frontend/) │     │ (mcp-server/)│
+│  (frontend/) │     │(mcp-server/)│
 └──────┬───────┘     └──────┬──────┘
        │                    │
        └────────┬───────────┘
                 │ REST / JSON
-        ┌───────▼────────┐
+        ┌───────▼─────────┐
         │  IRIS REST API  │
         │    (src/)       │
         └───────┬─────────┘
                 │
-        ┌───────▼────────┐
-        │  IRIS %Persistent│
+        ┌───────▼─────────┐
+        │ IRIS %Persistent│
         │   Data Layer    │
         └─────────────────┘
 ```
