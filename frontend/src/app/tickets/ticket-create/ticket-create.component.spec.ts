@@ -5,6 +5,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { TicketCreateComponent } from './ticket-create.component';
 import { TicketService } from '../ticket.service';
+import { UserMappingService } from '../../core/settings/users/user-mapping.service';
 import { Ticket } from '../ticket.model';
 import { ApiResponse } from '../../shared/models/api-response.model';
 
@@ -337,6 +338,38 @@ describe('TicketCreateComponent', () => {
     const assigneeInput = fixture.nativeElement.querySelector('input[formControlName="assignee"]');
     expect(assigneeInput).toBeFalsy();
   });
+
+  // Story 6.3 AC#6: Assignee dropdown populated from active user mappings
+  it('should populate activeUserNames from UserMappingService', () => {
+    // Flush all pending /api/users requests (ensureLoaded from ngOnInit) with mock user data
+    const userReqs = httpMock.match(r => r.url.includes('/api/users') && r.method === 'GET');
+    const mockUsersResponse = {
+      data: [
+        { id: 1, irisUsername: '_SYSTEM', displayName: 'System Admin', isActive: true, createdAt: '', updatedAt: '' },
+        { id: 2, irisUsername: 'bob', displayName: 'Bob Dev', isActive: true, createdAt: '', updatedAt: '' },
+        { id: 3, irisUsername: 'inactive', displayName: 'Gone User', isActive: false, createdAt: '', updatedAt: '' },
+      ],
+      total: 3, page: 1, pageSize: 100, totalPages: 1,
+    };
+    userReqs.forEach(r => r.flush(mockUsersResponse));
+
+    expect(component.activeUserNames()).toEqual(['System Admin', 'Bob Dev']);
+  });
+
+  // Story 6.3 AC#6: Assignee selected value is sent in create request
+  it('should include assignee display name in create request when selected', fakeAsync(() => {
+    spyOn(router, 'navigate');
+    component.form.controls.title.setValue('Assigned ticket');
+    component.form.controls.type.setValue('task');
+    component.form.controls.assignee.setValue('System Admin');
+    component.onSubmit();
+
+    const req = httpMock.expectOne(r => r.method === 'POST');
+    expect(req.request.body.assignee).toBe('System Admin');
+
+    req.flush({ data: { ...MOCK_CREATED_TICKET, type: 'task', title: 'Assigned ticket', assignee: 'System Admin' } });
+    tick(3000);
+  }));
 
   it('should clear selectedParent when parentSearch input is emptied', () => {
     const mockParent: Ticket = {

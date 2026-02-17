@@ -7,6 +7,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { TicketDetailComponent } from './ticket-detail.component';
 import { TicketService } from '../ticket.service';
+import { UserMappingService } from '../../core/settings/users/user-mapping.service';
 import { Ticket } from '../ticket.model';
 
 const MOCK_BUG: Ticket = {
@@ -398,6 +399,24 @@ describe('TicketDetailComponent', () => {
     // Verify it uses dropdown mode (arrow_drop_down icon) not freeText mode (edit icon)
     const dropdownIcon = assigneeDropdown.querySelector('.field-dropdown-icon');
     expect(dropdownIcon?.textContent?.trim()).toBe('arrow_drop_down');
+  });
+
+  // Story 6.3 AC#1: Assignee dropdown populated from active user mappings via service
+  it('should populate assignee dropdown with active user names from service', () => {
+    fixture.detectChanges();
+    // Flush all pending /api/users requests (ensureLoaded from constructor) with mock user data
+    const userReqs = httpMock.match(r => r.url.includes('/api/users') && r.method === 'GET');
+    const mockUsersResponse = {
+      data: [
+        { id: 1, irisUsername: '_SYSTEM', displayName: 'System Admin', isActive: true, createdAt: '', updatedAt: '' },
+        { id: 2, irisUsername: 'bob', displayName: 'Bob Dev', isActive: true, createdAt: '', updatedAt: '' },
+        { id: 3, irisUsername: 'inactive', displayName: 'Inactive User', isActive: false, createdAt: '', updatedAt: '' },
+      ],
+      total: 3, page: 1, pageSize: 100, totalPages: 1,
+    };
+    userReqs.forEach(r => r.flush(mockUsersResponse));
+
+    expect(component.activeUserNames()).toEqual(['System Admin', 'Bob Dev']);
   });
 
   // Timestamps with tooltip

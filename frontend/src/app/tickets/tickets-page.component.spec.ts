@@ -7,6 +7,7 @@ import { Subject } from 'rxjs';
 import { convertToParamMap, ParamMap } from '@angular/router';
 import { TicketsPageComponent } from './tickets-page.component';
 import { TicketService } from './ticket.service';
+import { UserMappingService } from '../core/settings/users/user-mapping.service';
 
 describe('TicketsPageComponent', () => {
   let component: TicketsPageComponent;
@@ -361,6 +362,51 @@ describe('TicketsPageComponent', () => {
     flushInitRequests();
     expect(component.assigneeOptions).toBeDefined();
     expect(Array.isArray(component.assigneeOptions())).toBeTrue();
+  });
+
+  // Story 6.3 AC#5: distinctAssignees returns mapped user names when available
+  it('should return mapped user names in distinctAssignees when user mappings are loaded', () => {
+    fixture.detectChanges();
+    flushProjectsRequest();
+
+    // Flush all /api/users requests from ensureLoaded() with mock user data
+    const userReqs = httpMock.match(r => r.url.includes('/api/users') && r.method === 'GET');
+    const mockUsersResponse = {
+      data: [
+        { id: 1, irisUsername: '_SYSTEM', displayName: 'System Admin', isActive: true, createdAt: '', updatedAt: '' },
+        { id: 2, irisUsername: 'bob', displayName: 'Bob Dev', isActive: true, createdAt: '', updatedAt: '' },
+      ],
+      total: 2, page: 1, pageSize: 100, totalPages: 1,
+    };
+    userReqs.forEach(r => r.flush(mockUsersResponse));
+
+    // Load tickets with different assignees
+    const ticketReq = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    ticketReq.flush({
+      data: [
+        { id: '1', type: 'bug', title: 'Bug', status: 'Open', priority: 'High', assignee: 'alice', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+      ],
+      total: 1, page: 1, pageSize: 100, totalPages: 1,
+    });
+
+    // Should use mapped user names, not ticket assignees
+    expect(component.distinctAssignees()).toEqual(['System Admin', 'Bob Dev']);
+  });
+
+  // Story 6.3 AC#5: distinctAssignees falls back to ticket assignees when no mappings
+  it('should fall back to ticket assignees when no user mappings exist', () => {
+    fixture.detectChanges();
+    flushProjectsRequest();
+    const ticketReq = httpMock.expectOne(r => r.url.includes('/api/tickets'));
+    ticketReq.flush({
+      data: [
+        { id: '1', type: 'bug', title: 'Bug', status: 'Open', priority: 'High', assignee: 'charlie', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { id: '2', type: 'task', title: 'Task', status: 'Open', priority: 'Low', assignee: 'alice', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+      ],
+      total: 2, page: 1, pageSize: 100, totalPages: 1,
+    });
+
+    expect(component.distinctAssignees()).toEqual(['alice', 'charlie']);
   });
 
   it('should include project in URL sync', () => {

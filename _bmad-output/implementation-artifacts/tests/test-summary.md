@@ -1405,3 +1405,87 @@ No IRIS ObjectScript tests needed. Story 5.4 is entirely frontend (Angular). The
 - 1 unrelated warning remains: `TicketCreateComponent should not submit when form is invalid` (pre-existing, not from Story 6.2)
 - Added 8 new tests covering error paths and missing AC coverage gaps identified during QA review
 - No E2E tests needed — this story is a CRUD form with standard Material table patterns
+
+---
+
+## Story 6.3: Assignee Dropdowns from Mapped Users
+
+**Date:** 2026-02-16
+**Test Framework:** Angular 18 + Jasmine 5.2 + Karma (ChromeHeadless)
+**Story:** Assignee dropdowns populated from mapped users instead of free text
+
+## Generated Tests
+
+### Unit Tests (Angular Component/Service)
+
+#### New Tests Added by QA
+
+- [x] `TicketDetailComponent > should populate assignee dropdown with active user names from service` — Verifies `activeUserNames()` computed signal returns only active users' display names from `UserMappingService` (AC#1)
+- [x] `TicketCreateComponent > should populate activeUserNames from UserMappingService` — Verifies create form's `activeUserNames()` filters inactive users correctly (AC#6)
+- [x] `TicketCreateComponent > should include assignee display name in create request when selected` — Verifies selected assignee display name is sent in POST body (AC#6)
+- [x] `TicketsPageComponent > should return mapped user names in distinctAssignees when user mappings are loaded` — Verifies filter bar uses mapped user names over ticket-derived assignees (AC#5)
+- [x] `TicketsPageComponent > should fall back to ticket assignees when no user mappings exist` — Verifies fallback behavior when no mappings are loaded (AC#5)
+
+#### Pre-existing Tests from Dev + Code Review (verified passing)
+
+**UserMappingService (user-mapping.service.spec.ts)**
+- [x] `activeUsers > should filter to only active users`
+- [x] `activeUsers > should return empty array when no active users`
+- [x] `activeUserNames > should return display names of active users`
+- [x] `ensureLoaded > should call loadUsers if not yet loaded`
+- [x] `ensureLoaded > should not call loadUsers if already loaded`
+- [x] `ensureLoaded > should not call loadUsers if currently loading`
+- [x] `findByIrisUsername > should find user by IRIS username (case-insensitive)`
+- [x] `findByIrisUsername > should return undefined when no matching user`
+
+**TicketDetailComponent (ticket-detail.component.spec.ts)**
+- [x] `should have activeUserNames computed signal`
+- [x] `should render assignee dropdown without freeText mode`
+- [x] `should display assignee field dropdown`
+- [x] `should call updateTicketField for assignee change`
+
+**TicketCreateComponent (ticket-create.component.spec.ts)**
+- [x] `should have activeUserNames computed signal`
+- [x] `should render assignee as mat-select instead of text input`
+
+**TicketsPageComponent (tickets-page.component.spec.ts)**
+- [x] `should have assigneeOptions computed from user mappings`
+- [x] `should compute distinct assignees from tickets`
+
+**SidenavComponent (sidenav.component.spec.ts)**
+- [x] `should set My Tickets queryParams to display name when user mapping exists` (AC#3)
+- [x] `should set My Tickets action when no user mapping exists` (AC#4)
+- [x] `should show snackbar when My Tickets is clicked with no mapping` (AC#4)
+- [x] `should navigate to /settings when snackbar action is clicked` (AC#4)
+- [x] `should match IRIS username case-insensitively` (AC#3)
+- [x] `should return null display name when username is empty`
+
+## Coverage
+
+### By Acceptance Criteria
+
+| AC | Description | Tests | Status |
+|----|------------|-------|--------|
+| AC#1 | Assignee dropdown populated from GET /api/users?isActive=true | 3 (detail computed, service filter, service names) | Covered |
+| AC#2 | Assignee selection sets ticket's assignee to display name | 2 (onFieldChanged assignee, detail dropdown mode) | Covered |
+| AC#3 | My Tickets resolves current user via IRIS username mapping | 2 (display name queryParams, case-insensitive match) | Covered |
+| AC#4 | No mapping shows info message with Settings link | 3 (action set, snackbar shown, navigate to /settings) | Covered |
+| AC#5 | Filter bar assignee populated from active user mappings | 3 (assigneeOptions computed, mapped names, fallback) | Covered |
+| AC#6 | Ticket creation assignee dropdown from active user mappings | 3 (mat-select rendered, activeUserNames, POST body) | Covered |
+
+### By Component
+
+- **UserMappingService:** 8 Story 6.3 tests — `activeUsers`, `activeUserNames`, `ensureLoaded`, `findByIrisUsername`
+- **TicketDetailComponent:** 3 Story 6.3 tests — computed signal, dropdown mode, populated options
+- **TicketCreateComponent:** 4 Story 6.3 tests — computed signal, mat-select rendering, populated options, POST body
+- **TicketsPageComponent:** 3 Story 6.3 tests — `assigneeOptions` computed, mapped names in `distinctAssignees`, fallback behavior
+- **SidenavComponent:** 6 Story 6.3 tests — My Tickets resolution, no-mapping snackbar, navigation, case-insensitive matching
+
+### QA Notes
+
+- All 490 Angular tests pass (490/490 SUCCESS, 0 FAILED)
+- Added 5 new tests strengthening AC coverage for Story 6.3 (dropdown population from service, create request body, filter bar fallback)
+- Pre-existing tests from dev + code review phases already covered signal existence and basic rendering
+- 1 pre-existing Jasmine warning remains: `TicketCreateComponent should not submit when form is invalid` (has no expectations — pre-existing, not from this story)
+- No E2E tests needed — this story modifies existing Angular form controls with standard Material component patterns
+- No IRIS/backend changes in this story (REST API completed in Story 6.1)
